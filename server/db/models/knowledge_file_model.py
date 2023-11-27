@@ -38,3 +38,39 @@ class FileDocModel(Base):
 
     def __repr__(self):
         return f"<FileDoc(id='{self.id}', kb_name='{self.kb_name}', file_name='{self.file_name}', doc_id='{self.doc_id}', metadata='{self.meta_data}')>"
+
+
+class FileAnswerModel(Base):
+    __tablename__ = 'file_answer'
+    id = Column(Integer, primary_key=True, autoincrement=True, comment='ID')
+    kb_name = Column(String(50), comment='知识库名称')
+    file_name = Column(String(255), comment='文件名称')
+    answer_id = Column(String(50), comment="答案ID")
+    meta_data = Column(JSON, default={})
+
+    def __repr__(self):
+        return f"<FileDoc(id='{self.id}', kb_name='{self.kb_name}', file_name='{self.file_name}', doc_id='{self.doc_id}', metadata='{self.meta_data}')>"
+
+
+class AnswerQuestionModel(Base):
+    __tablename__ = 'answer_question'
+    id = Column(Integer, primary_key=True, autoincrement=True, comment='ID')
+    kb_name = Column(String(50), comment='知识库名称')
+    answer_id = Column(String(50), comment='答案ID')
+    question_id = Column(String(50), comment="问题ID")
+    meta_data = Column(JSON, default={})
+
+    def __repr__(self):
+        return f"<FileDoc(id='{self.id}', kb_name='{self.kb_name}', file_name='{self.file_name}', doc_id='{self.doc_id}', metadata='{self.meta_data}')>"
+
+
+class AnswerQueryModel(Base):
+    __tablename__ = 'answer_query'
+    id = Column(Integer, primary_key=True, autoincrement=True, comment='ID')
+    kb_name = Column(String(50), comment='知识库名称')
+    answer_id = Column(String(50), comment='答案ID')
+    query_id = Column(String(50), comment="提问ID")
+    meta_data = Column(JSON, default={})
+
+    def __repr__(self):
+        return f"<FileDoc(id='{self.id}', kb_name='{self.kb_name}', file_name='{self.file_name}', doc_id='{self.doc_id}', metadata='{self.meta_data}')>"

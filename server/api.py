@@ -12,15 +12,13 @@ import uvicorn
 from fastapi import Body
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import RedirectResponse
-from server.chat.chat import chat
-from server.chat.openai_chat import openai_chat
-from server.chat.search_engine_chat import search_engine_chat
-from server.chat.completion import completion
-from server.chat.feedback import chat_feedback
+# from server.chat.chat import chat
+# from server.chat.openai_chat import openai_chat
+# from server.chat.search_engine_chat import search_engine_chat
+# from server.chat.completion import completion
+# from server.chat.feedback import chat_feedback
 from server.embeddings_api import embed_texts_endpoint
-from server.llm_api import (list_running_models, list_config_models,
-                            change_llm_model, stop_llm_model,
-                            get_model_config, list_search_engines)
+from server.llm_api import (list_running_models, list_config_models, change_llm_model, stop_llm_model,)
 from server.utils import (BaseResponse, ListResponse, FastAPI, MakeFastAPIOffline,
                           get_server_configs, get_prompt_template)
 from typing import List, Literal
@@ -59,25 +57,25 @@ def mount_app_routes(app: FastAPI, run_mode: str = None):
             summary="swagger 文档")(document)
 
     # Tag: Chat
-    app.post("/chat/fastchat",
-             tags=["Chat"],
-             summary="与llm模型对话(直接与fastchat api对话)",
-             )(openai_chat)
+    # app.post("/chat/fastchat",
+    #          tags=["Chat"],
+    #          summary="与llm模型对话(直接与fastchat api对话)",
+    #          )(openai_chat)
 
-    app.post("/chat/chat",
-             tags=["Chat"],
-             summary="与llm模型对话(通过LLMChain)",
-             )(chat)
+    # app.post("/chat/chat",
+    #          tags=["Chat"],
+    #          summary="与llm模型对话(通过LLMChain)",
+    #          )(chat)
 
-    app.post("/chat/search_engine_chat",
-             tags=["Chat"],
-             summary="与搜索引擎对话",
-             )(search_engine_chat)
+    # app.post("/chat/search_engine_chat",
+    #          tags=["Chat"],
+    #          summary="与搜索引擎对话",
+    #          )(search_engine_chat)
 
-    app.post("/chat/feedback",
-             tags=["Chat"],
-             summary="返回llm模型对话评分",
-             )(chat_feedback)
+    # app.post("/chat/feedback",
+    #          tags=["Chat"],
+    #          summary="返回llm模型对话评分",
+    #          )(chat_feedback)
 
     # 知识库相关接口
     mount_knowledge_routes(app)
@@ -93,10 +91,10 @@ def mount_app_routes(app: FastAPI, run_mode: str = None):
              summary="列出configs已配置的模型",
              )(list_config_models)
 
-    app.post("/llm_model/get_model_config",
-             tags=["LLM Model Management"],
-             summary="获取模型配置（合并后）",
-             )(get_model_config)
+    # app.post("/llm_model/get_model_config",
+    #          tags=["LLM Model Management"],
+    #          summary="获取模型配置（合并后）",
+    #          )(get_model_config)
 
     app.post("/llm_model/stop",
              tags=["LLM Model Management"],
@@ -114,47 +112,48 @@ def mount_app_routes(app: FastAPI, run_mode: str = None):
              summary="获取服务器原始配置信息",
              )(get_server_configs)
 
-    app.post("/server/list_search_engines",
-             tags=["Server State"],
-             summary="获取服务器支持的搜索引擎",
-             )(list_search_engines)
+    # app.post("/server/list_search_engines",
+    #          tags=["Server State"],
+    #          summary="获取服务器支持的搜索引擎",
+    #          )(list_search_engines)
 
     @app.post("/server/get_prompt_template",
-             tags=["Server State"],
-             summary="获取服务区配置的 prompt 模板")
+              tags=["Server State"],
+              summary="获取服务区配置的 prompt 模板")
     def get_server_prompt_template(
-        type: Literal["llm_chat", "knowledge_base_chat", "search_engine_chat", "agent_chat"]=Body("llm_chat", description="模板类型，可选值：llm_chat，knowledge_base_chat，search_engine_chat，agent_chat"),
-        name: str = Body("default", description="模板名称"),
+            type: Literal["llm_chat", "knowledge_base_chat", "search_engine_chat", "agent_chat"] = Body("llm_chat",
+                                                                                                        description="模板类型，可选值：llm_chat，knowledge_base_chat，search_engine_chat，agent_chat"),
+            name: str = Body("default", description="模板名称"),
     ) -> str:
         return get_prompt_template(type=type, name=name)
 
     # 其它接口
-    app.post("/other/completion",
-             tags=["Other"],
-             summary="要求llm模型补全(通过LLMChain)",
-             )(completion)
+    # app.post("/other/completion",
+    #          tags=["Other"],
+    #          summary="要求llm模型补全(通过LLMChain)",
+    #          )(completion)
 
     app.post("/other/embed_texts",
-            tags=["Other"],
-            summary="将文本向量化，支持本地模型和在线模型",
-            )(embed_texts_endpoint)
+             tags=["Other"],
+             summary="将文本向量化，支持本地模型和在线模型",
+             )(embed_texts_endpoint)
 
 
 def mount_knowledge_routes(app: FastAPI):
-    from server.chat.knowledge_base_chat import knowledge_base_chat
-    from server.chat.agent_chat import agent_chat
+    # from server.chat.knowledge_base_chat import knowledge_base_chat
+    # from server.chat.agent_chat import agent_chat
     from server.knowledge_base.kb_api import list_kbs, create_kb, delete_kb
-    from server.knowledge_base.kb_doc_api import (list_files, upload_docs, delete_docs,
-                                                update_docs, download_doc, recreate_vector_store,
-                                                search_docs, DocumentWithScore, update_info)
+    from server.knowledge_base.kb_doc_api import (list_files, upload_docs, delete_docs, update_docs, download_doc,
+                                                  recreate_vector_store, search_docs, DocumentWithScore, update_info,
+                                                  download_faq)
 
-    app.post("/chat/knowledge_base_chat",
-             tags=["Chat"],
-             summary="与知识库对话")(knowledge_base_chat)
+    # app.post("/chat/knowledge_base_chat",
+    #          tags=["Chat"],
+    #          summary="与知识库对话")(knowledge_base_chat)
 
-    app.post("/chat/agent_chat",
-             tags=["Chat"],
-             summary="与agent对话")(agent_chat)
+    # app.post("/chat/agent_chat",
+    #          tags=["Chat"],
+    #          summary="与agent对话")(agent_chat)
 
     # Tag: Knowledge Base Management
     app.get("/knowledge_base/list_knowledge_bases",
@@ -213,6 +212,10 @@ def mount_knowledge_routes(app: FastAPI):
             tags=["Knowledge Base Management"],
             summary="下载对应的知识文件")(download_doc)
 
+    app.get("/knowledge_base/download_faq",
+            tags=["Knowledge Base Management"],
+            summary="下载对应的知识文件FAQ")(download_faq)
+
     app.post("/knowledge_base/recreate_vector_store",
              tags=["Knowledge Base Management"],
              summary="根据content中文档重建向量库，流式输出处理进度。"
@@ -235,7 +238,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog='langchain-ChatGLM',
                                      description='About langchain-ChatGLM, local knowledge based ChatGLM with langchain'
                                                  ' ｜ 基于本地知识库的 ChatGLM 问答')
-    parser.add_argument("--host", type=str, default="0.0.0.0")
+    parser.add_argument("--host", type=str, default="localhost")
     parser.add_argument("--port", type=int, default=7861)
     parser.add_argument("--ssl_keyfile", type=str)
     parser.add_argument("--ssl_certfile", type=str)

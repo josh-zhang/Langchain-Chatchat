@@ -17,6 +17,7 @@ from configs import (
     VECTOR_SEARCH_TOP_K,
     SEARCH_ENGINE_TOP_K,
     HTTPX_DEFAULT_TIMEOUT,
+    SEARCH_ENHANCE,
     logger, log_verbose,
 )
 import httpx
@@ -313,7 +314,7 @@ class ApiRequest:
         print(f"received input message:")
         pprint(data)
 
-        response = self.post("/chat/chat", json=data, stream=True, **kwargs)
+        response = self.post("http://127.0.0.1:8000/v2/chat/completions", json=data, stream=True, **kwargs)
         return self._httpx_stream2generator(response, as_json=True)
 
     def agent_chat(
@@ -378,7 +379,7 @@ class ApiRequest:
         pprint(data)
 
         response = self.post(
-            "/chat/knowledge_base_chat",
+            "http://127.0.0.1:8000/v2/kbchat/completions",
             json=data,
             stream=True,
         )
@@ -441,6 +442,7 @@ class ApiRequest:
         knowledge_base_name: str,
         vector_store_type: str = DEFAULT_VS_TYPE,
         embed_model: str = EMBEDDING_MODEL,
+        search_enhance: bool = SEARCH_ENHANCE,
     ):
         '''
         对应api.py/knowledge_base/create_knowledge_base接口
@@ -449,6 +451,7 @@ class ApiRequest:
             "knowledge_base_name": knowledge_base_name,
             "vector_store_type": vector_store_type,
             "embed_model": embed_model,
+            "search_enhance": search_enhance,
         }
 
         response = self.post(
@@ -688,20 +691,8 @@ class ApiRequest:
             if not running_models:
                 return "", False
 
-            model = ""
-            for m in LLM_MODELS:
-                if m not in running_models:
-                    continue
-                is_local = not running_models[m].get("online_api")
-                if local_first and not is_local:
-                    continue
-                else:
-                    model = m
-                    break
-
-            if not model: # LLM_MODELS中配置的模型都不在running_models里
-                model = list(running_models)[0]
-            is_local = not running_models[model].get("online_api")
+            model = list(running_models)[0]
+            is_local = True
             return model, is_local
 
         async def ret_async():

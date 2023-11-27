@@ -34,8 +34,17 @@ def search_docs(
     kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
     if kb is None:
         return []
-    docs = kb.search_docs(query, top_k, score_threshold)
-    data = [DocumentWithScore(**x[0].dict(), score=x[1]) for x in docs]
+    docs_data = kb.search_docs(query, top_k, score_threshold)
+    docs_data = [DocumentWithScore(**x[0].dict(), score=x[1]) for x in docs_data]
+
+    query_data = kb.search_query(query, top_k, score_threshold)
+    query_data = [DocumentWithScore(**x[0].dict(), score=x[1]) for x in query_data]
+
+    question_data = kb.search_question(query, top_k, score_threshold)
+    question_data = [DocumentWithScore(**x[0].dict(), score=x[1]) for x in question_data]
+
+    data = merge_data(docs_data, query_data, question_data)
+
     return data
 
 
@@ -331,12 +340,54 @@ def download_doc(
                 content_disposition_type=content_disposition_type,
             )
     except Exception as e:
-        msg = f"{kb_file.filename} 读取文件失败，错误信息是：{e}"
+        msg = f"{file_name} 读取文件失败，错误信息是：{e}"
         logger.error(f'{e.__class__.__name__}: {msg}',
                      exc_info=e if log_verbose else None)
         return BaseResponse(code=500, msg=msg)
 
-    return BaseResponse(code=500, msg=f"{kb_file.filename} 读取文件失败")
+    return BaseResponse(code=500, msg=f"{file_name} 读取文件失败")
+
+
+def download_faq(
+        knowledge_base_name: str = Query(..., description="知识库名称", examples=["samples"]),
+        file_name: str = Query(..., description="文件名称", examples=["test.txt"]),
+        preview: bool = Query(False, description="是：浏览器内预览；否：下载"),
+        faq_prefix="faq_"
+):
+    """
+    下载知识库文档对应FAQ
+    """
+    if not validate_kb_name(knowledge_base_name):
+        return BaseResponse(code=403, msg="Don't attack me")
+
+    kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
+    if kb is None:
+        return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}")
+
+    if preview:
+        content_disposition_type = "inline"
+    else:
+        content_disposition_type = None
+
+    file_name = f"{faq_prefix}{file_name}"
+
+    try:
+        kb_file = KnowledgeFile(filename=file_name, knowledge_base_name=knowledge_base_name)
+
+        if os.path.exists(kb_file.filepath):
+            return FileResponse(
+                path=kb_file.filepath,
+                filename=kb_file.filename,
+                media_type="multipart/form-data",
+                content_disposition_type=content_disposition_type,
+            )
+    except Exception as e:
+        msg = f"{file_name} 读取文件失败，错误信息是：{e}"
+        logger.error(f'{e.__class__.__name__}: {msg}',
+                     exc_info=e if log_verbose else None)
+        return BaseResponse(code=500, msg=msg)
+
+    return BaseResponse(code=500, msg=f"{file_name} 读取文件失败")
 
 
 def recreate_vector_store(

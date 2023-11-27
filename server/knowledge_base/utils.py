@@ -17,10 +17,11 @@ from langchain.docstore.document import Document
 from langchain.text_splitter import TextSplitter
 from pathlib import Path
 import json
-from server.utils import run_in_thread_pool, get_model_worker_config
+from server.utils import run_in_thread_pool
 import io
 from typing import List, Union, Callable, Dict, Optional, Tuple, Generator
 import chardet
+from unstructured.documents.elements import Element, Text, ElementMetadata, Title
 
 
 def validate_kb_name(knowledge_base_id: str) -> bool:
@@ -69,7 +70,8 @@ def list_files_from_folder(kb_name: str):
     return result
 
 
-LOADER_DICT = {"UnstructuredHTMLLoader": ['.html'],
+LOADER_DICT = {"CustomHTMLLoader": ['.html'],
+               "UnstructuredHTMLLoader": ['.ohtml'],
                "UnstructuredMarkdownLoader": ['.md'],
                "CustomJSONLoader": [".json"],
                "CSVLoader": [".csv"],
@@ -82,6 +84,165 @@ LOADER_DICT = {"UnstructuredHTMLLoader": ['.html'],
                                           '.ppt', '.pptx', '.tsv'],
                }
 SUPPORTED_EXTS = [ext for sublist in LOADER_DICT.values() for ext in sublist]
+
+
+delimiter = " 之 "
+
+
+class CustomHTMLLoader(langchain.document_loaders.unstructured.UnstructuredFileLoader):
+
+    def load_content(self, file_path) -> List[Element]:
+        elements: List[Element] = []
+        file_path = "/opt/projects/Langchain-Chatchat/knowledge_base/考试试题/content/民生长城欧拉银联绿色低碳联名信用卡综合介绍.html"
+        last_modification_date = "20231121"
+        file_directory, file_name = os.path.split(file_path)
+        ext = os.path.splitext(file_name)[-1].lower()
+        file_name = file_name[:-len(ext)]
+
+        chapters_list = [
+            ("一、卡片基本介绍", [
+                ("产品名称", "民生长城欧拉银联绿色低碳联名信用卡", []),
+                ("发行范围", "全国", []),
+                ("卡片级别", "标准白金级别", []),
+                ("卡片有效期", "10年", []),
+                ("额度区间", "标准白金级别：10,000-100,000元", []),
+                ("账户类型", "人民币美元账户", []),
+                ("申请渠道", "网申渠道及线下手机APP渠道均可进件，同现有正常申请及审核流程。", []),
+                ("卡片品牌及币种", "银联品牌，人民币单币种", []),
+
+                ("卡片使用", """（一）虚拟银行：
+个人网上银行、手机银行（含信用卡版及总行版）、微信银行（含信用卡版及总行版）、短信银行均可以正常使用。
+（二）其他卡片功能及收费标准同民生标准卡（详见“010304-000171息费相关”）。""",
+                 [
+                     ("（一）虚拟银行",
+                      """个人网上银行、手机银行（含信用卡版及总行版）、微信银行（含信用卡版及总行版）、短信银行均可以正常使用。"""),
+                     ("", "（二）其他卡片功能及收费标准同民生标准卡（详见“010304-000171息费相关”）")
+                 ]
+                 ),
+                ("年费标准及年费政策",
+                 "主卡年费：600元/年；附属卡年费：300元/年。2022年12月31日（含）前，首年免年费，当年刷卡消费18笔或5万人民币（或等值外币），减免次年年费。",
+                 []),
+            ]),
+            ("二、卡片权益", [("增值服务", "增值服务权益与同级别民生标准信用卡相同。", [])]),
+            ("三、专属用卡权益", [
+                ("新户消费达标即送花加鲜花好礼", """（一）活动时间：产品上线日起至2022年12月31日（含首尾两日）
+（二）活动内容：活动期间，因申请民生长城欧拉银联绿色低碳联名信用卡而首次核卡成为民生信用卡主卡持卡人的新客户，核卡30天内（含）激活卡片并任意消费一笔，即可获取花加“悦花包月服务1个月”礼品1份，每位持卡人仅可参与一次权益活动。权益礼品限3000份，数量有限，先到先得。
+（三）活动流程简介：
+满足条件--获得资质--用资质兑换礼品券码1张--使用券码
+（四）活动细则：
+1、本活动限因成功申请民生长城欧拉银联绿色低碳联名信用卡而首次成为民生信用卡主卡持卡人的客户，且消费达标日期在2022年12月31日（含）前，消费交易均以交易记账日为准，部分消费并非实时到账，遇此情况不予特殊处理，附属卡交易不计入主卡达标交易统计范围。持民生信用卡销卡后重新申请的持卡人，不能参加此活动。
+2、资质及礼品
+（1）资质获得时间：满足活动条件后均会于达标后（不含当日）3个自然日内获得1个“民生长城欧拉银联绿色低碳联名信用卡新客首刷鲜花好礼”资质。
+（2）资质兑换礼品券码时间：获得资质后1个月内兑换有效，过期视为自动放弃，例如2022年8月18日兑换，2022年9月17日失效。
+（3）资质查询及礼品券码兑换路径：
+全民生活APP-精选-“福利社”-“全民领福利--产品权益”-“民生长城欧拉银联绿色低碳联名信用卡新客首刷鲜花好礼”。
+民生信用卡微信公众号-查账-我的特权-“全民领福利--产品权益”-“民生长城欧拉银联绿色低碳联名信用卡新客首刷鲜花好礼”。
+（4）兑换后礼品券码查询渠道：
+全民生活APP-精选-“福利社”-“我的福利库”-权益码查看券码信息
+民生信用卡微信公众号-查账-我的特权-“我的福利库”-权益码查看券码信息
+（5）礼品券码使用渠道：前往“FLOWERPLUS花加”微信小程序-我的-我的服务-兑换花卡，输入兑换码及收花人等相关信息后点击“确认兑换”即可完成兑换。
+（6）礼品券码使用规则：
+1）兑换码有效期：兑换码自领取之日起1年内有效，例如2022年8月18日兑换，2023年8月17日失效；
+2）本券不可转让，不做退换，不兑现金，不设找零，抵用金额不可开发票。
+3）兑换码由FLOWERPLUS花加提供，如针对兑换码的使用有疑问，客户可致电FLOWERPLUS花加客服电话4008885928（工作时间每日9:00-18:00，含周末及节假日）。
+3、客户参加本权益活动时所持民生长城欧拉银联绿色低碳联名信用卡产品须为正常激活状态，否则客户无法参与本权益活动。客户达标消费统计限民生长城欧拉银联绿色低碳联名信用卡。若使用账户下其他卡片消费，则不参与达标门槛统计。
+4、若在获赠礼品前，持卡人卡片或账户处于逾期、冻结等非正常状态，或在活动结束前销卡（户）的，本行有权取消其领奖资质，持卡人亦不得以此要求本行对其进行任何形式的补偿。
+5、本活动及未尽事宜仍受《中国民生银行信用卡（个人卡）领用合约》、《中国民生银行民生信用卡章程》以及其他相关文件约束。在法律法规允许的范围内，本活动最终解释权归中国民生银行信用卡中心所有，如客户在参与权益活动及信用卡产品使用过程中有任何问题可联系我中心在线客服进行咨询。
+6、持卡人参与本活动即视为理解并同意本活动细则，在法律法规许可范围内，中国民生银行信用卡中心保留变更、调整、终止本活动之权利并有权调整或变更本活动规则，活动内容及细则以民生信用卡官网公布为准。""",
+                 [
+                     ("（一）活动时间", "产品上线日起至2022年12月31日（含首尾两日）"),
+                     ("（二）活动内容",
+                      "活动期间，因申请民生长城欧拉银联绿色低碳联名信用卡而首次核卡成为民生信用卡主卡持卡人的新客户，核卡30天内（含）激活卡片并任意消费一笔，即可获取花加“悦花包月服务1个月”礼品1份，每位持卡人仅可参与一次权益活动。权益礼品限3000份，数量有限，先到先得。"),
+                     ("（三）活动流程简介", "满足条件--获得资质--用资质兑换礼品券码1张--使用券码"),
+                     ("（四）活动细则", """1、本活动限因成功申请民生长城欧拉银联绿色低碳联名信用卡而首次成为民生信用卡主卡持卡人的客户，且消费达标日期在2022年12月31日（含）前，消费交易均以交易记账日为准，部分消费并非实时到账，遇此情况不予特殊处理，附属卡交易不计入主卡达标交易统计范围。持民生信用卡销卡后重新申请的持卡人，不能参加此活动。
+2、资质及礼品
+（1）资质获得时间：满足活动条件后均会于达标后（不含当日）3个自然日内获得1个“民生长城欧拉银联绿色低碳联名信用卡新客首刷鲜花好礼”资质。
+（2）资质兑换礼品券码时间：获得资质后1个月内兑换有效，过期视为自动放弃，例如2022年8月18日兑换，2022年9月17日失效。
+（3）资质查询及礼品券码兑换路径：
+全民生活APP-精选-“福利社”-“全民领福利--产品权益”-“民生长城欧拉银联绿色低碳联名信用卡新客首刷鲜花好礼”。
+民生信用卡微信公众号-查账-我的特权-“全民领福利--产品权益”-“民生长城欧拉银联绿色低碳联名信用卡新客首刷鲜花好礼”。
+（4）兑换后礼品券码查询渠道：
+全民生活APP-精选-“福利社”-“我的福利库”-权益码查看券码信息
+民生信用卡微信公众号-查账-我的特权-“我的福利库”-权益码查看券码信息
+（5）礼品券码使用渠道：前往“FLOWERPLUS花加”微信小程序-我的-我的服务-兑换花卡，输入兑换码及收花人等相关信息后点击“确认兑换”即可完成兑换。
+（6）礼品券码使用规则：
+1）兑换码有效期：兑换码自领取之日起1年内有效，例如2022年8月18日兑换，2023年8月17日失效；
+2）本券不可转让，不做退换，不兑现金，不设找零，抵用金额不可开发票。
+3）兑换码由FLOWERPLUS花加提供，如针对兑换码的使用有疑问，客户可致电FLOWERPLUS花加客服电话4008885928（工作时间每日9:00-18:00，含周末及节假日）。
+3、客户参加本权益活动时所持民生长城欧拉银联绿色低碳联名信用卡产品须为正常激活状态，否则客户无法参与本权益活动。客户达标消费统计限民生长城欧拉银联绿色低碳联名信用卡。若使用账户下其他卡片消费，则不参与达标门槛统计。
+4、若在获赠礼品前，持卡人卡片或账户处于逾期、冻结等非正常状态，或在活动结束前销卡（户）的，本行有权取消其领奖资质，持卡人亦不得以此要求本行对其进行任何形式的补偿。
+5、本活动及未尽事宜仍受《中国民生银行信用卡（个人卡）领用合约》、《中国民生银行民生信用卡章程》以及其他相关文件约束。在法律法规允许的范围内，本活动最终解释权归中国民生银行信用卡中心所有，如客户在参与权益活动及信用卡产品使用过程中有任何问题可联系我中心在线客服进行咨询。
+6、持卡人参与本活动即视为理解并同意本活动细则，在法律法规许可范围内，中国民生银行信用卡中心保留变更、调整、终止本活动之权利并有权调整或变更本活动规则，活动内容及细则以民生信用卡官网公布为准。"""),
+                 ]
+                 )
+            ]
+             )
+        ]
+
+        for ii, chapter_tuple in enumerate(chapters_list):
+            chapter_number = ii + 1
+
+            chapter_title = file_name + delimiter + chapter_tuple[0]
+            chapter_title_ele = Title(text=chapter_title, metadata=ElementMetadata(filename=file_path,
+                                                                                   filetype="html",
+                                                                                   page_number=chapter_number))
+            chapter_title_ele.metadata.last_modified = last_modification_date
+            chapter_title_ele.metadata.category_depth = 0
+
+            elements.append(chapter_title_ele)
+
+            paragraphs = chapter_tuple[1]
+            for iii, paragraph_tuple in enumerate(paragraphs):
+                paragraph_title = chapter_tuple[0] + delimiter + paragraph_tuple[0]
+                paragraph_text = paragraph_tuple[1]
+                sub_paragraphs = paragraph_tuple[2]
+
+                paragraph_title_ele = Title(text=paragraph_title, metadata=ElementMetadata(filename=file_path,
+                                                                                           filetype="html",
+                                                                                           page_number=chapter_number))
+                paragraph_title_ele.metadata.parent_id = chapter_title_ele.id
+                paragraph_title_ele.metadata.last_modified = last_modification_date
+                paragraph_title_ele.metadata.category_depth = 1
+
+                elements.append(paragraph_title_ele)
+
+                if sub_paragraphs:
+                    for iii, sub_paragraph_tuple in enumerate(sub_paragraphs):
+                        sub_paragraph_title = paragraph_tuple[0] + delimiter + sub_paragraph_tuple[0]
+                        sub_paragraph_text = sub_paragraph_tuple[1]
+
+                        sub_paragraph_title_ele = Title(text=sub_paragraph_title,
+                                                        metadata=ElementMetadata(filename=file_path,
+                                                                                 filetype="html",
+                                                                                 page_number=chapter_number))
+                        sub_paragraph_title_ele.metadata.parent_id = paragraph_title_ele.id
+                        sub_paragraph_title_ele.metadata.last_modified = last_modification_date
+                        sub_paragraph_title_ele.metadata.category_depth = 2
+
+                        sub_paragraph_text_ele = Text(text=sub_paragraph_text,
+                                                      metadata=ElementMetadata(filename=file_path,
+                                                                               filetype="html",
+                                                                               page_number=chapter_number))
+                        sub_paragraph_text_ele.metadata.parent_id = paragraph_title_ele.id
+                        sub_paragraph_text_ele.metadata.last_modified = last_modification_date
+
+                        elements.append(sub_paragraph_title_ele)
+                        elements.append(sub_paragraph_text_ele)
+                else:
+                    paragraph_text_ele = Text(text=paragraph_text, metadata=ElementMetadata())
+                    paragraph_title_ele.metadata.parent_id = chapter_title_ele.id
+                    paragraph_title_ele.metadata.last_modified = last_modification_date
+
+                    elements.append(paragraph_text_ele)
+
+        return elements
+
+    def _get_elements(self) -> List:
+        """Convert given content to documents."""
+        return self.load_content(self.file_path)
+
+
+langchain.document_loaders.CustomHTMLLoader = CustomHTMLLoader
 
 
 class CustomJSONLoader(langchain.document_loaders.JSONLoader):
@@ -184,6 +345,8 @@ def get_loader(loader_name: str, file_path_or_content: Union[str, bytes, io.Stri
         loader = DocumentLoader(file_path_or_content, mode="elements")
     elif loader_name == "UnstructuredHTMLLoader":
         loader = DocumentLoader(file_path_or_content, mode="elements")
+    elif loader_name == "CustomHTMLLoader":
+        loader = DocumentLoader(file_path_or_content)
     else:
         loader = DocumentLoader(file_path_or_content)
     return loader
@@ -228,10 +391,10 @@ def make_text_splitter(
                         chunk_overlap=chunk_overlap
                     )
             elif text_splitter_dict[splitter_name]["source"] == "huggingface":  ## 从huggingface加载
-                if text_splitter_dict[splitter_name]["tokenizer_name_or_path"] == "":
-                    config = get_model_worker_config(llm_model)
-                    text_splitter_dict[splitter_name]["tokenizer_name_or_path"] = \
-                        config.get("model_path")
+                # if text_splitter_dict[splitter_name]["tokenizer_name_or_path"] == "":
+                #     config = get_model_worker_config(llm_model)
+                #     text_splitter_dict[splitter_name]["tokenizer_name_or_path"] = \
+                #         config.get("model_path")
 
                 if text_splitter_dict[splitter_name]["tokenizer_name_or_path"] == "gpt2":
                     from transformers import GPT2TokenizerFast
@@ -319,9 +482,12 @@ class KnowledgeFile:
             else:
                 docs = text_splitter.split_documents(docs)
 
-        print(f"文档切分示例：{docs[0]}")
         if zh_title_enhance:
             docs = func_zh_title_enhance(docs)
+
+        print(f"文档切分示例：{docs[0].page_content}")
+        print(docs[0].metadata)
+
         self.splited_docs = docs
         return self.splited_docs
 

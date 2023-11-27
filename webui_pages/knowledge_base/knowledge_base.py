@@ -9,7 +9,7 @@ from typing import Literal, Dict, Tuple
 from configs import (kbs_config,
                     EMBEDDING_MODEL, DEFAULT_VS_TYPE,
                     CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE)
-from server.utils import list_embed_models, list_online_embed_models
+from server.utils import list_embed_models
 import os
 import time
 
@@ -103,10 +103,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 key="vs_type",
             )
 
-            if is_lite:
-                embed_models = list_online_embed_models()
-            else:
-                embed_models = list_embed_models() + list_online_embed_models()
+            embed_models = list_embed_models()
 
             embed_model = cols[1].selectbox(
                 "Embedding 模型",
@@ -114,6 +111,8 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 index=embed_models.index(EMBEDDING_MODEL),
                 key="embed_model",
             )
+
+            search_enhance = st.checkbox("开启检索加强 (BM25/编辑距离)", True)
 
             submit_create_kb = st.form_submit_button(
                 "新建",
@@ -131,6 +130,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                     knowledge_base_name=kb_name,
                     vector_store_type=vs_type,
                     embed_model=embed_model,
+                    search_enhance=search_enhance,
                 )
                 st.toast(ret.get("msg", " "))
                 st.session_state["selected_kb_name"] = kb_name

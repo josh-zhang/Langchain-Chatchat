@@ -11,40 +11,40 @@ from typing import List, Dict, Optional
 
 
 class FaissKBService(KBService):
-    vs_path: str
     kb_path: str
-    vector_name: str = None
- 
+
     def vs_type(self) -> str:
         return SupportedVSType.FAISS
 
-    def get_vs_path(self):
-        return get_vs_path(self.kb_name, self.vector_name)
+    def get_vs_path(self, vector_name):
+        return get_vs_path(self.kb_name, vector_name)
 
     def get_kb_path(self):
         return get_kb_path(self.kb_name)
 
-    def load_vector_store(self) -> ThreadSafeFaiss:
+    def load_vector_store(self, vector_name) -> ThreadSafeFaiss:
         return kb_faiss_pool.load_vector_store(kb_name=self.kb_name,
-                                               vector_name=self.vector_name,
+                                               vector_name=vector_name,
                                                embed_model=self.embed_model)
 
-    def save_vector_store(self):
-        self.load_vector_store().save(self.vs_path)
+    def save_vector_store(self, vector_name):
+        vs_path = self.get_vs_path(vector_name)
+        self.load_vector_store(vector_name).save(vs_path)
 
     def get_doc_by_id(self, id: str) -> Optional[Document]:
-        with self.load_vector_store().acquire() as vs:
+        with self.load_vector_store("docs").acquire() as vs:
             return vs.docstore._dict.get(id)
 
     def do_init(self):
-        self.vector_name = self.vector_name or self.embed_model
+        # self.vector_name = self.vector_name or self.embed_model
         self.kb_path = self.get_kb_path()
-        self.vs_path = self.get_vs_path()
+        # self.vs_path = self.get_vs_path()
 
-    def do_create_kb(self):
-        if not os.path.exists(self.vs_path):
-            os.makedirs(self.vs_path)
-        self.load_vector_store()
+    def do_create_kb(self, vector_name):
+        vs_path = self.get_vs_path(vector_name)
+        if not os.path.exists(vs_path):
+            os.makedirs(vs_path)
+        self.load_vector_store(vector_name)
 
     def do_drop_kb(self):
         self.clear_vs()
@@ -53,28 +53,70 @@ class FaissKBService(KBService):
         except Exception:
             ...
 
-    def do_search(self,
-                  query: str,
-                  top_k: int,
-                  score_threshold: float = SCORE_THRESHOLD,
-                  ) -> List[Document]:
+    def do_search_docs(self,
+                       query: str,
+                       top_k: int,
+                       score_threshold: float = SCORE_THRESHOLD,
+                       ) -> List[Document]:
         embed_func = EmbeddingsFunAdapter(self.embed_model)
         embeddings = embed_func.embed_query(query)
-        with self.load_vector_store().acquire() as vs:
+
+        with self.load_vector_store("docs").acquire() as vs:
             docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=score_threshold)
+
+        return docs
+
+    def do_search_query(self,
+                        query: str,
+                        top_k: int,
+                        score_threshold: float = SCORE_THRESHOLD,
+                        ) -> List[Document]:
+        embed_func = EmbeddingsFunAdapter(self.embed_model)
+        embeddings = embed_func.embed_query(query)
+
+        with self.load_vector_store("query").acquire() as vs:
+            docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=score_threshold)
+
+        return docs
+
+    def do_search_question(self,
+                           query: str,
+                           top_k: int,
+                           score_threshold: float = SCORE_THRESHOLD,
+                           ) -> List[Document]:
+        embed_func = EmbeddingsFunAdapter(self.embed_model)
+        embeddings = embed_func.embed_query(query)
+
+        with self.load_vector_store("question").acquire() as vs:
+            docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=score_threshold)
+
+        return docs
+
+    def do_search_answer(self,
+                         query: str,
+                         top_k: int,
+                         score_threshold: float = SCORE_THRESHOLD,
+                         ) -> List[Document]:
+        embed_func = EmbeddingsFunAdapter(self.embed_model)
+        embeddings = embed_func.embed_query(query)
+
+        with self.load_vector_store("answer").acquire() as vs:
+            docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=score_threshold)
+
         return docs
 
     def do_add_doc(self,
                    docs: List[Document],
                    **kwargs,
                    ) -> List[Dict]:
-        data = self._docs_to_embeddings(docs) # 将向量化单独出来可以减少向量库的锁定时间
+        data = self._docs_to_embeddings(docs)  # 将向量化单独出来可以减少向量库的锁定时间
 
-        with self.load_vector_store().acquire() as vs:
+        with self.load_vector_store("docs").acquire() as vs:
             ids = vs.add_embeddings(text_embeddings=zip(data["texts"], data["embeddings"]),
                                     metadatas=data["metadatas"])
             if not kwargs.get("not_refresh_vs_cache"):
-                vs.save_local(self.vs_path)
+                vs_path = self.get_vs_path("docs")
+                vs.save_local(vs_path)
         doc_infos = [{"id": id, "metadata": doc.metadata} for id, doc in zip(ids, docs)]
         torch_gc()
         return doc_infos
@@ -82,22 +124,108 @@ class FaissKBService(KBService):
     def do_delete_doc(self,
                       kb_file: KnowledgeFile,
                       **kwargs):
-        with self.load_vector_store().acquire() as vs:
+        vs_path = self.get_vs_path("docs")
+        with self.load_vector_store("docs").acquire() as vs:
             ids = [k for k, v in vs.docstore._dict.items() if v.metadata.get("source") == kb_file.filepath]
             if len(ids) > 0:
                 vs.delete(ids)
             if not kwargs.get("not_refresh_vs_cache"):
-                vs.save_local(self.vs_path)
+                vs.save_local(vs_path)
         return ids
 
-    def do_clear_vs(self):
+    def do_add_query(self,
+                     docs: List[Document],
+                     **kwargs,
+                     ) -> List[Dict]:
+        data = self._docs_to_embeddings(docs)  # 将向量化单独出来可以减少向量库的锁定时间
+
+        with self.load_vector_store("query").acquire() as vs:
+            ids = vs.add_embeddings(text_embeddings=zip(data["texts"], data["embeddings"]),
+                                    metadatas=data["metadatas"])
+            if not kwargs.get("not_refresh_vs_cache"):
+                vs_path = self.get_vs_path("query")
+                vs.save_local(vs_path)
+        doc_infos = [{"id": id, "metadata": doc.metadata} for id, doc in zip(ids, docs)]
+        torch_gc()
+        return doc_infos
+
+    def do_delete_query(self,
+                        kb_file: KnowledgeFile,
+                        **kwargs):
+        vs_path = self.get_vs_path("query")
+        with self.load_vector_store("query").acquire() as vs:
+            ids = [k for k, v in vs.docstore._dict.items() if v.metadata.get("source") == kb_file.filepath]
+            if len(ids) > 0:
+                vs.delete(ids)
+            if not kwargs.get("not_refresh_vs_cache"):
+                vs.save_local(vs_path)
+        return ids
+
+    def do_add_question(self,
+                        docs: List[Document],
+                        **kwargs,
+                        ) -> List[Dict]:
+        data = self._docs_to_embeddings(docs)  # 将向量化单独出来可以减少向量库的锁定时间
+
+        with self.load_vector_store("question").acquire() as vs:
+            ids = vs.add_embeddings(text_embeddings=zip(data["texts"], data["embeddings"]),
+                                    metadatas=data["metadatas"])
+            if not kwargs.get("not_refresh_vs_cache"):
+                vs_path = self.get_vs_path("question")
+                vs.save_local(vs_path)
+        doc_infos = [{"id": id, "metadata": doc.metadata} for id, doc in zip(ids, docs)]
+        torch_gc()
+        return doc_infos
+
+    def do_delete_question(self,
+                           kb_file: KnowledgeFile,
+                           **kwargs):
+        vs_path = self.get_vs_path("question")
+        with self.load_vector_store("question").acquire() as vs:
+            ids = [k for k, v in vs.docstore._dict.items() if v.metadata.get("source") == kb_file.filepath]
+            if len(ids) > 0:
+                vs.delete(ids)
+            if not kwargs.get("not_refresh_vs_cache"):
+                vs.save_local(vs_path)
+        return ids
+
+    def do_add_answer(self,
+                      docs: List[Document],
+                      **kwargs,
+                      ) -> List[Dict]:
+        data = self._docs_to_embeddings(docs)  # 将向量化单独出来可以减少向量库的锁定时间
+
+        with self.load_vector_store("answer").acquire() as vs:
+            ids = vs.add_embeddings(text_embeddings=zip(data["texts"], data["embeddings"]),
+                                    metadatas=data["metadatas"])
+            if not kwargs.get("not_refresh_vs_cache"):
+                vs_path = self.get_vs_path("answer")
+                vs.save_local(vs_path)
+        doc_infos = [{"id": id, "metadata": doc.metadata} for id, doc in zip(ids, docs)]
+        torch_gc()
+        return doc_infos
+
+    def do_delete_answer(self,
+                         kb_file: KnowledgeFile,
+                         **kwargs):
+        vs_path = self.get_vs_path("answer")
+        with self.load_vector_store("answer").acquire() as vs:
+            ids = [k for k, v in vs.docstore._dict.items() if v.metadata.get("source") == kb_file.filepath]
+            if len(ids) > 0:
+                vs.delete(ids)
+            if not kwargs.get("not_refresh_vs_cache"):
+                vs.save_local(vs_path)
+        return ids
+
+    def do_clear_vs(self, vector_name):
+        vs_path = self.get_vs_path(vector_name)
         with kb_faiss_pool.atomic:
-            kb_faiss_pool.pop((self.kb_name, self.vector_name))
+            kb_faiss_pool.pop((self.kb_name, vector_name))
         try:
-            shutil.rmtree(self.vs_path)
+            shutil.rmtree(vs_path)
         except Exception:
             ...
-        os.makedirs(self.vs_path, exist_ok=True)
+        os.makedirs(vs_path, exist_ok=True)
 
     def exist_doc(self, file_name: str):
         if super().exist_doc(file_name):

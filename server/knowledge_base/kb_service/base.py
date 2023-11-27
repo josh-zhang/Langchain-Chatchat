@@ -18,7 +18,7 @@ from server.db.repository.knowledge_file_repository import (
 )
 
 from configs import (kbs_config, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD,
-                     EMBEDDING_MODEL, KB_INFO)
+                     EMBEDDING_MODEL, KB_INFO, SEARCH_ENHANCE)
 from server.knowledge_base.utils import (
     get_kb_path, get_doc_path, KnowledgeFile,
     list_kbs_from_folder, list_files_from_folder,
@@ -42,11 +42,11 @@ def normalize(embeddings: List[List[float]]) -> np.ndarray:
 
 class SupportedVSType:
     FAISS = 'faiss'
-    MILVUS = 'milvus'
-    DEFAULT = 'default'
-    ZILLIZ = 'zilliz'
-    PG = 'pg'
-    ES = 'es'
+    # MILVUS = 'milvus'
+    # DEFAULT = 'default'
+    # ZILLIZ = 'zilliz'
+    # PG = 'pg'
+    # ES = 'es'
 
 
 class KBService(ABC):
@@ -54,10 +54,12 @@ class KBService(ABC):
     def __init__(self,
                  knowledge_base_name: str,
                  embed_model: str = EMBEDDING_MODEL,
+                 search_enhance: bool = SEARCH_ENHANCE,
                  ):
         self.kb_name = knowledge_base_name
         self.kb_info = KB_INFO.get(knowledge_base_name, f"关于{knowledge_base_name}的知识库")
         self.embed_model = embed_model
+        self.search_enhance = search_enhance
         self.kb_path = get_kb_path(self.kb_name)
         self.doc_path = get_doc_path(self.kb_name)
         self.do_init()
@@ -65,7 +67,7 @@ class KBService(ABC):
     def __repr__(self) -> str:
         return f"{self.kb_name} @ {self.embed_model}"
 
-    def save_vector_store(self):
+    def save_vector_store(self, vector_name):
         '''
         保存向量库:FAISS保存到磁盘，milvus保存到数据库。PGVector暂未支持
         '''
@@ -77,16 +79,27 @@ class KBService(ABC):
         """
         if not os.path.exists(self.doc_path):
             os.makedirs(self.doc_path)
-        self.do_create_kb()
+
+        self.do_create_kb("docs")
+        self.do_create_kb("question")
+        self.do_create_kb("answer")
+        self.do_create_kb("query")
+
         status = add_kb_to_db(self.kb_name, self.kb_info, self.vs_type(), self.embed_model)
+
         return status
 
     def clear_vs(self):
         """
         删除向量库中所有内容
         """
-        self.do_clear_vs()
+        self.do_clear_vs("docs")
+        self.do_clear_vs("question")
+        self.do_clear_vs("answer")
+        self.do_clear_vs("query")
+
         status = delete_files_from_db(self.kb_name)
+
         return status
 
     def drop_kb(self):
@@ -101,9 +114,33 @@ class KBService(ABC):
         '''
         将 List[Document] 转化为 VectorStore.add_embeddings 可以接受的参数
         '''
-        return embed_documents(docs=docs, embed_model=self.embed_model, to_query=False)
+        return embed_documents(docs=docs, embed_model=self.embed_model)
 
     def add_doc(self, kb_file: KnowledgeFile, docs: List[Document] = [], **kwargs):
+        """
+        向知识库添加文件
+        如果指定了docs，则不再将文本向量化，并将数据库对应条目标为custom_docs=True
+        """
+        if docs:
+            custom_docs = True
+            for doc in docs:
+                doc.metadata.setdefault("source", kb_file.filepath)
+        else:
+            docs = kb_file.file2text()
+            custom_docs = False
+
+        if docs:
+            self.delete_doc(kb_file)
+            doc_infos = self.do_add_doc(docs, **kwargs)
+            status = add_file_to_db(kb_file,
+                                    custom_docs=custom_docs,
+                                    docs_count=len(docs),
+                                    doc_infos=doc_infos)
+        else:
+            status = False
+        return status
+
+    def add_faq(self, kb_file: KnowledgeFile, docs: List[Document] = [], **kwargs):
         """
         向知识库添加文件
         如果指定了docs，则不再将文本向量化，并将数据库对应条目标为custom_docs=True
@@ -169,7 +206,23 @@ class KBService(ABC):
                     top_k: int = VECTOR_SEARCH_TOP_K,
                     score_threshold: float = SCORE_THRESHOLD,
                     ):
-        docs = self.do_search(query, top_k, score_threshold)
+        docs = self.do_search_docs(query, top_k, score_threshold)
+        return docs
+
+    def search_query(self,
+                     query: str,
+                     top_k: int = VECTOR_SEARCH_TOP_K,
+                     score_threshold: float = SCORE_THRESHOLD,
+                     ):
+        docs = self.do_search_query(query, top_k, score_threshold)
+        return docs
+
+    def search_question(self,
+                        query: str,
+                        top_k: int = VECTOR_SEARCH_TOP_K,
+                        score_threshold: float = SCORE_THRESHOLD,
+                        ):
+        docs = self.do_search_question(query, top_k, score_threshold)
         return docs
 
     def get_doc_by_id(self, id: str) -> Optional[Document]:
@@ -184,7 +237,7 @@ class KBService(ABC):
         return docs
 
     @abstractmethod
-    def do_create_kb(self):
+    def do_create_kb(self, vs_path):
         """
         创建知识库子类实自己逻辑
         """
@@ -218,11 +271,44 @@ class KBService(ABC):
         pass
 
     @abstractmethod
-    def do_search(self,
-                  query: str,
-                  top_k: int,
-                  score_threshold: float,
-                  ) -> List[Document]:
+    def do_search_docs(self,
+                       query: str,
+                       top_k: int,
+                       score_threshold: float,
+                       ) -> List[Document]:
+        """
+        搜索知识库子类实自己逻辑
+        """
+        pass
+
+    @abstractmethod
+    def do_search_query(self,
+                        query: str,
+                        top_k: int,
+                        score_threshold: float,
+                        ) -> List[Document]:
+        """
+        搜索知识库子类实自己逻辑
+        """
+        pass
+
+    @abstractmethod
+    def do_search_question(self,
+                           query: str,
+                           top_k: int,
+                           score_threshold: float,
+                           ) -> List[Document]:
+        """
+        搜索知识库子类实自己逻辑
+        """
+        pass
+
+    @abstractmethod
+    def do_search_answer(self,
+                         query: str,
+                         top_k: int,
+                         score_threshold: float,
+                         ) -> List[Document]:
         """
         搜索知识库子类实自己逻辑
         """
@@ -246,7 +332,58 @@ class KBService(ABC):
         pass
 
     @abstractmethod
-    def do_clear_vs(self):
+    def do_add_query(self,
+                     docs: List[Document],
+                     ) -> List[Dict]:
+        """
+        向知识库添加文档子类实自己逻辑
+        """
+        pass
+
+    @abstractmethod
+    def do_delete_query(self,
+                        kb_file: KnowledgeFile):
+        """
+        从知识库删除文档子类实自己逻辑
+        """
+        pass
+
+    @abstractmethod
+    def do_add_question(self,
+                        docs: List[Document],
+                        ) -> List[Dict]:
+        """
+        向知识库添加文档子类实自己逻辑
+        """
+        pass
+
+    @abstractmethod
+    def do_delete_question(self,
+                           kb_file: KnowledgeFile):
+        """
+        从知识库删除文档子类实自己逻辑
+        """
+        pass
+
+    @abstractmethod
+    def do_add_answer(self,
+                      docs: List[Document],
+                      ) -> List[Dict]:
+        """
+        向知识库添加文档子类实自己逻辑
+        """
+        pass
+
+    @abstractmethod
+    def do_delete_answer(self,
+                         kb_file: KnowledgeFile):
+        """
+        从知识库删除文档子类实自己逻辑
+        """
+        pass
+
+    @abstractmethod
+    def do_clear_vs(self, vector_name):
         """
         从知识库删除全部向量子类实自己逻辑
         """
@@ -259,30 +396,31 @@ class KBServiceFactory:
     def get_service(kb_name: str,
                     vector_store_type: Union[str, SupportedVSType],
                     embed_model: str = EMBEDDING_MODEL,
+                    search_enhance: bool = SEARCH_ENHANCE,
                     ) -> KBService:
         if isinstance(vector_store_type, str):
             vector_store_type = getattr(SupportedVSType, vector_store_type.upper())
         if SupportedVSType.FAISS == vector_store_type:
             from server.knowledge_base.kb_service.faiss_kb_service import FaissKBService
-            return FaissKBService(kb_name, embed_model=embed_model)
-        elif SupportedVSType.PG == vector_store_type:
-            from server.knowledge_base.kb_service.pg_kb_service import PGKBService
-            return PGKBService(kb_name, embed_model=embed_model)
-        elif SupportedVSType.MILVUS == vector_store_type:
-            from server.knowledge_base.kb_service.milvus_kb_service import MilvusKBService
-            return MilvusKBService(kb_name,embed_model=embed_model)
-        elif SupportedVSType.ZILLIZ == vector_store_type:
-            from server.knowledge_base.kb_service.zilliz_kb_service import ZillizKBService
-            return ZillizKBService(kb_name, embed_model=embed_model)
+            return FaissKBService(kb_name, embed_model=embed_model, search_enhance=search_enhance)
+        # elif SupportedVSType.PG == vector_store_type:
+        #     from server.knowledge_base.kb_service.pg_kb_service import PGKBService
+        #     return PGKBService(kb_name, embed_model=embed_model)
+        # elif SupportedVSType.MILVUS == vector_store_type:
+        #     from server.knowledge_base.kb_service.milvus_kb_service import MilvusKBService
+        #     return MilvusKBService(kb_name, embed_model=embed_model)
+        # elif SupportedVSType.ZILLIZ == vector_store_type:
+        #     from server.knowledge_base.kb_service.zilliz_kb_service import ZillizKBService
+        #     return ZillizKBService(kb_name, embed_model=embed_model)
         elif SupportedVSType.DEFAULT == vector_store_type:
-            return MilvusKBService(kb_name,
-                                   embed_model=embed_model)  # other milvus parameters are set in model_config.kbs_config
-        elif SupportedVSType.ES == vector_store_type:
-            from server.knowledge_base.kb_service.es_kb_service import ESKBService
-            return ESKBService(kb_name, embed_model=embed_model)
-        elif SupportedVSType.DEFAULT == vector_store_type:  # kb_exists of default kbservice is False, to make validation easier.
-            from server.knowledge_base.kb_service.default_kb_service import DefaultKBService
-            return DefaultKBService(kb_name)
+            from server.knowledge_base.kb_service.faiss_kb_service import FaissKBService
+            return FaissKBService(kb_name, embed_model=embed_model)
+        # elif SupportedVSType.ES == vector_store_type:
+        #     from server.knowledge_base.kb_service.es_kb_service import ESKBService
+        #     return ESKBService(kb_name, embed_model=embed_model)
+        # elif SupportedVSType.DEFAULT == vector_store_type:  # kb_exists of default kbservice is False, to make validation easier.
+        #     from server.knowledge_base.kb_service.default_kb_service import DefaultKBService
+        #     return DefaultKBService(kb_name)
 
     @staticmethod
     def get_service_by_name(kb_name: str) -> KBService:
@@ -376,11 +514,11 @@ class EmbeddingsFunAdapter(Embeddings):
         self.embed_model = embed_model
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        embeddings = embed_texts(texts=texts, embed_model=self.embed_model, to_query=False).data
+        embeddings = embed_texts(texts=texts, embed_model=self.embed_model).data
         return normalize(embeddings).tolist()
 
     def embed_query(self, text: str) -> List[float]:
-        embeddings = embed_texts(texts=[text], embed_model=self.embed_model, to_query=True).data
+        embeddings = embed_texts(texts=[text], embed_model=self.embed_model).data
         query_embed = embeddings[0]
         query_embed_2d = np.reshape(query_embed, (1, -1))  # 将一维数组转换为二维数组
         normalized_query_embed = normalize(query_embed_2d)

@@ -15,13 +15,11 @@ if __name__ == "__main__":
     is_lite = "lite" in sys.argv
 
     st.set_page_config(
-        "Langchain-Chatchat WebUI",
+        "知识库问答系统",
         os.path.join("img", "chatchat_icon_blue_square_v2.png"),
         initial_sidebar_state="expanded",
         menu_items={
-            'Get Help': 'https://github.com/chatchat-space/Langchain-Chatchat',
-            'Report a bug': "https://github.com/chatchat-space/Langchain-Chatchat/issues",
-            'About': f"""欢迎使用 Langchain-Chatchat WebUI {VERSION}！"""
+            'About': f"""欢迎使用 知识库问答系统 {VERSION}！"""
         }
     )
 
@@ -37,17 +35,17 @@ if __name__ == "__main__":
     }
 
     with st.sidebar:
-        st.image(
-            os.path.join(
-                "img",
-                "logo-long-chatchat-trans-v2.png"
-            ),
-            use_column_width=True
-        )
-        st.caption(
-            f"""<p align="right">当前版本：{VERSION}</p>""",
-            unsafe_allow_html=True,
-        )
+        # st.image(
+        #     os.path.join(
+        #         "img",
+        #         "logo-long-chatchat-trans-v2.png"
+        #     ),
+        #     use_column_width=True
+        # )
+        # st.caption(
+        #     f"""<p align="right">当前版本：{VERSION}</p>""",
+        #     unsafe_allow_html=True,
+        # )
         options = list(pages)
         icons = [x["icon"] for x in pages.values()]
 

@@ -2,7 +2,7 @@ from langchain.embeddings.base import Embeddings
 import threading
 from configs import (EMBEDDING_MODEL, CHUNK_SIZE,
                     logger, log_verbose)
-from server.utils import embedding_device, get_model_path, list_online_embed_models
+from server.utils import embedding_device, get_model_path
 from contextlib import contextmanager
 from collections import OrderedDict
 from typing import List, Any, Union, Tuple
@@ -109,10 +109,7 @@ class CachePool:
         kb_detail = get_kb_detail(kb_name)
         embed_model = kb_detail.get("embed_model", default_embed_model)
 
-        if embed_model in list_online_embed_models():
-            return EmbeddingsFunAdapter(embed_model)
-        else:
-            return embeddings_pool.load_embeddings(model=embed_model, device=embed_device)
+        return embeddings_pool.load_embeddings(model=embed_model, device=embed_device)
 
 
 class EmbeddingsPool(CachePool):
