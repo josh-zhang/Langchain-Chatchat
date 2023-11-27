@@ -6,6 +6,7 @@ from server.knowledge_base.utils import KnowledgeFile
 from typing import List, Dict
 
 
+
 @with_session
 def list_docs_from_db(session,
                       kb_name: str,
