@@ -31,20 +31,24 @@ def search_docs(
                                                   "取到1相当于不筛选，建议设置在0.5左右",
                                       ge=0, le=1),
 ) -> List[DocumentWithScore]:
+    print(f"query {query}")
     kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
     if kb is None:
         return []
     docs_data = kb.search_docs(query, top_k, score_threshold)
+    print(f"docs_data {docs_data}")
     docs_data = [DocumentWithScore(**x[0].dict(), score=x[1]) for x in docs_data]
 
-    query_data = kb.search_query(query, top_k, score_threshold)
-    query_data = [DocumentWithScore(**x[0].dict(), score=x[1]) for x in query_data]
-
-    question_data = kb.search_question(query, top_k, score_threshold)
-    question_data = [DocumentWithScore(**x[0].dict(), score=x[1]) for x in question_data]
-
-    data = merge_data(docs_data, query_data, question_data)
-
+    # answer_data = kb.search_answer(query, top_k, score_threshold)
+    # print(f"answer_data {answer_data}")
+    # answer_data = [DocumentWithScore(**x[0].dict(), score=x[1]) for x in answer_data]
+    #
+    # question_data = kb.search_question(query, top_k, score_threshold)
+    # print(f"question_data {question_data}")
+    # question_data = [DocumentWithScore(**x[0].dict(), score=x[1]) for x in question_data]
+    #
+    # data = docs_data + answer_data + question_data
+    data = docs_data
     return data
 
 
@@ -176,11 +180,14 @@ def upload_docs(
             chunk_overlap=chunk_overlap,
             zh_title_enhance=zh_title_enhance,
             docs=docs,
-            not_refresh_vs_cache=True,
+            not_refresh_vs_cache=not_refresh_vs_cache,
         )
         failed_files.update(result.data["failed_files"])
-        if not not_refresh_vs_cache:
-            kb.save_vector_store()
+        # if not not_refresh_vs_cache:
+        #     kb.save_vector_store("docs")
+        #     kb.save_vector_store("question")
+        #     kb.save_vector_store("answer")
+        #     kb.save_vector_store("query")
 
     return BaseResponse(code=200, msg="文件上传与向量化完成", data={"failed_files": failed_files})
 
@@ -215,7 +222,10 @@ def delete_docs(
             failed_files[file_name] = msg
 
     if not not_refresh_vs_cache:
-        kb.save_vector_store()
+        kb.save_vector_store("docs")
+        kb.save_vector_store("question")
+        kb.save_vector_store("answer")
+        kb.save_vector_store("query")
 
     return BaseResponse(code=200, msg=f"文件删除完成", data={"failed_files": failed_files})
 
@@ -266,13 +276,17 @@ def update_docs(
         if file_detail.get("custom_docs") and not override_custom_docs:
             continue
         if file_name not in docs:
-            try:
-                kb_files.append(KnowledgeFile(filename=file_name, knowledge_base_name=knowledge_base_name))
-            except Exception as e:
-                msg = f"加载文档 {file_name} 时出错：{e}"
-                logger.error(f'{e.__class__.__name__}: {msg}',
-                             exc_info=e if log_verbose else None)
-                failed_files[file_name] = msg
+            if file_name.startswith("上库"):
+                kb_file = KnowledgeFile(filename=file_name, knowledge_base_name=knowledge_base_name)
+                kb.update_faq(kb_file, not_refresh_vs_cache=True)
+            else:
+                try:
+                    kb_files.append(KnowledgeFile(filename=file_name, knowledge_base_name=knowledge_base_name))
+                except Exception as e:
+                    msg = f"加载文档 {file_name} 时出错：{e}"
+                    logger.error(f'{e.__class__.__name__}: {msg}',
+                                 exc_info=e if log_verbose else None)
+                    failed_files[file_name] = msg
 
     # 从文件生成docs，并进行向量化。
     # 这里利用了KnowledgeFile的缓存功能，在多线程中加载Document，然后传给KnowledgeFile
@@ -303,7 +317,10 @@ def update_docs(
             failed_files[file_name] = msg
 
     if not not_refresh_vs_cache:
-        kb.save_vector_store()
+        kb.save_vector_store("docs")
+        kb.save_vector_store("question")
+        kb.save_vector_store("answer")
+        kb.save_vector_store("query")
 
     return BaseResponse(code=200, msg=f"更新文档完成", data={"failed_files": failed_files})
 
@@ -444,6 +461,9 @@ def recreate_vector_store(
                     })
                 i += 1
             if not not_refresh_vs_cache:
-                kb.save_vector_store()
+                kb.save_vector_store("docs")
+                kb.save_vector_store("question")
+                kb.save_vector_store("answer")
+                kb.save_vector_store("query")
 
     return StreamingResponse(output(), media_type="text/event-stream")

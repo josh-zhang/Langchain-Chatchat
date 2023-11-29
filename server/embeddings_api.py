@@ -3,6 +3,7 @@ from configs import EMBEDDING_MODEL, logger
 from server.utils import BaseResponse, list_embed_models
 from fastapi import Body
 from typing import Dict, List
+from server.utils import load_local_embeddings
 
 
 def embed_texts(
@@ -15,8 +16,6 @@ def embed_texts(
     '''
     try:
         if embed_model in list_embed_models():
-            from server.utils import load_local_embeddings
-
             embeddings = load_local_embeddings(model=embed_model)
             return BaseResponse(data=embeddings.embed_documents(texts))
         return BaseResponse(code=500, msg=f"指定的模型 {embed_model} 不支持 Embeddings 功能。")
@@ -43,11 +42,14 @@ def embed_documents(
     将 List[Document] 向量化，转化为 VectorStore.add_embeddings 可以接受的参数
     """
     texts = [x.page_content for x in docs]
+    print(f"sample text[0] {texts[0]}")
+
     metadatas = [x.metadata for x in docs]
-    embeddings = embed_texts(texts=texts, embed_model=embed_model).data
-    if embeddings is not None:
-        return {
-            "texts": texts,
-            "embeddings": embeddings,
-            "metadatas": metadatas,
-        }
+    embedding_model = load_local_embeddings(model=embed_model)
+    embeddings = embedding_model.embed_documents(texts)
+
+    return {
+        "texts": texts,
+        "embeddings": embeddings,
+        "metadatas": metadatas,
+    }

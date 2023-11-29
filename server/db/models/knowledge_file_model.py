@@ -46,10 +46,11 @@ class FileAnswerModel(Base):
     kb_name = Column(String(50), comment='知识库名称')
     file_name = Column(String(255), comment='文件名称')
     answer_id = Column(String(50), comment="答案ID")
+    doc_id = Column(String(50), comment="向量库文档ID")
     meta_data = Column(JSON, default={})
 
     def __repr__(self):
-        return f"<FileDoc(id='{self.id}', kb_name='{self.kb_name}', file_name='{self.file_name}', doc_id='{self.doc_id}', metadata='{self.meta_data}')>"
+        return f"<FileAnswer(id='{self.id}', kb_name='{self.kb_name}', file_name='{self.file_name}', answer_id='{self.answer_id}', metadata='{self.meta_data}')>"
 
 
 class AnswerQuestionModel(Base):
@@ -58,10 +59,11 @@ class AnswerQuestionModel(Base):
     kb_name = Column(String(50), comment='知识库名称')
     answer_id = Column(String(50), comment='答案ID')
     question_id = Column(String(50), comment="问题ID")
+    doc_id = Column(String(50), comment="向量库文档ID")
     meta_data = Column(JSON, default={})
 
     def __repr__(self):
-        return f"<FileDoc(id='{self.id}', kb_name='{self.kb_name}', file_name='{self.file_name}', doc_id='{self.doc_id}', metadata='{self.meta_data}')>"
+        return f"<AnswerQuestion(id='{self.id}', kb_name='{self.kb_name}', answer_id='{self.answer_id}', question_id='{self.question_id}', metadata='{self.meta_data}')>"
 
 
 class AnswerQueryModel(Base):
@@ -70,7 +72,8 @@ class AnswerQueryModel(Base):
     kb_name = Column(String(50), comment='知识库名称')
     answer_id = Column(String(50), comment='答案ID')
     query_id = Column(String(50), comment="提问ID")
+    doc_id = Column(String(50), comment="向量库文档ID")
     meta_data = Column(JSON, default={})
 
     def __repr__(self):
-        return f"<FileDoc(id='{self.id}', kb_name='{self.kb_name}', file_name='{self.file_name}', doc_id='{self.doc_id}', metadata='{self.meta_data}')>"
+        return f"<AnswerQuery(id='{self.id}', kb_name='{self.kb_name}', answer_id='{self.answer_id}', query_id='{self.query_id}', metadata='{self.meta_data}')>"

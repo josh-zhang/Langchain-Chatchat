@@ -379,50 +379,51 @@ class ApiRequest:
         pprint(data)
 
         response = self.post(
-            "http://127.0.0.1:8000/v2/kbchat/completions",
+            "/chat/knowledge_base_chat",
             json=data,
             stream=True,
         )
+        print(response)
         return self._httpx_stream2generator(response, as_json=True)
 
-    def search_engine_chat(
-        self,
-        query: str,
-        search_engine_name: str,
-        top_k: int = SEARCH_ENGINE_TOP_K,
-        history: List[Dict] = [],
-        stream: bool = True,
-        model: str = LLM_MODELS[0],
-        temperature: float = TEMPERATURE,
-        max_tokens: int = None,
-        prompt_name: str = "default",
-        split_result: bool = False,
-    ):
-        '''
-        对应api.py/chat/search_engine_chat接口
-        '''
-        data = {
-            "query": query,
-            "search_engine_name": search_engine_name,
-            "top_k": top_k,
-            "history": history,
-            "stream": stream,
-            "model_name": model,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "prompt_name": prompt_name,
-            "split_result": split_result,
-        }
-
-        print(f"received input message:")
-        pprint(data)
-
-        response = self.post(
-            "/chat/search_engine_chat",
-            json=data,
-            stream=True,
-        )
-        return self._httpx_stream2generator(response, as_json=True)
+    # def search_engine_chat(
+    #     self,
+    #     query: str,
+    #     search_engine_name: str,
+    #     top_k: int = SEARCH_ENGINE_TOP_K,
+    #     history: List[Dict] = [],
+    #     stream: bool = True,
+    #     model: str = LLM_MODELS[0],
+    #     temperature: float = TEMPERATURE,
+    #     max_tokens: int = None,
+    #     prompt_name: str = "default",
+    #     split_result: bool = False,
+    # ):
+    #     '''
+    #     对应api.py/chat/search_engine_chat接口
+    #     '''
+    #     data = {
+    #         "query": query,
+    #         "search_engine_name": search_engine_name,
+    #         "top_k": top_k,
+    #         "history": history,
+    #         "stream": stream,
+    #         "model_name": model,
+    #         "temperature": temperature,
+    #         "max_tokens": max_tokens,
+    #         "prompt_name": prompt_name,
+    #         "split_result": split_result,
+    #     }
+    #
+    #     print(f"received input message:")
+    #     pprint(data)
+    #
+    #     response = self.post(
+    #         "/chat/search_engine_chat",
+    #         json=data,
+    #         stream=True,
+    #     )
+    #     return self._httpx_stream2generator(response, as_json=True)
 
     # 知识库相关操作
 

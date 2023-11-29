@@ -6,7 +6,6 @@ from server.knowledge_base.utils import KnowledgeFile
 from typing import List, Dict
 
 
-
 @with_session
 def list_docs_from_db(session,
                       kb_name: str,
@@ -75,29 +74,29 @@ def list_answer_from_db(session,
                         metadata: Dict = {},
                         ) -> List[Dict]:
     '''
-    列出某知识库某文件对应的所有Document。
+    列出某知识库某文件对应的所有Answer。
     返回形式：[{"id": str, "metadata": dict}, ...]
     '''
     docs = session.query(FileAnswerModel).filter_by(kb_name=kb_name)
     if file_name:
         docs = docs.filter_by(file_name=file_name)
     for k, v in metadata.items():
-        docs = docs.filter(FileDocModel.meta_data[k].as_string() == str(v))
+        docs = docs.filter(FileAnswerModel.meta_data[k].as_string() == str(v))
 
-    return [{"id": x.doc_id, "metadata": x.metadata} for x in docs.all()]
+    return [{"id": x.answer_id, "metadata": x.metadata} for x in docs.all()]
 
 
 @with_session
-def delete_docs_from_db(session,
-                        kb_name: str,
-                        file_name: str = None,
-                        ) -> List[Dict]:
+def delete_answer_from_db(session,
+                          kb_name: str,
+                          file_name: str = None,
+                          ) -> List[Dict]:
     '''
-    删除某知识库某文件对应的所有Document，并返回被删除的Document。
+    删除某知识库某文件对应的所有Answer，并返回被删除的Answer。
     返回形式：[{"id": str, "metadata": dict}, ...]
     '''
-    docs = list_docs_from_db(kb_name=kb_name, file_name=file_name)
-    query = session.query(FileDocModel).filter_by(kb_name=kb_name)
+    docs = list_answer_from_db(kb_name=kb_name, file_name=file_name)
+    query = session.query(FileAnswerModel).filter_by(kb_name=kb_name)
     if file_name:
         query = query.filter_by(file_name=file_name)
     query.delete()
@@ -106,22 +105,24 @@ def delete_docs_from_db(session,
 
 
 @with_session
-def add_docs_to_db(session,
-                   kb_name: str,
-                   file_name: str,
-                   doc_infos: List[Dict]):
+def add_answer_to_db(session,
+                     kb_name: str,
+                     file_name_list,
+                     answer_id_list,
+                     doc_infos: List[Dict]):
     '''
-    将某知识库某文件对应的所有Document信息添加到数据库。
+    将某知识库某文件对应的所有Answer信息添加到数据库。
     doc_infos形式：[{"id": str, "metadata": dict}, ...]
     '''
     # ! 这里会出现doc_infos为None的情况，需要进一步排查
     if doc_infos is None:
-        print("输入的server.db.repository.knowledge_file_repository.add_docs_to_db的doc_infos参数为None")
+        print("输入的server.db.repository.knowledge_file_repository.add_answer_to_db的doc_infos参数为None")
         return False
-    for d in doc_infos:
-        obj = FileDocModel(
+    for d, answer_id, file_name in zip(doc_infos, answer_id_list, file_name_list):
+        obj = FileAnswerModel(
             kb_name=kb_name,
             file_name=file_name,
+            answer_id = answer_id,
             doc_id=d["id"],
             meta_data=d["metadata"],
         )
@@ -130,59 +131,61 @@ def add_docs_to_db(session,
 
 
 @with_session
-def list_docs_from_db(session,
-                      kb_name: str,
-                      file_name: str = None,
-                      metadata: Dict = {},
-                      ) -> List[Dict]:
+def list_question_from_db(session,
+                          kb_name: str,
+                          answer_id: str = None,
+                          metadata: Dict = {},
+                          ) -> List[Dict]:
     '''
-    列出某知识库某文件对应的所有Document。
+    列出某知识库某文件对应的所有question。
     返回形式：[{"id": str, "metadata": dict}, ...]
     '''
-    docs = session.query(FileDocModel).filter_by(kb_name=kb_name)
-    if file_name:
-        docs = docs.filter_by(file_name=file_name)
+    docs = session.query(AnswerQuestionModel).filter_by(kb_name=kb_name)
+    if answer_id:
+        docs = docs.filter_by(answer_id=answer_id)
     for k, v in metadata.items():
         docs = docs.filter(FileDocModel.meta_data[k].as_string() == str(v))
 
-    return [{"id": x.doc_id, "metadata": x.metadata} for x in docs.all()]
+    return [{"id": x.question_id, "metadata": x.metadata} for x in docs.all()]
 
 
 @with_session
-def delete_docs_from_db(session,
-                        kb_name: str,
-                        file_name: str = None,
-                        ) -> List[Dict]:
+def delete_question_from_db(session,
+                            kb_name: str,
+                            answer_id: str = None,
+                            ) -> List[Dict]:
     '''
-    删除某知识库某文件对应的所有Document，并返回被删除的Document。
+    删除某知识库某文件对应的所有question，并返回被删除的question。
     返回形式：[{"id": str, "metadata": dict}, ...]
     '''
-    docs = list_docs_from_db(kb_name=kb_name, file_name=file_name)
-    query = session.query(FileDocModel).filter_by(kb_name=kb_name)
-    if file_name:
-        query = query.filter_by(file_name=file_name)
+    docs = list_question_from_db(kb_name=kb_name, answer_id=answer_id)
+    query = session.query(AnswerQuestionModel).filter_by(kb_name=kb_name)
+    if answer_id:
+        query = query.filter_by(answer_id=answer_id)
     query.delete()
     session.commit()
     return docs
 
 
 @with_session
-def add_docs_to_db(session,
-                   kb_name: str,
-                   file_name: str,
-                   doc_infos: List[Dict]):
+def add_question_to_db(session,
+                       kb_name: str,
+                       answer_id,
+                       question_id_list,
+                       doc_infos: List[Dict]):
     '''
-    将某知识库某文件对应的所有Document信息添加到数据库。
+    将某知识库某文件对应的所有question信息添加到数据库。
     doc_infos形式：[{"id": str, "metadata": dict}, ...]
     '''
     # ! 这里会出现doc_infos为None的情况，需要进一步排查
     if doc_infos is None:
-        print("输入的server.db.repository.knowledge_file_repository.add_docs_to_db的doc_infos参数为None")
+        print("输入的server.db.repository.knowledge_file_repository.add_question_to_db的doc_infos参数为None")
         return False
-    for d in doc_infos:
-        obj = FileDocModel(
+    for d, question_id in zip(doc_infos, question_id_list):
+        obj = AnswerQuestionModel(
             kb_name=kb_name,
-            file_name=file_name,
+            answer_id=answer_id,
+            question_id=question_id,
             doc_id=d["id"],
             meta_data=d["metadata"],
         )
@@ -191,60 +194,60 @@ def add_docs_to_db(session,
 
 
 @with_session
-def list_docs_from_db(session,
-                      kb_name: str,
-                      file_name: str = None,
-                      metadata: Dict = {},
-                      ) -> List[Dict]:
+def list_query_from_db(session,
+                       kb_name: str,
+                       answer_id: str = None,
+                       metadata: Dict = {},
+                       ) -> List[Dict]:
     '''
-    列出某知识库某文件对应的所有Document。
+    列出某知识库某文件对应的所有query。
     返回形式：[{"id": str, "metadata": dict}, ...]
     '''
-    docs = session.query(FileDocModel).filter_by(kb_name=kb_name)
-    if file_name:
-        docs = docs.filter_by(file_name=file_name)
+    docs = session.query(AnswerQueryModel).filter_by(kb_name=kb_name)
+    if answer_id:
+        docs = docs.filter_by(answer_id=answer_id)
     for k, v in metadata.items():
-        docs = docs.filter(FileDocModel.meta_data[k].as_string() == str(v))
+        docs = docs.filter(AnswerQueryModel.meta_data[k].as_string() == str(v))
 
-    return [{"id": x.doc_id, "metadata": x.metadata} for x in docs.all()]
+    return [{"id": x.query_id, "metadata": x.metadata} for x in docs.all()]
 
 
 @with_session
-def delete_docs_from_db(session,
-                        kb_name: str,
-                        file_name: str = None,
-                        ) -> List[Dict]:
+def delete_query_from_db(session,
+                         kb_name: str,
+                         answer_id: str = None,
+                         ) -> List[Dict]:
     '''
-    删除某知识库某文件对应的所有Document，并返回被删除的Document。
+    删除某知识库某文件对应的所有query，并返回被删除的query。
     返回形式：[{"id": str, "metadata": dict}, ...]
     '''
-    docs = list_docs_from_db(kb_name=kb_name, file_name=file_name)
-    query = session.query(FileDocModel).filter_by(kb_name=kb_name)
-    if file_name:
-        query = query.filter_by(file_name=file_name)
+    docs = list_query_from_db(kb_name=kb_name, answer_id=answer_id)
+    query = session.query(AnswerQueryModel).filter_by(kb_name=kb_name)
+    if answer_id:
+        query = query.filter_by(answer_id=answer_id)
     query.delete()
     session.commit()
     return docs
 
 
 @with_session
-def add_docs_to_db(session,
-                   kb_name: str,
-                   file_name: str,
-                   doc_infos: List[Dict]):
+def add_query_to_db(session,
+                    kb_name: str,
+                    answer_id: str,
+                    doc_infos: List[Dict]):
     '''
-    将某知识库某文件对应的所有Document信息添加到数据库。
+    将某知识库某文件对应的所有query信息添加到数据库。
     doc_infos形式：[{"id": str, "metadata": dict}, ...]
     '''
     # ! 这里会出现doc_infos为None的情况，需要进一步排查
     if doc_infos is None:
-        print("输入的server.db.repository.knowledge_file_repository.add_docs_to_db的doc_infos参数为None")
+        print("输入的server.db.repository.knowledge_file_repository.add_query_to_db的doc_infos参数为None")
         return False
     for d in doc_infos:
-        obj = FileDocModel(
+        obj = AnswerQueryModel(
             kb_name=kb_name,
-            file_name=file_name,
-            doc_id=d["id"],
+            answer_id=answer_id,
+            query_id=d["id"],
             meta_data=d["metadata"],
         )
         session.add(obj)

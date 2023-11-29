@@ -1,5 +1,6 @@
 import os
 import shutil
+import logging
 
 from configs import SCORE_THRESHOLD
 from server.knowledge_base.kb_service.base import KBService, SupportedVSType, EmbeddingsFunAdapter
@@ -61,22 +62,15 @@ class FaissKBService(KBService):
         embed_func = EmbeddingsFunAdapter(self.embed_model)
         embeddings = embed_func.embed_query(query)
 
+        print(f"embed_model {self.embed_model}")
+        print(f"score_threshold {score_threshold}")
+        print(f"top_k {top_k}")
+        print(f"query {query}")
+
         with self.load_vector_store("docs").acquire() as vs:
+            logging.warning(vs.index_to_docstore_id)
             docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=score_threshold)
-
-        return docs
-
-    def do_search_query(self,
-                        query: str,
-                        top_k: int,
-                        score_threshold: float = SCORE_THRESHOLD,
-                        ) -> List[Document]:
-        embed_func = EmbeddingsFunAdapter(self.embed_model)
-        embeddings = embed_func.embed_query(query)
-
-        with self.load_vector_store("query").acquire() as vs:
-            docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=score_threshold)
-
+            print(f"{len(docs)} docs found from faiss")
         return docs
 
     def do_search_question(self,
@@ -109,15 +103,23 @@ class FaissKBService(KBService):
                    docs: List[Document],
                    **kwargs,
                    ) -> List[Dict]:
+
         data = self._docs_to_embeddings(docs)  # 将向量化单独出来可以减少向量库的锁定时间
+        print(f"{len(data)} docs embedded")
 
         with self.load_vector_store("docs").acquire() as vs:
             ids = vs.add_embeddings(text_embeddings=zip(data["texts"], data["embeddings"]),
                                     metadatas=data["metadatas"])
+            print(f"{len(ids)} docs added to faiss")
             if not kwargs.get("not_refresh_vs_cache"):
                 vs_path = self.get_vs_path("docs")
                 vs.save_local(vs_path)
+                print(f"{len(ids)} docs saved to faiss local")
+
+            logging.warning(vs.index_to_docstore_id)
+
         doc_infos = [{"id": id, "metadata": doc.metadata} for id, doc in zip(ids, docs)]
+        print(doc_infos)
         torch_gc()
         return doc_infos
 
@@ -129,34 +131,7 @@ class FaissKBService(KBService):
             ids = [k for k, v in vs.docstore._dict.items() if v.metadata.get("source") == kb_file.filepath]
             if len(ids) > 0:
                 vs.delete(ids)
-            if not kwargs.get("not_refresh_vs_cache"):
-                vs.save_local(vs_path)
-        return ids
-
-    def do_add_query(self,
-                     docs: List[Document],
-                     **kwargs,
-                     ) -> List[Dict]:
-        data = self._docs_to_embeddings(docs)  # 将向量化单独出来可以减少向量库的锁定时间
-
-        with self.load_vector_store("query").acquire() as vs:
-            ids = vs.add_embeddings(text_embeddings=zip(data["texts"], data["embeddings"]),
-                                    metadatas=data["metadatas"])
-            if not kwargs.get("not_refresh_vs_cache"):
-                vs_path = self.get_vs_path("query")
-                vs.save_local(vs_path)
-        doc_infos = [{"id": id, "metadata": doc.metadata} for id, doc in zip(ids, docs)]
-        torch_gc()
-        return doc_infos
-
-    def do_delete_query(self,
-                        kb_file: KnowledgeFile,
-                        **kwargs):
-        vs_path = self.get_vs_path("query")
-        with self.load_vector_store("query").acquire() as vs:
-            ids = [k for k, v in vs.docstore._dict.items() if v.metadata.get("source") == kb_file.filepath]
-            if len(ids) > 0:
-                vs.delete(ids)
+            print(f"{len(ids)} docs deleted from faiss")
             if not kwargs.get("not_refresh_vs_cache"):
                 vs.save_local(vs_path)
         return ids
@@ -236,6 +211,34 @@ class FaissKBService(KBService):
             return "in_folder"
         else:
             return False
+
+    # def do_add_query(self,
+    #                  docs: List[Document],
+    #                  **kwargs,
+    #                  ) -> List[Dict]:
+    #     data = self._docs_to_embeddings(docs)  # 将向量化单独出来可以减少向量库的锁定时间
+    #
+    #     with self.load_vector_store("query").acquire() as vs:
+    #         ids = vs.add_embeddings(text_embeddings=zip(data["texts"], data["embeddings"]),
+    #                                 metadatas=data["metadatas"])
+    #         if not kwargs.get("not_refresh_vs_cache"):
+    #             vs_path = self.get_vs_path("query")
+    #             vs.save_local(vs_path)
+    #     doc_infos = [{"id": id, "metadata": doc.metadata} for id, doc in zip(ids, docs)]
+    #     torch_gc()
+    #     return doc_infos
+
+    # def do_delete_query(self,
+    #                     kb_filepath,
+    #                     **kwargs):
+    #     vs_path = self.get_vs_path("query")
+    #     with self.load_vector_store("query").acquire() as vs:
+    #         ids = [k for k, v in vs.docstore._dict.items() if v.metadata.get("source") == kb_filepath]
+    #         if len(ids) > 0:
+    #             vs.delete(ids)
+    #         if not kwargs.get("not_refresh_vs_cache"):
+    #             vs.save_local(vs_path)
+    #     return ids
 
 
 if __name__ == '__main__':

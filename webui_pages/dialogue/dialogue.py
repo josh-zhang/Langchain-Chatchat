@@ -164,17 +164,17 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
 
     chat_input_placeholder = "请输入对话内容，换行请使用Shift+Enter "
 
-    def on_feedback(
-            feedback,
-            chat_history_id: str = "",
-            history_index: int = -1,
-    ):
-        reason = feedback["text"]
-        score_int = chat_box.set_feedback(feedback=feedback, history_index=history_index)
-        api.chat_feedback(chat_history_id=chat_history_id,
-                          score=score_int,
-                          reason=reason)
-        st.session_state["need_rerun"] = True
+    # def on_feedback(
+    #         feedback,
+    #         chat_history_id: str = "",
+    #         history_index: int = -1,
+    # ):
+    #     reason = feedback["text"]
+    #     score_int = chat_box.set_feedback(feedback=feedback, history_index=history_index)
+    #     api.chat_feedback(chat_history_id=chat_history_id,
+    #                       score=score_int,
+    #                       reason=reason)
+    #     st.session_state["need_rerun"] = True
 
     feedback_kwargs = {
         "feedback_type": "thumbs",
@@ -272,8 +272,11 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                 elif chunk := d.get("answer"):
                     text += chunk
                     # chat_box.update_msg(text, element_index=0)
-            chat_box.update_msg(text, element_index=0, streaming=False)
-            chat_box.update_msg("\n\n".join(d.get("docs", [])), element_index=1, streaming=False)
+            if text:
+                chat_box.update_msg(text, element_index=0, streaming=False)
+                chat_box.update_msg("\n\n".join(d.get("docs", [])), element_index=1, streaming=False)
+            else:
+                chat_box.update_msg("对不起", element_index=0, streaming=False)
 
     if st.session_state.get("need_rerun"):
         st.session_state["need_rerun"] = False
