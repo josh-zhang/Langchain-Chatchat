@@ -384,7 +384,7 @@ def load_df_raw(faq_full_file):
             l_attri = attri
 
         if "民生微信" in channel and not raw_exq_type and not sample:
-            l_query = query.StandardQuery(l_idx, l_raw_q, raw_a)
+            l_query = StandardQuery(l_idx, l_raw_q, raw_a)
             l_query.attri = l_attri
             l_query.ref = faq_full_file
 
@@ -418,7 +418,7 @@ def load_df_raw(faq_full_file):
             pass
 
     for q in this_query_list:
-        if query.is_valid_std_query(q.raw_q, q.std_a):
+        if is_valid_std_query(q.raw_q, q.std_a):
             query_list.append(q)
 
     return query_list
@@ -438,8 +438,8 @@ def load_df_processed(faq_file):
         attri = row["意图"]
         ref = row["引用"]
 
-        if query.is_valid_std_query(raw_q, raw_a):
-            l_query = query.StandardQuery(idx, raw_q, raw_a)
+        if is_valid_std_query(raw_q, raw_a):
+            l_query = StandardQuery(idx, raw_q, raw_a)
             l_query.attri = attri
             l_query.ref = ref
 
@@ -651,6 +651,9 @@ class KBService(ABC):
         如果指定了docs，则不再将文本向量化，并将数据库对应条目标为custom_docs=True
         """
 
+        print("add_faq")
+        print(f"is_generated {is_generated}")
+
         filepath = kb_file.filepath
 
         label_list, std_label_list, answer_list, label_dict, as_count_list, _ = load_faq(filepath,
@@ -668,18 +671,21 @@ class KBService(ABC):
             docq = Document(page_content=question)
             docq.metadata["source"] = filepath
             docq.metadata["raw_id"] = idx
+            docq.metadata["answer_id"] = a_idx
 
             if a_idx in answer_dict:
                 answer_dict[a_idx].append(docq)
             else:
-                doca = Document(page_content=answer)
+                qna = "问题：" + std_label_list[a_idx] + "\n答案：" + answer
+                doca = Document(page_content=qna)
                 doca.metadata["source"] = filepath
                 doca.metadata["raw_id"] = a_idx
 
                 answer_dict[a_idx] = [doca, docq]
 
         for a_idx, ele_list in answer_dict.items():
-            answers = [ele_list[0]]
+            answer_obj = ele_list[0]
+            answers = [answer_obj]
             questions = ele_list[1:]
 
             doc_infos = self.do_add_answer(answers, **kwargs)
@@ -722,14 +728,14 @@ class KBService(ABC):
         status = add_kb_to_db(self.kb_name, self.kb_info, self.vs_type(), self.embed_model)
         return status
 
-    def update_faq(self, kb_file: KnowledgeFile, **kwargs):
+    def update_faq(self, kb_file: KnowledgeFile, is_generated, **kwargs):
         """
         使用content中的文件更新向量库
         如果指定了docs，则使用自定义docs，并将数据库对应条目标为custom_docs=True
         """
         if os.path.exists(kb_file.filepath):
             self.delete_faq(kb_file, **kwargs)
-            return self.add_faq(kb_file, **kwargs)
+            return self.add_faq(kb_file, is_generated, **kwargs)
 
     def update_doc(self, kb_file: KnowledgeFile, docs: List[Document] = [], **kwargs):
         """
@@ -754,9 +760,28 @@ class KBService(ABC):
                     query: str,
                     top_k: int = VECTOR_SEARCH_TOP_K,
                     score_threshold: float = SCORE_THRESHOLD,
+                    embeddings: List[float] = None,
                     ):
-        docs = self.do_search_docs(query, top_k, score_threshold)
-        return docs
+        embedding, docs = self.do_search_docs(query, top_k, score_threshold, embeddings=embeddings)
+        return embedding, docs
+
+    def search_question(self,
+                        query: str,
+                        top_k: int = VECTOR_SEARCH_TOP_K,
+                        score_threshold: float = SCORE_THRESHOLD,
+                        embeddings: List[float] = None,
+                        ):
+        embedding, docs = self.do_search_question(query, top_k, score_threshold, embeddings=embeddings)
+        return embedding, docs
+
+    def search_answer(self,
+                      query: str,
+                      top_k: int = VECTOR_SEARCH_TOP_K,
+                      score_threshold: float = SCORE_THRESHOLD,
+                      embeddings: List[float] = None,
+                      ):
+        embedding, docs = self.do_search_answer(query, top_k, score_threshold, embeddings=embeddings)
+        return embedding, docs
 
     # def search_query(self,
     #                  query: str,
@@ -766,23 +791,13 @@ class KBService(ABC):
     #     docs = self.do_search_query(query, top_k, score_threshold)
     #     return docs
 
-    def search_question(self,
-                        query: str,
-                        top_k: int = VECTOR_SEARCH_TOP_K,
-                        score_threshold: float = SCORE_THRESHOLD,
-                        ):
-        docs = self.do_search_question(query, top_k, score_threshold)
-        return docs
-
-    def search_answer(self,
-                      query: str,
-                      top_k: int = VECTOR_SEARCH_TOP_K,
-                      score_threshold: float = SCORE_THRESHOLD,
-                      ):
-        docs = self.do_search_answer(query, top_k, score_threshold)
-        return docs
-
     def get_doc_by_id(self, id: str) -> Optional[Document]:
+        return None
+
+    def get_answer_by_id(self, id: str) -> Optional[Document]:
+        return None
+
+    def get_question_by_id(self, id: str) -> Optional[Document]:
         return None
 
     def list_docs(self, file_name: str = None, metadata: Dict = {}) -> List[Document]:
@@ -832,7 +847,8 @@ class KBService(ABC):
                        query: str,
                        top_k: int,
                        score_threshold: float,
-                       ) -> List[Document]:
+                       embeddings: List[float] = None,
+                       ) -> (List[float], List[Document]):
         """
         搜索知识库子类实自己逻辑
         """
@@ -854,7 +870,8 @@ class KBService(ABC):
                            query: str,
                            top_k: int,
                            score_threshold: float,
-                           ) -> List[Document]:
+                           embeddings: List[float] = None,
+                           ) -> (List[float], List[Document]):
         """
         搜索知识库子类实自己逻辑
         """
@@ -865,7 +882,8 @@ class KBService(ABC):
                          query: str,
                          top_k: int,
                          score_threshold: float,
-                         ) -> List[Document]:
+                         embeddings: List[float] = None,
+                         ) -> (List[float], List[Document]):
         """
         搜索知识库子类实自己逻辑
         """

@@ -12,9 +12,7 @@ import uvicorn
 from fastapi import Body
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import RedirectResponse
-# from server.chat.chat import chat
-# from server.chat.openai_chat import openai_chat
-# from server.chat.search_engine_chat import search_engine_chat
+from server.chat.chat import chat
 # from server.chat.completion import completion
 # from server.chat.feedback import chat_feedback
 from server.embeddings_api import embed_texts_endpoint
@@ -57,20 +55,11 @@ def mount_app_routes(app: FastAPI, run_mode: str = None):
             summary="swagger 文档")(document)
 
     # Tag: Chat
-    # app.post("/chat/fastchat",
-    #          tags=["Chat"],
-    #          summary="与llm模型对话(直接与fastchat api对话)",
-    #          )(openai_chat)
 
-    # app.post("/chat/chat",
-    #          tags=["Chat"],
-    #          summary="与llm模型对话(通过LLMChain)",
-    #          )(chat)
-
-    # app.post("/chat/search_engine_chat",
-    #          tags=["Chat"],
-    #          summary="与搜索引擎对话",
-    #          )(search_engine_chat)
+    app.post("/chat/chat",
+             tags=["Chat"],
+             summary="与llm模型对话(通过LLMChain)",
+             )(chat)
 
     # app.post("/chat/feedback",
     #          tags=["Chat"],
@@ -111,11 +100,6 @@ def mount_app_routes(app: FastAPI, run_mode: str = None):
              tags=["Server State"],
              summary="获取服务器原始配置信息",
              )(get_server_configs)
-
-    # app.post("/server/list_search_engines",
-    #          tags=["Server State"],
-    #          summary="获取服务器支持的搜索引擎",
-    #          )(list_search_engines)
 
     @app.post("/server/get_prompt_template",
               tags=["Server State"],

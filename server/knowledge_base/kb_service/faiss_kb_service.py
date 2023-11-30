@@ -36,6 +36,14 @@ class FaissKBService(KBService):
         with self.load_vector_store("docs").acquire() as vs:
             return vs.docstore._dict.get(id)
 
+    def get_question_by_id(self, id: str) -> Optional[Document]:
+        with self.load_vector_store("question").acquire() as vs:
+            return vs.docstore._dict.get(id)
+
+    def get_answer_by_id(self, id: str) -> Optional[Document]:
+        with self.load_vector_store("answer").acquire() as vs:
+            return vs.docstore._dict.get(id)
+
     def do_init(self):
         # self.vector_name = self.vector_name or self.embed_model
         self.kb_path = self.get_kb_path()
@@ -58,46 +66,55 @@ class FaissKBService(KBService):
                        query: str,
                        top_k: int,
                        score_threshold: float = SCORE_THRESHOLD,
-                       ) -> List[Document]:
-        embed_func = EmbeddingsFunAdapter(self.embed_model)
-        embeddings = embed_func.embed_query(query)
-
-        print(f"embed_model {self.embed_model}")
-        print(f"score_threshold {score_threshold}")
-        print(f"top_k {top_k}")
-        print(f"query {query}")
+                       embeddings: List[float] = None,
+                       ) -> (List[float], List[Document]):
+        if embeddings is None:
+            embed_func = EmbeddingsFunAdapter(self.embed_model)
+            embeddings = embed_func.embed_query(query)
 
         with self.load_vector_store("docs").acquire() as vs:
-            logging.warning(vs.index_to_docstore_id)
+            if len(vs.docstore._dict) == 0:
+                print(f"docs vector_store is empty")
+                return embeddings, []
             docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=score_threshold)
             print(f"{len(docs)} docs found from faiss")
-        return docs
+        return embeddings, docs
 
     def do_search_question(self,
                            query: str,
                            top_k: int,
                            score_threshold: float = SCORE_THRESHOLD,
-                           ) -> List[Document]:
-        embed_func = EmbeddingsFunAdapter(self.embed_model)
-        embeddings = embed_func.embed_query(query)
+                           embeddings: List[float] = None,
+                           ) -> (List[float], List[Document]):
+        if embeddings is None:
+            embed_func = EmbeddingsFunAdapter(self.embed_model)
+            embeddings = embed_func.embed_query(query)
 
         with self.load_vector_store("question").acquire() as vs:
+            if len(vs.docstore._dict) == 0:
+                print(f"question vector_store is empty")
+                return embeddings, []
             docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=score_threshold)
-
-        return docs
+            print(f"{len(docs)} question found from faiss")
+        return embeddings, docs
 
     def do_search_answer(self,
                          query: str,
                          top_k: int,
                          score_threshold: float = SCORE_THRESHOLD,
-                         ) -> List[Document]:
-        embed_func = EmbeddingsFunAdapter(self.embed_model)
-        embeddings = embed_func.embed_query(query)
+                         embeddings: List[float] = None,
+                         ) -> (List[float], List[Document]):
+        if embeddings is None:
+            embed_func = EmbeddingsFunAdapter(self.embed_model)
+            embeddings = embed_func.embed_query(query)
 
         with self.load_vector_store("answer").acquire() as vs:
+            if len(vs.docstore._dict) == 0:
+                print(f"answer vector_store is empty")
+                return embeddings, []
             docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=score_threshold)
-
-        return docs
+            print(f"{len(docs)} answer found from faiss")
+        return embeddings, docs
 
     def do_add_doc(self,
                    docs: List[Document],
@@ -111,6 +128,7 @@ class FaissKBService(KBService):
             ids = vs.add_embeddings(text_embeddings=zip(data["texts"], data["embeddings"]),
                                     metadatas=data["metadatas"])
             print(f"{len(ids)} docs added to faiss")
+
             if not kwargs.get("not_refresh_vs_cache"):
                 vs_path = self.get_vs_path("docs")
                 vs.save_local(vs_path)
@@ -145,9 +163,15 @@ class FaissKBService(KBService):
         with self.load_vector_store("question").acquire() as vs:
             ids = vs.add_embeddings(text_embeddings=zip(data["texts"], data["embeddings"]),
                                     metadatas=data["metadatas"])
+
+            print(f"add_question {len(data)}")
+
             if not kwargs.get("not_refresh_vs_cache"):
                 vs_path = self.get_vs_path("question")
                 vs.save_local(vs_path)
+
+                print(f"add_question local")
+
         doc_infos = [{"id": id, "metadata": doc.metadata} for id, doc in zip(ids, docs)]
         torch_gc()
         return doc_infos
@@ -173,9 +197,15 @@ class FaissKBService(KBService):
         with self.load_vector_store("answer").acquire() as vs:
             ids = vs.add_embeddings(text_embeddings=zip(data["texts"], data["embeddings"]),
                                     metadatas=data["metadatas"])
+
+            print(f"add_answer")
+
             if not kwargs.get("not_refresh_vs_cache"):
                 vs_path = self.get_vs_path("answer")
                 vs.save_local(vs_path)
+
+                print(f"add_answer local")
+
         doc_infos = [{"id": id, "metadata": doc.metadata} for id, doc in zip(ids, docs)]
         torch_gc()
         return doc_infos

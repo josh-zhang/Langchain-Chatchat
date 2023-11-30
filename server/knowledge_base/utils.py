@@ -81,7 +81,7 @@ LOADER_DICT = {"CustomHTMLLoader": ['.html'],
                "UnstructuredFileLoader": ['.eml', '.msg', '.rst',
                                           '.rtf', '.txt', '.xml',
                                           '.docx', '.epub', '.odt',
-                                          '.ppt', '.pptx', '.tsv'],
+                                          '.ppt', '.pptx', '.tsv', '.xlsx'],
                }
 SUPPORTED_EXTS = [ext for sublist in LOADER_DICT.values() for ext in sublist]
 

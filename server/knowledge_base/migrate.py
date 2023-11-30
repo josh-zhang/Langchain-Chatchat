@@ -123,7 +123,10 @@ def folder2db(
             kb.create_kb()
             kb_files = file_to_kbfile(kb_name, list_files_from_folder(kb_name))
             files2vs(kb_name, kb_files)
-            kb.save_vector_store()
+            kb.save_vector_store("docs")
+            kb.save_vector_store("question")
+            kb.save_vector_store("answer")
+            kb.save_vector_store("query")
         # # 不做文件内容的向量化，仅将文件元信息存到数据库
         # # 由于现在数据库存了很多与文本切分相关的信息，单纯存储文件信息意义不大，该功能取消。
         # elif mode == "fill_info_only":
@@ -137,7 +140,10 @@ def folder2db(
             files = kb.list_files()
             kb_files = file_to_kbfile(kb_name, files)
             files2vs(kb_name, kb_files)
-            kb.save_vector_store()
+            kb.save_vector_store("docs")
+            kb.save_vector_store("question")
+            kb.save_vector_store("answer")
+            kb.save_vector_store("query")
         # 对比本地目录与数据库中的文件列表，进行增量向量化
         elif mode == "increament":
             db_files = kb.list_files()
@@ -145,7 +151,10 @@ def folder2db(
             files = list(set(folder_files) - set(db_files))
             kb_files = file_to_kbfile(kb_name, files)
             files2vs(kb_name, kb_files)
-            kb.save_vector_store()
+            kb.save_vector_store("docs")
+            kb.save_vector_store("question")
+            kb.save_vector_store("answer")
+            kb.save_vector_store("query")
         else:
             print(f"unspported migrate mode: {mode}")
 
@@ -165,7 +174,10 @@ def prune_db_docs(kb_names: List[str]):
             for kb_file in kb_files:
                 kb.delete_doc(kb_file, not_refresh_vs_cache=True)
                 print(f"success to delete docs for file: {kb_name}/{kb_file.filename}")
-            kb.save_vector_store()
+            kb.save_vector_store("docs")
+            kb.save_vector_store("question")
+            kb.save_vector_store("answer")
+            kb.save_vector_store("query")
 
 
 def prune_folder_files(kb_names: List[str]):

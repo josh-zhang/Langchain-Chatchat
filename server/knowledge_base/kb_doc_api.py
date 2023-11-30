@@ -11,8 +11,9 @@ from server.knowledge_base.utils import (validate_kb_name, list_files_from_folde
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import Json
 import json
-from server.knowledge_base.kb_service.base import KBServiceFactory
-from server.db.repository.knowledge_file_repository import get_file_detail
+from server.knowledge_base.kb_service.base import KBServiceFactory, KBService
+from server.db.repository.knowledge_file_repository import get_file_detail, get_answer_id_by_question_raw_id_from_db, \
+    get_answer_doc_id_by_answer_id_from_db
 from typing import List
 from langchain.docstore.document import Document
 
@@ -32,24 +33,45 @@ def search_docs(
                                       ge=0, le=1),
 ) -> List[DocumentWithScore]:
     print(f"query {query}")
+
     kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
     if kb is None:
         return []
-    docs_data = kb.search_docs(query, top_k, score_threshold)
-    print(f"docs_data {docs_data}")
-    docs_data = [DocumentWithScore(**x[0].dict(), score=x[1]) for x in docs_data]
 
-    # answer_data = kb.search_answer(query, top_k, score_threshold)
-    # print(f"answer_data {answer_data}")
-    # answer_data = [DocumentWithScore(**x[0].dict(), score=x[1]) for x in answer_data]
-    #
-    # question_data = kb.search_question(query, top_k, score_threshold)
-    # print(f"question_data {question_data}")
-    # question_data = [DocumentWithScore(**x[0].dict(), score=x[1]) for x in question_data]
-    #
-    # data = docs_data + answer_data + question_data
-    data = docs_data
-    return data
+    query_embedding, docs_data = kb.search_docs(query, top_k, score_threshold)
+
+    _, answer_data = kb.search_answer(query, top_k, score_threshold, embeddings=query_embedding)
+    print(f"answer_data {answer_data}")
+
+    _, question_data = kb.search_question(query, top_k, score_threshold, embeddings=query_embedding)
+    print(f"question_data {question_data}")
+
+    for qd, score in question_data:
+        question_id = qd.metadata["raw_id"]
+        print(f"question_id {question_id}")
+
+        answer_id = get_answer_id_by_question_raw_id_from_db(knowledge_base_name, question_id)
+        print(f"get_answer_id_by_quesiton_raw_id_from_db {answer_id}")
+
+        if not answer_id:
+            continue
+
+        doc_id = get_answer_doc_id_by_answer_id_from_db(knowledge_base_name, answer_id)
+        print(f"get_answer_doc_id_by_answer_id_from_db {doc_id}")
+
+        if not doc_id:
+            continue
+
+        answer = kb.get_answer_by_id(doc_id)
+        answer_data.append((answer, score))
+
+    docs_data = docs_data + answer_data
+
+    docs = [DocumentWithScore(**x[0].dict(), score=x[1]) for x in docs_data]
+
+    print(f"docs total searched {len(docs)}")
+
+    return docs
 
 
 def list_files(
@@ -271,14 +293,20 @@ def update_docs(
 
     # 生成需要加载docs的文件列表
     for file_name in file_names:
+        print(f"processing {file_name}")
+
         file_detail = get_file_detail(kb_name=knowledge_base_name, filename=file_name)
         # 如果该文件之前使用了自定义docs，则根据参数决定略过或覆盖
         if file_detail.get("custom_docs") and not override_custom_docs:
             continue
+
         if file_name not in docs:
-            if file_name.startswith("上库"):
+            if file_name.startswith("gen_") and file_name.endswith(".xlsx"):
                 kb_file = KnowledgeFile(filename=file_name, knowledge_base_name=knowledge_base_name)
-                kb.update_faq(kb_file, not_refresh_vs_cache=True)
+                kb.update_faq(kb_file, True, not_refresh_vs_cache=False)
+            elif file_name.startswith("faq_") and file_name.endswith(".xlsx"):
+                kb_file = KnowledgeFile(filename=file_name, knowledge_base_name=knowledge_base_name)
+                kb.update_faq(kb_file, False, not_refresh_vs_cache=False)
             else:
                 try:
                     kb_files.append(KnowledgeFile(filename=file_name, knowledge_base_name=knowledge_base_name))
@@ -299,7 +327,7 @@ def update_docs(
             kb_file = KnowledgeFile(filename=file_name,
                                     knowledge_base_name=knowledge_base_name)
             kb_file.splited_docs = new_docs
-            kb.update_doc(kb_file, not_refresh_vs_cache=True)
+            kb.update_doc(kb_file, not_refresh_vs_cache=False)
         else:
             kb_name, file_name, error = result
             failed_files[file_name] = error
