@@ -1,19 +1,44 @@
+import json
+from pathlib import Path
+from typing import List, Optional
+
+import sseclient
+import urllib3
 import requests
+import httpx
 from fastapi import Body, Request
 from fastapi.responses import StreamingResponse
-from configs import LLM_MODELS, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, TEMPERATURE, SAVE_CHAT_HISTORY, TOP_P
-from server.utils import BaseResponse, get_prompt_template
-from typing import List, Optional
 from langchain.prompts.chat import ChatPromptTemplate
+from urllib.parse import urlencode
+from server.utils import BaseResponse, get_prompt_template
 from server.chat.utils import History
 from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.knowledge_base.utils import get_doc_path
-import json
-from pathlib import Path
-from urllib.parse import urlencode
 from server.knowledge_base.kb_doc_api import search_docs
 from server.db.repository import add_chat_history_to_db, update_chat_history
-import sseclient
+from configs import LLM_MODELS, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, TEMPERATURE, SAVE_CHAT_HISTORY, TOP_P, LLM_SERVER
+
+
+def with_urllib3(url, headers):
+    """Get a streaming response for the given event feed using urllib3."""
+
+    http = urllib3.PoolManager()
+    return http.request('GET', url, preload_content=False, headers=headers)
+
+
+def with_requests(url, headers):
+    """Get a streaming response for the given event feed using requests."""
+
+    return requests.post(url, stream=True, headers=headers)
+
+
+def with_httpx(url, headers, payload):
+    """Get a streaming response for the given event feed using httpx."""
+
+    with httpx.stream('POST', url, headers=headers, json=payload) as s:
+        # Note: 'yield from' is Python >= 3.3. Use for/yield instead if you
+        # are using an earlier version.
+        yield from s.iter_bytes()
 
 
 async def knowledge_base_chat(query: str = Body(..., description="用户输入", examples=["你好"]),
@@ -50,6 +75,7 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
         prompt_template = get_prompt_template("knowledge_base_chat", "Empty")
     else:
         prompt_template = get_prompt_template("knowledge_base_chat", prompt_name)
+
     history = [History.from_data(h) for h in history]
 
     print(f"prompt_template {prompt_template}")
@@ -64,13 +90,18 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
 
     context = "\n".join([doc.page_content for doc in docs])
 
-    messages = []
+    messages = [{'role': 'system', 'content': ''}]
     for chatMessagePromptTemplate in chat_prompt.messages:
         role = chatMessagePromptTemplate.role
         prompt = chatMessagePromptTemplate.prompt
         template = prompt.template
-        template = template.replace("{{ question }}", query)
-        template = template.replace("{{ context }}", context)
+
+        if prompt_name in ["default", "text"]:
+            template = template.replace("{{ question }}", query)
+            template = template.replace("{{ context }}", context)
+        elif "Empty" == prompt_name:
+            template = template.replace("{{ question }}", query)
+
         messages.append({'role': role, 'content': template})
 
     print(f"messages\n{messages}")
@@ -90,26 +121,9 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
             "Content-Type": "application/json",
             'Accept': 'text/event-stream'
         }
-        url = "http://127.0.0.1:8000/v2/kbchat/completions"
-
-        def with_urllib3(url, headers):
-            """Get a streaming response for the given event feed using urllib3."""
-            import urllib3
-            http = urllib3.PoolManager()
-            return http.request('GET', url, preload_content=False, headers=headers)
-
-        def with_requests(url, headers):
-            """Get a streaming response for the given event feed using requests."""
-            import requests
-            return requests.post(url, stream=True, headers=headers)
-
-        def with_httpx(url, headers, payload):
-            """Get a streaming response for the given event feed using httpx."""
-            import httpx
-            with httpx.stream('POST', url, headers=headers, json=payload) as s:
-                # Note: 'yield from' is Python >= 3.3. Use for/yield instead if you
-                # are using an earlier version.
-                yield from s.iter_bytes()
+        host = LLM_SERVER["host"]
+        port = LLM_SERVER["port"]
+        url = f"http://{host}:{port}/v2/kbchat/completions"
 
         response = with_httpx(url, headers, payload)  # or with_requests(url, headers)
         client = sseclient.SSEClient(response)
@@ -118,7 +132,7 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
         source_documents = []
 
         for event in client.events():
-            chat_history_id = add_chat_history_to_db(chat_type="llm_chat", query=query)
+            chat_history_id = add_chat_history_to_db(chat_type="knowledge_base_chat", query=query)
 
             data = event.data
 

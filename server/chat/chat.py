@@ -1,17 +1,40 @@
+import json
+from typing import List, Optional
+
+import sseclient
+import urllib3
 import requests
+import httpx
 from fastapi import Body
 from fastapi.responses import StreamingResponse
-from configs import LLM_MODELS, TEMPERATURE, SAVE_CHAT_HISTORY, TOP_P
-from server.utils import wrap_done
-from typing import AsyncIterable
-import asyncio
-import json
 from langchain.prompts.chat import ChatPromptTemplate
-from typing import List, Optional
+
 from server.chat.utils import History
 from server.utils import get_prompt_template
 from server.db.repository import add_chat_history_to_db, update_chat_history
-import sseclient
+from configs import LLM_MODELS, TEMPERATURE, SAVE_CHAT_HISTORY, TOP_P, LLM_SERVER
+
+
+def with_urllib3(url, headers):
+    """Get a streaming response for the given event feed using urllib3."""
+
+    http = urllib3.PoolManager()
+    return http.request('POST', url, preload_content=False, headers=headers)
+
+
+def with_requests(url, headers):
+    """Get a streaming response for the given event feed using requests."""
+
+    return requests.post(url, stream=True, headers=headers)
+
+
+def with_httpx(url, headers, payload):
+    """Get a streaming response for the given event feed using httpx."""
+
+    with httpx.stream('POST', url, headers=headers, json=payload) as s:
+        # Note: 'yield from' is Python >= 3.3. Use for/yield instead if you
+        # are using an earlier version.
+        yield from s.iter_bytes()
 
 
 async def chat(query: str = Body(..., description="用户输入", examples=["恼羞成怒"]),
@@ -28,17 +51,32 @@ async def chat(query: str = Body(..., description="用户输入", examples=["恼
                top_p: float = Body(TOP_P, description="LLM 核采样", gt=0.0, lt=1.0),
                prompt_name: str = Body("default", description="使用的prompt模板名称(在configs/prompt_config.py中配置)"),
                ):
-
     prompt_template = get_prompt_template("llm_chat", prompt_name)
+
     history = [History.from_data(h) for h in history]
 
     print(f"prompt_template {prompt_template}")
     print(f"history {history}")
 
-    context = ""
+    input_msg = History(role="user", content=prompt_template).to_msg_template(False)
+    chat_prompt = ChatPromptTemplate.from_messages(
+        [i.to_msg_template() for i in history] + [input_msg])
 
-    messages = [{'role': 'system', 'content': f"请阅读以下文章然后回答问题。"},
-                {'role': 'user', 'content': f"\n{context}\n问题：{query}"}]
+    print(f"chat_prompt {chat_prompt.messages}")
+    print(f"chat_prompt {chat_prompt.input_variables}")
+
+    messages = [{'role': 'system', 'content': ''}]
+    for chatMessagePromptTemplate in chat_prompt.messages:
+        role = chatMessagePromptTemplate.role
+        prompt = chatMessagePromptTemplate.prompt
+        template = prompt.template
+
+        if prompt_name in ["default", "py"]:
+            template = template.replace("{{ input }}", query)
+
+        messages.append({'role': role, 'content': template})
+
+    print(f"messages\n{messages}")
 
     def output():
         payload = {
@@ -55,28 +93,13 @@ async def chat(query: str = Body(..., description="用户输入", examples=["恼
             "Content-Type": "application/json",
             'Accept': 'text/event-stream'
         }
-        url = "http://127.0.0.1:8000/v2/chat/completions"
 
-        def with_urllib3(url, headers):
-            """Get a streaming response for the given event feed using urllib3."""
-            import urllib3
-            http = urllib3.PoolManager()
-            return http.request('GET', url, preload_content=False, headers=headers)
-
-        def with_requests(url, headers):
-            """Get a streaming response for the given event feed using requests."""
-            import requests
-            return requests.post(url, stream=True, headers=headers)
-
-        def with_httpx(url, headers, payload):
-            """Get a streaming response for the given event feed using httpx."""
-            import httpx
-            with httpx.stream('POST', url, headers=headers, json=payload) as s:
-                # Note: 'yield from' is Python >= 3.3. Use for/yield instead if you
-                # are using an earlier version.
-                yield from s.iter_bytes()
+        host = LLM_SERVER["host"]
+        port = LLM_SERVER["port"]
+        url = f"http://{host}:{port}/v2/chat/completions"
 
         response = with_httpx(url, headers, payload)  # or with_requests(url, headers)
+
         client = sseclient.SSEClient(response)
 
         answer = ""
