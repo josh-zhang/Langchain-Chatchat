@@ -974,8 +974,8 @@ class KBServiceFactory:
             from server.knowledge_base.kb_service.zilliz_kb_service import ZillizKBService
             return ZillizKBService(kb_name, embed_model=embed_model)
         elif SupportedVSType.DEFAULT == vector_store_type:
-            return MilvusKBService(kb_name,
-                                   embed_model=embed_model)  # other milvus parameters are set in model_config.kbs_config
+            from server.knowledge_base.kb_service.faiss_kb_service import FaissKBService
+            return FaissKBService(kb_name, embed_model=embed_model, search_enhance=search_enhance)
         elif SupportedVSType.ES == vector_store_type:
             from server.knowledge_base.kb_service.es_kb_service import ESKBService
             return ESKBService(kb_name, embed_model=embed_model)

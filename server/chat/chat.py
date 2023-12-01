@@ -1,5 +1,4 @@
 import json
-from typing import List, Optional
 
 import sseclient
 import urllib3
@@ -14,9 +13,8 @@ from typing import List, Optional, Union
 from server.chat.utils import History
 from langchain.prompts import PromptTemplate
 from server.utils import get_prompt_template
-from server.memory.conversation_db_buffer_memory import ConversationBufferDBMemory
-from server.db.repository import add_message_to_db, add_chat_history_to_db, update_chat_history
-from configs import LLM_MODELS, TEMPERATURE, SAVE_CHAT_HISTORY, TOP_P, LLM_SERVER
+from server.db.repository import add_message_to_db
+from configs import LLM_MODELS, TEMPERATURE, TOP_P, LLM_SERVER
 from server.callback_handler.conversation_callback_handler import ConversationCallbackHandler
 
 
@@ -40,8 +38,9 @@ async def chat(query: str = Body(..., description="用户输入", examples=["恼
         nonlocal history, max_tokens
         callback = AsyncIteratorCallbackHandler()
         callbacks = [callback]
-        memory = None
+        # memory = None
 
+        message_id = ""
         if conversation_id:
             message_id = add_message_to_db(chat_type="llm_chat", query=query, conversation_id=conversation_id)
             # 负责保存llm response到message db
@@ -53,12 +52,6 @@ async def chat(query: str = Body(..., description="用户输入", examples=["恼
         if isinstance(max_tokens, int) and max_tokens <= 0:
             max_tokens = None
 
-        # model = get_ChatOpenAI(
-        #     model_name=model_name,
-        #     temperature=temperature,
-        #     max_tokens=max_tokens,
-        #     callbacks=callbacks,
-        # )
         if history:  # 优先使用前端传入的历史消息
             history = [History.from_data(h) for h in history]
             prompt_template = get_prompt_template("llm_chat", prompt_name)
@@ -70,9 +63,9 @@ async def chat(query: str = Body(..., description="用户输入", examples=["恼
             prompt = get_prompt_template("llm_chat", "with_history")
             chat_prompt = PromptTemplate.from_template(prompt)
             # 根据conversation_id 获取message 列表进而拼凑 memory
-            memory = ConversationBufferDBMemory(conversation_id=conversation_id,
-                                                llm=model,
-                                                message_limit=history_len)
+            # memory = ConversationBufferDBMemory(conversation_id=conversation_id,
+            #                                     llm=model,
+            #                                     message_limit=history_len)
         else:
             prompt_template = get_prompt_template("llm_chat", prompt_name)
             input_msg = History(role="user", content=prompt_template).to_msg_template(False)
@@ -116,8 +109,6 @@ async def chat(query: str = Body(..., description="用户输入", examples=["恼
 
         answer = ""
         for event in client.events():
-            chat_history_id = add_chat_history_to_db(chat_type="llm_chat", query=query)
-
             data = event.data
 
             if not data:

@@ -242,35 +242,6 @@ class FaissKBService(KBService):
         else:
             return False
 
-    # def do_add_query(self,
-    #                  docs: List[Document],
-    #                  **kwargs,
-    #                  ) -> List[Dict]:
-    #     data = self._docs_to_embeddings(docs)  # 将向量化单独出来可以减少向量库的锁定时间
-    #
-    #     with self.load_vector_store("query").acquire() as vs:
-    #         ids = vs.add_embeddings(text_embeddings=zip(data["texts"], data["embeddings"]),
-    #                                 metadatas=data["metadatas"])
-    #         if not kwargs.get("not_refresh_vs_cache"):
-    #             vs_path = self.get_vs_path("query")
-    #             vs.save_local(vs_path)
-    #     doc_infos = [{"id": id, "metadata": doc.metadata} for id, doc in zip(ids, docs)]
-    #     torch_gc()
-    #     return doc_infos
-
-    # def do_delete_query(self,
-    #                     kb_filepath,
-    #                     **kwargs):
-    #     vs_path = self.get_vs_path("query")
-    #     with self.load_vector_store("query").acquire() as vs:
-    #         ids = [k for k, v in vs.docstore._dict.items() if v.metadata.get("source") == kb_filepath]
-    #         if len(ids) > 0:
-    #             vs.delete(ids)
-    #         if not kwargs.get("not_refresh_vs_cache"):
-    #             vs.save_local(vs_path)
-    #     return ids
-
-
 if __name__ == '__main__':
     faissService = FaissKBService("test")
     faissService.add_doc(KnowledgeFile("README.md", "test"))

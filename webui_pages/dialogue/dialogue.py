@@ -323,7 +323,8 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
 
                 metadata = {
                     "message_id": message_id,
-                    }
+                }
+                chat_box.update_msg(text, streaming=False)  # 更新最终的字符串，去除光标
                 chat_box.update_msg(text, streaming=False, metadata=metadata)  # 更新最终的字符串，去除光标
                 chat_box.show_feedback(**feedback_kwargs,
                                     key=message_id,

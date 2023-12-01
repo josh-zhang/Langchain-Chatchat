@@ -1,6 +1,6 @@
 from langchain.docstore.document import Document
 from configs import EMBEDDING_MODEL, logger
-from server.model_workers.base import ApiEmbeddingsParams
+# from server.model_workers.base import ApiEmbeddingsParams
 from server.utils import BaseResponse, get_model_worker_config, list_embed_models, list_online_embed_models
 from fastapi import Body
 from typing import Dict, List
@@ -19,20 +19,20 @@ def embed_texts(
     TODO: 也许需要加入缓存机制，减少 token 消耗
     '''
     try:
-        if embed_model in list_embed_models(): # 使用本地Embeddings模型
-            from server.utils import load_local_embeddings
+        # if embed_model in list_embed_models(): # 使用本地Embeddings模型
+        from server.utils import load_local_embeddings
 
-            embeddings = load_local_embeddings(model=embed_model)
-            return BaseResponse(data=embeddings.embed_documents(texts))
+        embeddings = load_local_embeddings(model=embed_model)
+        return BaseResponse(data=embeddings.embed_documents(texts))
 
-        if embed_model in list_online_embed_models(): # 使用在线API
-            config = get_model_worker_config(embed_model)
-            worker_class = config.get("worker_class")
-            worker = worker_class()
-            if worker_class.can_embedding():
-                params = ApiEmbeddingsParams(texts=texts, to_query=to_query)
-                resp = worker.do_embeddings(params)
-                return BaseResponse(**resp)
+        # if embed_model in list_online_embed_models(): # 使用在线API
+        #     config = get_model_worker_config(embed_model)
+        #     worker_class = config.get("worker_class")
+        #     worker = worker_class()
+        #     if worker_class.can_embedding():
+        #         params = ApiEmbeddingsParams(texts=texts, to_query=to_query)
+        #         resp = worker.do_embeddings(params)
+        #         return BaseResponse(**resp)
 
         return BaseResponse(code=500, msg=f"指定的模型 {embed_model} 不支持 Embeddings 功能。")
     except Exception as e:
