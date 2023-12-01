@@ -11,11 +11,11 @@ from server.knowledge_base.utils import (validate_kb_name, list_files_from_folde
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import Json
 import json
-from server.knowledge_base.kb_service.base import KBServiceFactory, KBService
+from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.db.repository.knowledge_file_repository import get_file_detail, get_answer_id_by_question_raw_id_from_db, \
     get_answer_doc_id_by_answer_id_from_db
-from typing import List
 from langchain.docstore.document import Document
+from typing import List
 
 
 class DocumentWithScore(Document):
@@ -32,8 +32,6 @@ def search_docs(
                                                   "取到1相当于不筛选，建议设置在0.5左右",
                                       ge=0, le=1),
 ) -> List[DocumentWithScore]:
-    print(f"query {query}")
-
     kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
     if kb is None:
         return []
@@ -126,6 +124,8 @@ def _save_files_in_thread(files: List[UploadFile],
                 logger.warn(file_status)
                 return dict(code=404, msg=file_status, data=data)
 
+            if not os.path.isdir(os.path.dirname(file_path)):
+                os.makedirs(os.path.dirname(file_path))
             with open(file_path, "wb") as f:
                 f.write(file_content)
             return dict(code=200, msg=f"成功上传文件 {filename}", data=data)
@@ -303,13 +303,10 @@ def update_docs(
 
     # 生成需要加载docs的文件列表
     for file_name in file_names:
-        print(f"processing {file_name}")
-
         file_detail = get_file_detail(kb_name=knowledge_base_name, filename=file_name)
         # 如果该文件之前使用了自定义docs，则根据参数决定略过或覆盖
         if file_detail.get("custom_docs") and not override_custom_docs:
             continue
-
         if file_name not in docs:
             if file_name.startswith("gen_") and file_name.endswith(".xlsx"):
                 kb_file = KnowledgeFile(filename=file_name, knowledge_base_name=knowledge_base_name)
@@ -337,7 +334,7 @@ def update_docs(
             kb_file = KnowledgeFile(filename=file_name,
                                     knowledge_base_name=knowledge_base_name)
             kb_file.splited_docs = new_docs
-            kb.update_doc(kb_file, not_refresh_vs_cache=False)
+            kb.update_doc(kb_file, not_refresh_vs_cache=not_refresh_vs_cache)
         else:
             kb_name, file_name, error = result
             failed_files[file_name] = error

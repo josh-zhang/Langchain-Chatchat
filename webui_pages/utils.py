@@ -86,6 +86,7 @@ class ApiRequest:
     ) -> Union[httpx.Response, Iterator[httpx.Response], None]:
         while retry > 0:
             try:
+                # print(kwargs)
                 if stream:
                     return self.client.stream("POST", url, data=data, json=json, **kwargs)
                 else:
@@ -134,7 +135,7 @@ class ApiRequest:
                         if as_json:
                             try:
                                 data = json.loads(chunk)
-                                pprint(data, depth=1)
+                                # pprint(data, depth=1)
                                 yield data
                             except Exception as e:
                                 msg = f"接口返回json错误： ‘{chunk}’。错误信息是：{e}。"
@@ -166,7 +167,7 @@ class ApiRequest:
                         if as_json:
                             try:
                                 data = json.loads(chunk)
-                                pprint(data, depth=1)
+                                # pprint(data, depth=1)
                                 yield data
                             except Exception as e:
                                 msg = f"接口返回json错误： ‘{chunk}’。错误信息是：{e}。"
@@ -256,9 +257,42 @@ class ApiRequest:
 
     # 对话相关操作
 
+    def chat_fastchat(
+        self,
+        messages: List[Dict],
+        stream: bool = True,
+        model: str = LLM_MODELS[0],
+        temperature: float = TEMPERATURE,
+        max_tokens: int = None,
+        **kwargs: Any,
+    ):
+        '''
+        对应api.py/chat/fastchat接口
+        '''
+        data = {
+            "messages": messages,
+            "stream": stream,
+            "model": model,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+
+        # print(f"received input message:")
+        # pprint(data)
+
+        response = self.post(
+            "/chat/fastchat",
+            json=data,
+            stream=True,
+            **kwargs,
+        )
+        return self._httpx_stream2generator(response)
+
     def chat_chat(
         self,
         query: str,
+            conversation_id: str = None,
+            history_len: int = -1,
         history: List[Dict] = [],
         stream: bool = True,
         model: str = LLM_MODELS[0],
@@ -268,10 +302,12 @@ class ApiRequest:
         **kwargs,
     ):
         '''
-        对应api.py/chat/chat接口 #TODO: 考虑是否返回json
+        对应api.py/chat/chat接口
         '''
         data = {
             "query": query,
+            "conversation_id": conversation_id,
+            "history_len": history_len,
             "history": history,
             "stream": stream,
             "model_name": model,
@@ -280,8 +316,8 @@ class ApiRequest:
             "prompt_name": prompt_name,
         }
 
-        print(f"received input message:")
-        pprint(data)
+        # print(f"received input message:")
+        # pprint(data)
 
         response = self.post("/chat/chat", json=data, stream=True, **kwargs)
         return self._httpx_stream2generator(response, as_json=True)
@@ -309,8 +345,8 @@ class ApiRequest:
             "prompt_name": prompt_name,
         }
 
-        print(f"received input message:")
-        pprint(data)
+        # print(f"received input message:")
+        # pprint(data)
 
         response = self.post("/chat/agent_chat", json=data, stream=True)
         return self._httpx_stream2generator(response)
@@ -344,15 +380,128 @@ class ApiRequest:
             "prompt_name": prompt_name,
         }
 
-        print(f"received input message:")
-        pprint(data)
+        # print(f"received input message:")
+        # pprint(data)
 
         response = self.post(
             "/chat/knowledge_base_chat",
             json=data,
             stream=True,
         )
-        print(response)
+        return self._httpx_stream2generator(response, as_json=True)
+
+    def upload_temp_docs(
+        self,
+        files: List[Union[str, Path, bytes]],
+        knowledge_id: str = None,
+        chunk_size=CHUNK_SIZE,
+        chunk_overlap=OVERLAP_SIZE,
+        zh_title_enhance=ZH_TITLE_ENHANCE,
+    ):
+        '''
+        对应api.py/knowledge_base/upload_tmep_docs接口
+        '''
+        def convert_file(file, filename=None):
+            if isinstance(file, bytes): # raw bytes
+                file = BytesIO(file)
+            elif hasattr(file, "read"): # a file io like object
+                filename = filename or file.name
+            else: # a local path
+                file = Path(file).absolute().open("rb")
+                filename = filename or os.path.split(file.name)[-1]
+            return filename, file
+
+        files = [convert_file(file) for file in files]
+        data={
+            "knowledge_id": knowledge_id,
+            "chunk_size": chunk_size,
+            "chunk_overlap": chunk_overlap,
+            "zh_title_enhance": zh_title_enhance,
+        }
+
+        response = self.post(
+            "/knowledge_base/upload_temp_docs",
+            data=data,
+            files=[("files", (filename, file)) for filename, file in files],
+        )
+        return self._get_response_value(response, as_json=True)
+
+    def file_chat(
+        self,
+        query: str,
+        knowledge_id: str,
+        top_k: int = VECTOR_SEARCH_TOP_K,
+        score_threshold: float = SCORE_THRESHOLD,
+        history: List[Dict] = [],
+        stream: bool = True,
+        model: str = LLM_MODELS[0],
+        temperature: float = TEMPERATURE,
+        max_tokens: int = None,
+        prompt_name: str = "default",
+    ):
+        '''
+        对应api.py/chat/file_chat接口
+        '''
+        data = {
+            "query": query,
+            "knowledge_id": knowledge_id,
+            "top_k": top_k,
+            "score_threshold": score_threshold,
+            "history": history,
+            "stream": stream,
+            "model_name": model,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "prompt_name": prompt_name,
+        }
+
+        # print(f"received input message:")
+        # pprint(data)
+
+        response = self.post(
+            "/chat/file_chat",
+            json=data,
+            stream=True,
+        )
+        return self._httpx_stream2generator(response, as_json=True)
+
+    def search_engine_chat(
+        self,
+        query: str,
+        search_engine_name: str,
+        top_k: int = SEARCH_ENGINE_TOP_K,
+        history: List[Dict] = [],
+        stream: bool = True,
+        model: str = LLM_MODELS[0],
+        temperature: float = TEMPERATURE,
+        max_tokens: int = None,
+        prompt_name: str = "default",
+        split_result: bool = False,
+    ):
+        '''
+        对应api.py/chat/search_engine_chat接口
+        '''
+        data = {
+            "query": query,
+            "search_engine_name": search_engine_name,
+            "top_k": top_k,
+            "history": history,
+            "stream": stream,
+            "model_name": model,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "prompt_name": prompt_name,
+            "split_result": split_result,
+        }
+
+        # print(f"received input message:")
+        # pprint(data)
+
+        response = self.post(
+            "/chat/search_engine_chat",
+            json=data,
+            stream=True,
+        )
         return self._httpx_stream2generator(response, as_json=True)
 
     # 知识库相关操作
@@ -604,6 +753,9 @@ class ApiRequest:
             "controller_address": controller_address,
         }
 
+        if log_verbose:
+            logger.info(f'{self.__class__.__name__}:data: {data}')
+
         response = self.post(
             "/llm_model/list_running_models",
             json=data,
@@ -622,7 +774,20 @@ class ApiRequest:
             if not running_models:
                 return "", False
 
-            model = list(running_models)[0]
+            model = ""
+            # for m in LLM_MODELS:
+            #     if m not in running_models:
+            #         continue
+            #     is_local = not running_models[m].get("online_api")
+            #     if local_first and not is_local:
+            #         continue
+            #     else:
+            #         model = m
+            #         break
+            #
+            # if not model: # LLM_MODELS中配置的模型都不在running_models里
+            #     model = list(running_models)[0]
+            # is_local = not running_models[model].get("online_api")
             is_local = True
             return model, is_local
 
@@ -652,12 +817,19 @@ class ApiRequest:
         else:
             return ret_sync()
 
-    def list_config_models(self) -> Dict[str, List[str]]:
+    def list_config_models(
+        self,
+        types: List[str] = ["local", "online"],
+    ) -> Dict[str, Dict]:
         '''
-        获取服务器configs中配置的模型列表，返回形式为{"type": [model_name1, model_name2, ...], ...}。
+        获取服务器configs中配置的模型列表，返回形式为{"type": {model_name: config}, ...}。
         '''
+        data = {
+            "types": types,
+        }
         response = self.post(
             "/llm_model/list_config_models",
+            json=data,
         )
         return self._get_response_value(response, as_json=True, value_func=lambda r:r.get("data", {}))
 
@@ -814,7 +986,7 @@ class ApiRequest:
 
     def chat_feedback(
         self,
-        chat_history_id: str,
+        message_id: str,
         score: int,
         reason: str = "",
     ) -> int:
@@ -822,7 +994,7 @@ class ApiRequest:
         反馈对话评价
         '''
         data = {
-            "chat_history_id": chat_history_id,
+            "message_id": message_id,
             "score": score,
             "reason": reason,
         }

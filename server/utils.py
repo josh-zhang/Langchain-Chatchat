@@ -4,14 +4,16 @@ from typing import List
 from fastapi import FastAPI
 from pathlib import Path
 import asyncio
-from configs import (LLM_MODELS, LLM_DEVICE, EMBEDDING_DEVICE, MODEL_PATH, MODEL_ROOT_PATH, logger, log_verbose,
-                     HTTPX_DEFAULT_TIMEOUT)
+from configs import (LLM_MODELS, LLM_DEVICE, EMBEDDING_DEVICE,
+                     MODEL_PATH, MODEL_ROOT_PATH, ONLINE_LLM_MODEL, logger, log_verbose,
+                     FSCHAT_MODEL_WORKERS, HTTPX_DEFAULT_TIMEOUT)
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
-# from langchain.chat_models import ChatOpenAI, AzureChatOpenAI, ChatAnthropic
-# from langchain.llms import OpenAI, AzureOpenAI, Anthropic
+from langchain.chat_models import ChatOpenAI
+from langchain.llms import OpenAI, AzureOpenAI, Anthropic
 import httpx
-from typing import Literal, Optional, Callable, Generator, Dict, Any, Awaitable, Union
+from typing import Literal, Optional, Callable, Generator, Dict, Any, Awaitable, Union, Tuple
+import logging
 
 
 async def wrap_done(fn: Awaitable, event: asyncio.Event):
@@ -19,6 +21,7 @@ async def wrap_done(fn: Awaitable, event: asyncio.Event):
     try:
         await fn
     except Exception as e:
+        logging.exception(e)
         # TODO: handle exception
         msg = f"Caught exception: {e}"
         logger.error(f'{e.__class__.__name__}: {msg}',
@@ -28,108 +31,59 @@ async def wrap_done(fn: Awaitable, event: asyncio.Event):
         event.set()
 
 
-# def get_ChatOpenAI(
-#         model_name: str,
-#         temperature: float,
-#         max_tokens: int = None,
-#         streaming: bool = True,
-#         callbacks: List[Callable] = [],
-#         verbose: bool = True,
-#         **kwargs: Any,
-# ) -> ChatOpenAI:
-#     ## 以下模型是Langchain原生支持的模型，这些模型不会走Fschat封装
-#     config_models = list_config_llm_models()
-#
-#     ## 非Langchain原生支持的模型，走Fschat封装
-#     config = get_model_worker_config(model_name)
-#     model = ChatOpenAI(
-#         streaming=streaming,
-#         verbose=verbose,
-#         callbacks=callbacks,
-#         openai_api_key=config.get("api_key", "EMPTY"),
-#         openai_api_base=config.get("api_base_url", fschat_openai_api_address()),
-#         model_name=model_name,
-#         temperature=temperature,
-#         max_tokens=max_tokens,
-#         openai_proxy=config.get("openai_proxy"),
-#         **kwargs
-#     )
-#
-#     return model
+def get_ChatOpenAI(
+        model_name: str,
+        temperature: float,
+        max_tokens: int = None,
+        streaming: bool = True,
+        callbacks: List[Callable] = [],
+        verbose: bool = True,
+        **kwargs: Any,
+) -> ChatOpenAI:
+    config = get_model_worker_config(model_name)
+    if model_name == "openai-api":
+        model_name = config.get("model_name")
+    model = ChatOpenAI(
+        streaming=streaming,
+        verbose=verbose,
+        callbacks=callbacks,
+        openai_api_key=config.get("api_key", "EMPTY"),
+        openai_api_base=config.get("api_base_url", fschat_openai_api_address()),
+        model_name=model_name,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        openai_proxy=config.get("openai_proxy"),
+        **kwargs
+    )
+    return model
 
-
-# def get_OpenAI(
-#         model_name: str,
-#         temperature: float,
-#         max_tokens: int = None,
-#         streaming: bool = True,
-#         echo: bool = True,
-#         callbacks: List[Callable] = [],
-#         verbose: bool = True,
-#         **kwargs: Any,
-# ) -> OpenAI:
-#     ## 以下模型是Langchain原生支持的模型，这些模型不会走Fschat封装
-#     config_models = list_config_llm_models()
-#     if model_name in config_models.get("langchain", {}):
-#         config = config_models["langchain"][model_name]
-#         if model_name == "Azure-OpenAI":
-#             model = AzureOpenAI(
-#                 streaming=streaming,
-#                 verbose=verbose,
-#                 callbacks=callbacks,
-#                 deployment_name=config.get("deployment_name"),
-#                 model_version=config.get("model_version"),
-#                 openai_api_type=config.get("openai_api_type"),
-#                 openai_api_base=config.get("api_base_url"),
-#                 openai_api_version=config.get("api_version"),
-#                 openai_api_key=config.get("api_key"),
-#                 openai_proxy=config.get("openai_proxy"),
-#                 temperature=temperature,
-#                 max_tokens=max_tokens,
-#                 echo=echo,
-#             )
-#
-#         elif model_name == "OpenAI":
-#             model = OpenAI(
-#                 streaming=streaming,
-#                 verbose=verbose,
-#                 callbacks=callbacks,
-#                 model_name=config.get("model_name"),
-#                 openai_api_base=config.get("api_base_url"),
-#                 openai_api_key=config.get("api_key"),
-#                 openai_proxy=config.get("openai_proxy"),
-#                 temperature=temperature,
-#                 max_tokens=max_tokens,
-#                 echo=echo,
-#             )
-#         elif model_name == "Anthropic":
-#             model = Anthropic(
-#                 streaming=streaming,
-#                 verbose=verbose,
-#                 callbacks=callbacks,
-#                 model_name=config.get("model_name"),
-#                 anthropic_api_key=config.get("api_key"),
-#                 echo=echo,
-#             )
-#     ## TODO 支持其他的Langchain原生支持的模型
-#     else:
-#         ## 非Langchain原生支持的模型，走Fschat封装
-#         config = get_model_worker_config(model_name)
-#         model = OpenAI(
-#             streaming=streaming,
-#             verbose=verbose,
-#             callbacks=callbacks,
-#             openai_api_key=config.get("api_key", "EMPTY"),
-#             openai_api_base=config.get("api_base_url", fschat_openai_api_address()),
-#             model_name=model_name,
-#             temperature=temperature,
-#             max_tokens=max_tokens,
-#             openai_proxy=config.get("openai_proxy"),
-#             echo=echo,
-#             **kwargs
-#         )
-#
-#     return model
+def get_OpenAI(
+        model_name: str,
+        temperature: float,
+        max_tokens: int = None,
+        streaming: bool = True,
+        echo: bool = True,
+        callbacks: List[Callable] = [],
+        verbose: bool = True,
+        **kwargs: Any,
+) -> OpenAI:
+    config = get_model_worker_config(model_name)
+    if model_name == "openai-api":
+        model_name = config.get("model_name")
+    model = OpenAI(
+        streaming=streaming,
+        verbose=verbose,
+        callbacks=callbacks,
+        openai_api_key=config.get("api_key", "EMPTY"),
+        openai_api_base=config.get("api_base_url", fschat_openai_api_address()),
+        model_name=model_name,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        openai_proxy=config.get("openai_proxy"),
+        echo=echo,
+        **kwargs
+    )
+    return model
 
 
 class BaseResponse(BaseModel):
@@ -341,14 +295,15 @@ def list_embed_models() -> List[str]:
 def list_config_llm_models() -> Dict[str, Dict]:
     '''
     get configured llm models with different types.
-    return [(model_name, config_type), ...]
+    return {config_type: {model_name: config}, ...}
     '''
-    # workers = list(FSCHAT_MODEL_WORKERS)
+    workers = FSCHAT_MODEL_WORKERS.copy()
+    workers.pop("default", None)
 
     return {
-        "local": MODEL_PATH["llm_model"],
-        # "online": ONLINE_LLM_MODEL,
-        # "worker": workers,
+        "local": MODEL_PATH["llm_model"].copy(),
+        "online": ONLINE_LLM_MODEL.copy(),
+        "worker": workers,
     }
 
 
@@ -381,72 +336,75 @@ def get_model_path(model_name: str, type: str = None) -> Optional[str]:
 
 # 从server_config中获取服务信息
 
-# def get_model_worker_config(model_name: str = None) -> dict:
-#     '''
-#     加载model worker的配置项。
-#     优先级:FSCHAT_MODEL_WORKERS[model_name] > ONLINE_LLM_MODEL[model_name] > FSCHAT_MODEL_WORKERS["default"]
-#     '''
-#     from configs.model_config import ONLINE_LLM_MODEL, MODEL_PATH
-#     # from configs.server_config import FSCHAT_MODEL_WORKERS
-#     from server import model_workers
-#
-#     config = ONLINE_LLM_MODEL.get(model_name, {}).copy()
-#     # config.update(ONLINE_LLM_MODEL.get(model_name, {}).copy())
-#     # config.update(FSCHAT_MODEL_WORKERS.get(model_name, {}).copy())
-#
-#     if model_name in ONLINE_LLM_MODEL:
-#         config["online_api"] = True
-#         if provider := config.get("provider"):
-#             try:
-#                 config["worker_class"] = getattr(model_workers, provider)
-#             except Exception as e:
-#                 msg = f"在线模型 ‘{model_name}’ 的provider没有正确配置"
-#                 logger.error(f'{e.__class__.__name__}: {msg}',
-#                              exc_info=e if log_verbose else None)
-#     # 本地模型
-#     if model_name in MODEL_PATH["llm_model"]:
-#         config["model_path"] = get_model_path(model_name)
-#         config["device"] = llm_device(config.get("device"))
-#     return config
+def get_model_worker_config(model_name: str = None) -> dict:
+    '''
+    加载model worker的配置项。
+    优先级:FSCHAT_MODEL_WORKERS[model_name] > ONLINE_LLM_MODEL[model_name] > FSCHAT_MODEL_WORKERS["default"]
+    '''
+    from configs.model_config import ONLINE_LLM_MODEL, MODEL_PATH
+    from configs.server_config import FSCHAT_MODEL_WORKERS
+    from server import model_workers
+
+    config = FSCHAT_MODEL_WORKERS.get("default", {}).copy()
+    config.update(ONLINE_LLM_MODEL.get(model_name, {}).copy())
+    config.update(FSCHAT_MODEL_WORKERS.get(model_name, {}).copy())
+
+    if model_name in ONLINE_LLM_MODEL:
+        config["online_api"] = True
+        if provider := config.get("provider"):
+            try:
+                config["worker_class"] = getattr(model_workers, provider)
+            except Exception as e:
+                msg = f"在线模型 ‘{model_name}’ 的provider没有正确配置"
+                logger.error(f'{e.__class__.__name__}: {msg}',
+                             exc_info=e if log_verbose else None)
+    # 本地模型
+    if model_name in MODEL_PATH["llm_model"]:
+        path = get_model_path(model_name)
+        config["model_path"] = path
+        if path and os.path.isdir(path):
+            config["model_path_exists"] = True
+        config["device"] = llm_device(config.get("device"))
+    return config
 
 
-# def get_all_model_worker_configs() -> dict:
-#     result = {}
-#     model_names = set(FSCHAT_MODEL_WORKERS.keys())
-#     for name in model_names:
-#         if name != "default":
-#             result[name] = get_model_worker_config(name)
-#     return result
+def get_all_model_worker_configs() -> dict:
+    result = {}
+    model_names = set(FSCHAT_MODEL_WORKERS.keys())
+    for name in model_names:
+        if name != "default":
+            result[name] = get_model_worker_config(name)
+    return result
 
 
-# def fschat_controller_address() -> str:
-#     from configs.server_config import FSCHAT_CONTROLLER
-#
-#     host = FSCHAT_CONTROLLER["host"]
-#     if host == "0.0.0.0":
-#         host = "127.0.0.1"
-#     port = FSCHAT_CONTROLLER["port"]
-#     return f"http://{host}:{port}"
+def fschat_controller_address() -> str:
+    from configs.server_config import FSCHAT_CONTROLLER
+
+    host = FSCHAT_CONTROLLER["host"]
+    if host == "0.0.0.0":
+        host = "127.0.0.1"
+    port = FSCHAT_CONTROLLER["port"]
+    return f"http://{host}:{port}"
 
 
-# def fschat_model_worker_address(model_name: str = LLM_MODELS[0]) -> str:
-#     if model := get_model_worker_config(model_name):  # TODO: depends fastchat
-#         host = model["host"]
-#         if host == "0.0.0.0":
-#             host = "127.0.0.1"
-#         port = model["port"]
-#         return f"http://{host}:{port}"
-#     return ""
+def fschat_model_worker_address(model_name: str = LLM_MODELS[0]) -> str:
+    if model := get_model_worker_config(model_name):  # TODO: depends fastchat
+        host = model["host"]
+        if host == "0.0.0.0":
+            host = "127.0.0.1"
+        port = model["port"]
+        return f"http://{host}:{port}"
+    return ""
 
 
-# def fschat_openai_api_address() -> str:
-#     from configs.server_config import FSCHAT_OPENAI_API
-#
-#     host = FSCHAT_OPENAI_API["host"]
-#     if host == "0.0.0.0":
-#         host = "127.0.0.1"
-#     port = FSCHAT_OPENAI_API["port"]
-#     return f"http://{host}:{port}/v1"
+def fschat_openai_api_address() -> str:
+    from configs.server_config import FSCHAT_OPENAI_API
+
+    host = FSCHAT_OPENAI_API["host"]
+    if host == "0.0.0.0":
+        host = "127.0.0.1"
+    port = FSCHAT_OPENAI_API["port"]
+    return f"http://{host}:{port}/v1"
 
 
 def api_address() -> str:
@@ -519,14 +477,14 @@ def set_httpx_config(
         "http://localhost",
     ]
     # do not use proxy for user deployed fastchat servers
-    # for x in [
-    #     fschat_controller_address(),
-    #     fschat_model_worker_address(),
-    #     fschat_openai_api_address(),
-    # ]:
-    #     host = ":".join(x.split(":")[:2])
-    #     if host not in no_proxy:
-    #         no_proxy.append(host)
+    for x in [
+        fschat_controller_address(),
+        fschat_model_worker_address(),
+        fschat_openai_api_address(),
+    ]:
+        host = ":".join(x.split(":")[:2])
+        if host not in no_proxy:
+            no_proxy.append(host)
     os.environ["NO_PROXY"] = ",".join(no_proxy)
 
     # TODO: 简单的清除系统代理不是个好的选择，影响太多。似乎修改代理服务器的bypass列表更好。
@@ -599,13 +557,13 @@ def get_httpx_client(
         "all://localhost": None,
     }
     # do not use proxy for user deployed fastchat servers
-    # for x in [
-    #     fschat_controller_address(),
-    #     fschat_model_worker_address(),
-    #     fschat_openai_api_address(),
-    # ]:
-    #     host = ":".join(x.split(":")[:2])
-    #     default_proxies.update({host: None})
+    for x in [
+        fschat_controller_address(),
+        fschat_model_worker_address(),
+        fschat_openai_api_address(),
+    ]:
+        host = ":".join(x.split(":")[:2])
+        default_proxies.update({host: None})
 
     # get proxies from system envionrent
     # proxy not str empty string, None, False, 0, [] or {}
@@ -622,7 +580,8 @@ def get_httpx_client(
     })
     for host in os.environ.get("no_proxy", "").split(","):
         if host := host.strip():
-            default_proxies.update({host: None})
+            # default_proxies.update({host: None}) # Origin code
+            default_proxies.update({'all://' + host: None})  # PR 1838 fix, if not add 'all://', httpx will raise error
 
     # merge default proxies with user provided proxies
     if isinstance(proxies, str):
@@ -633,7 +592,10 @@ def get_httpx_client(
 
     # construct Client
     kwargs.update(timeout=timeout, proxies=default_proxies)
-    print(kwargs)
+
+    if log_verbose:
+        logger.info(f'{get_httpx_client.__class__.__name__}:kwargs: {kwargs}')
+
     if use_async:
         return httpx.AsyncClient(**kwargs)
     else:
@@ -646,7 +608,7 @@ def get_server_configs() -> Dict:
     '''
     from configs.kb_config import (
         DEFAULT_KNOWLEDGE_BASE,
-        # DEFAULT_SEARCH_ENGINE,
+        DEFAULT_SEARCH_ENGINE,
         DEFAULT_VS_TYPE,
         CHUNK_SIZE,
         OVERLAP_SIZE,
@@ -665,24 +627,24 @@ def get_server_configs() -> Dict:
     from configs.prompt_config import PROMPT_TEMPLATES
 
     _custom = {
-        # "controller_address": fschat_controller_address(),
-        # "openai_api_address": fschat_openai_api_address(),
+        "controller_address": fschat_controller_address(),
+        "openai_api_address": fschat_openai_api_address(),
         "api_address": api_address(),
     }
 
     return {**{k: v for k, v in locals().items() if k[0] != "_"}, **_custom}
 
 
-# def list_online_embed_models() -> List[str]:
-#     from server import model_workers
-#
-#     ret = []
-#     for k, v in list_config_llm_models()["online"].items():
-#         if provider := v.get("provider"):
-#             worker_class = getattr(model_workers, provider, None)
-#             if worker_class is not None and worker_class.can_embedding():
-#                 ret.append(k)
-#     return ret
+def list_online_embed_models() -> List[str]:
+    from server import model_workers
+
+    ret = []
+    for k, v in list_config_llm_models()["online"].items():
+        if provider := v.get("provider"):
+            worker_class = getattr(model_workers, provider, None)
+            if worker_class is not None and worker_class.can_embedding():
+                ret.append(k)
+    return ret
 
 
 def load_local_embeddings(model: str = None, device: str = embedding_device()):
@@ -694,3 +656,19 @@ def load_local_embeddings(model: str = None, device: str = embedding_device()):
 
     model = model or EMBEDDING_MODEL
     return embeddings_pool.load_embeddings(model=model, device=device)
+
+
+def get_temp_dir(id: str = None) -> Tuple[str, str]:
+    '''
+    创建一个临时目录，返回（路径，文件夹名称）
+    '''
+    from configs.basic_config import BASE_TEMP_DIR
+    import tempfile
+
+    if id is not None:  # 如果指定的临时目录已存在，直接返回
+        path = os.path.join(BASE_TEMP_DIR, id)
+        if os.path.isdir(path):
+            return path, id
+
+    path = tempfile.mkdtemp(dir=BASE_TEMP_DIR)
+    return path, os.path.basename(path)

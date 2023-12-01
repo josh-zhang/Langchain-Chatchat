@@ -38,11 +38,11 @@ def duckduckgo_search(text, result_len=SEARCH_ENGINE_TOP_K, **kwargs):
 
 
 def metaphor_search(
-    text: str,
-    result_len: int = SEARCH_ENGINE_TOP_K,
-    split_result: bool = False,
-    chunk_size: int = 500,
-    chunk_overlap: int = OVERLAP_SIZE,
+        text: str,
+        result_len: int = SEARCH_ENGINE_TOP_K,
+        split_result: bool = False,
+        chunk_size: int = 500,
+        chunk_overlap: int = OVERLAP_SIZE,
 ) -> List[Dict]:
     from metaphor_python import Metaphor
 
@@ -58,13 +58,13 @@ def metaphor_search(
     # metaphor 返回的内容都是长文本，需要分词再检索
     if split_result:
         docs = [Document(page_content=x.extract,
-                        metadata={"link": x.url, "title": x.title})
+                         metadata={"link": x.url, "title": x.title})
                 for x in contents]
         text_splitter = RecursiveCharacterTextSplitter(["\n\n", "\n", ".", " "],
                                                        chunk_size=chunk_size,
                                                        chunk_overlap=chunk_overlap)
         splitted_docs = text_splitter.split_documents(docs)
-        
+
         # 将切分好的文档放入临时向量库，重新筛选出TOP_K个文档
         if len(splitted_docs) > result_len:
             normal = NormalizedLevenshtein()
@@ -74,13 +74,13 @@ def metaphor_search(
             splitted_docs = splitted_docs[:result_len]
 
         docs = [{"snippet": x.page_content,
-                "link": x.metadata["link"],
-                "title": x.metadata["title"]}
+                 "link": x.metadata["link"],
+                 "title": x.metadata["title"]}
                 for x in splitted_docs]
     else:
         docs = [{"snippet": x.extract,
-                "link": x.url,
-                "title": x.title}
+                 "link": x.url,
+                 "title": x.title}
                 for x in contents]
 
     return docs
@@ -115,23 +115,26 @@ async def lookup_search_engine(
 
 
 async def search_engine_chat(query: str = Body(..., description="用户输入", examples=["你好"]),
-                            search_engine_name: str = Body(..., description="搜索引擎名称", examples=["duckduckgo"]),
-                            top_k: int = Body(SEARCH_ENGINE_TOP_K, description="检索结果数量"),
-                            history: List[History] = Body([],
-                                                            description="历史对话",
-                                                            examples=[[
-                                                                {"role": "user",
+                             search_engine_name: str = Body(..., description="搜索引擎名称", examples=["duckduckgo"]),
+                             top_k: int = Body(SEARCH_ENGINE_TOP_K, description="检索结果数量"),
+                             history: List[History] = Body([],
+                                                           description="历史对话",
+                                                           examples=[[
+                                                               {"role": "user",
                                                                 "content": "我们来玩成语接龙，我先来，生龙活虎"},
-                                                                {"role": "assistant",
+                                                               {"role": "assistant",
                                                                 "content": "虎头虎脑"}]]
-                                                            ),
-                            stream: bool = Body(False, description="流式输出"),
-                            model_name: str = Body(LLM_MODELS[0], description="LLM 模型名称。"),
-                            temperature: float = Body(TEMPERATURE, description="LLM 采样温度", ge=0.0, le=1.0),
-                            max_tokens: Optional[int] = Body(None, description="限制LLM生成Token数量，默认None代表模型最大值"),
-                            prompt_name: str = Body("default",description="使用的prompt模板名称(在configs/prompt_config.py中配置)"),
-                            split_result: bool = Body(False, description="是否对搜索结果进行拆分（主要用于metaphor搜索引擎）")
-                       ):
+                                                           ),
+                             stream: bool = Body(False, description="流式输出"),
+                             model_name: str = Body(LLM_MODELS[0], description="LLM 模型名称。"),
+                             temperature: float = Body(TEMPERATURE, description="LLM 采样温度", ge=0.0, le=1.0),
+                             max_tokens: Optional[int] = Body(None,
+                                                              description="限制LLM生成Token数量，默认None代表模型最大值"),
+                             prompt_name: str = Body("default",
+                                                     description="使用的prompt模板名称(在configs/prompt_config.py中配置)"),
+                             split_result: bool = Body(False,
+                                                       description="是否对搜索结果进行拆分（主要用于metaphor搜索引擎）")
+                             ):
     if search_engine_name not in SEARCH_ENGINES.keys():
         return BaseResponse(code=404, msg=f"未支持搜索引擎 {search_engine_name}")
 
@@ -147,7 +150,11 @@ async def search_engine_chat(query: str = Body(..., description="用户输入", 
                                           model_name: str = LLM_MODELS[0],
                                           prompt_name: str = prompt_name,
                                           ) -> AsyncIterable[str]:
+        nonlocal max_tokens
         callback = AsyncIteratorCallbackHandler()
+        if isinstance(max_tokens, int) and max_tokens <= 0:
+            max_tokens = None
+
         model = get_ChatOpenAI(
             model_name=model_name,
             temperature=temperature,

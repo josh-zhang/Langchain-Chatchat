@@ -1,4 +1,5 @@
 from langchain.embeddings.base import Embeddings
+from langchain.vectorstores.faiss import FAISS
 import threading
 from configs import (EMBEDDING_MODEL, CHUNK_SIZE,
                     logger, log_verbose)
@@ -25,7 +26,7 @@ class ThreadSafeObject:
         return self._key
 
     @contextmanager
-    def acquire(self, owner: str = "", msg: str = ""):
+    def acquire(self, owner: str = "", msg: str = "") -> FAISS:
         owner = owner or f"thread {threading.get_native_id()}"
         try:
             self._lock.acquire()
@@ -109,6 +110,10 @@ class CachePool:
         kb_detail = get_kb_detail(kb_name)
         embed_model = kb_detail.get("embed_model", default_embed_model)
 
+        # if embed_model in list_online_embed_models():
+        #     return EmbeddingsFunAdapter(embed_model)
+        # else:
+        #     return embeddings_pool.load_embeddings(model=embed_model, device=embed_device)
         return embeddings_pool.load_embeddings(model=embed_model, device=embed_device)
 
 

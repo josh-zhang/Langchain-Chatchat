@@ -10,6 +10,7 @@ from configs import (kbs_config,
                     EMBEDDING_MODEL, DEFAULT_VS_TYPE,
                     CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE)
 from server.utils import list_embed_models
+# from server.utils import list_online_embed_models
 import os
 import time
 
@@ -34,14 +35,19 @@ def config_aggrid(
         use_checkbox=use_checkbox,
         # pre_selected_rows=st.session_state.get("selected_rows", [0]),
     )
+    gb.configure_pagination(
+        enabled=True,
+        paginationAutoPageSize=False,
+        paginationPageSize=10
+    )
     return gb
 
 
 def file_exists(kb: str, selected_rows: List) -> Tuple[str, str]:
-    '''
+    """
     check whether a doc file exists in local knowledge base folder.
     return the file's name and path if it exists.
-    '''
+    """
     if selected_rows:
         file_name = selected_rows[0]["file_name"]
         file_path = get_file_path(kb, file_name)
@@ -103,6 +109,10 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 key="vs_type",
             )
 
+            # if is_lite:
+            #     embed_models = list_online_embed_models()
+            # else:
+            #     embed_models = list_embed_models() + list_online_embed_models()
             embed_models = list_embed_models()
 
             embed_model = cols[1].selectbox(

@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 from typing import List, Optional
 
 import sseclient
@@ -13,10 +12,8 @@ from urllib.parse import urlencode
 from server.utils import BaseResponse, get_prompt_template
 from server.chat.utils import History
 from server.knowledge_base.kb_service.base import KBServiceFactory
-from server.knowledge_base.utils import get_doc_path
 from server.knowledge_base.kb_doc_api import search_docs
-from server.db.repository import add_chat_history_to_db, update_chat_history
-from configs import LLM_MODELS, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, TEMPERATURE, SAVE_CHAT_HISTORY, TOP_P, LLM_SERVER
+from configs import LLM_MODELS, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, TEMPERATURE, TOP_P, LLM_SERVER
 
 
 def with_urllib3(url, headers):
@@ -106,7 +103,7 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
 
     print(f"messages\n{messages}")
 
-    def output():
+    def knowledge_base_chat_iterator():
         payload = {
             'model': model_name,
             'key': 'kbqa',
@@ -128,38 +125,26 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
         response = with_httpx(url, headers, payload)  # or with_requests(url, headers)
         client = sseclient.SSEClient(response)
 
-        answer = ""
         source_documents = []
+        for inum, doc in enumerate(docs):
+            filename = doc.metadata.get("source")
+            parameters = urlencode({"knowledge_base_name": knowledge_base_name, "file_name": filename})
+            base_url = request.base_url
+            url = f"{base_url}knowledge_base/download_doc?" + parameters
+            text = f"""出处 [{inum + 1}] [{filename}]({url}) \n\n{doc.page_content}\n\n"""
+            source_documents.append(text)
+        if len(source_documents) == 0:  # 没有找到相关文档
+            source_documents.append(f"<span style='color:red'>未找到相关文档,该回答为大模型自身能力解答！</span>")
 
+        answer = ""
         for event in client.events():
-            chat_history_id = add_chat_history_to_db(chat_type="knowledge_base_chat", query=query)
-
             data = event.data
-
             if not data:
-                yield json.dumps({"answer": answer, "chat_history_id": chat_history_id}, ensure_ascii=False)
+                yield json.dumps({"answer": answer}, ensure_ascii=False)
                 break
-
             data = eval(data)
-
             answer = data['answer'] if isinstance(data, dict) else ""
-
-            doc_path = get_doc_path(knowledge_base_name)
-            for inum, doc in enumerate(docs):
-                filename = Path(doc.metadata["source"]).resolve().relative_to(doc_path)
-                parameters = urlencode({"knowledge_base_name": knowledge_base_name, "file_name": filename})
-                base_url = request.base_url
-                url = f"{base_url}knowledge_base/download_doc?" + parameters
-                text = f"""出处 [{inum + 1}] [{filename}]({url}) \n\n{doc.page_content}\n\n"""
-                source_documents.append(text)
-            if len(source_documents) == 0:  # 没有找到相关文档
-                source_documents.append(
-                    f"""<span style='color:red'>未找到相关文档,该回答为大模型自身能力解答！</span>""")
-
-            if SAVE_CHAT_HISTORY and len(chat_history_id) > 0:
-                # 后续可以加入一些其他信息，比如真实的prompt等
-                update_chat_history(chat_history_id, response=answer)
 
         yield json.dumps({"docs": source_documents}, ensure_ascii=False)
 
-    return StreamingResponse(output(), media_type="text/event-stream")
+    return StreamingResponse(knowledge_base_chat_iterator(), media_type="text/event-stream")
