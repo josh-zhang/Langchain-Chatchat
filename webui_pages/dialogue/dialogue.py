@@ -161,18 +161,11 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                 return f"{x} (Running)"
             return x
 
-        running_models = list(api.list_running_models())
-        available_models = []
-        config_models = api.list_config_models()
-        if not is_lite:
-            for k, v in config_models.get("local", {}).items():  # 列出配置了有效本地路径的模型
-                if (v.get("model_path_exists")
-                        and k not in running_models):
-                    available_models.append(k)
-        for k, v in config_models.get("online", {}).items():  # 列出ONLINE_MODELS中直接访问的模型
-            if not v.get("provider") and k not in running_models:
-                available_models.append(k)
-        llm_models = running_models + available_models
+        available_models = list(api.list_running_models())
+        running_models = available_models[0]
+
+        llm_models = available_models
+
         cur_llm_model = st.session_state.get("cur_llm_model", default_model)
         if cur_llm_model in llm_models:
             index = llm_models.index(cur_llm_model)
@@ -185,19 +178,17 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                                  on_change=on_llm_change,
                                  key="llm_model",
                                  )
-        if (st.session_state.get("prev_llm_model") != llm_model
-                and not is_lite
-                and not llm_model in config_models.get("online", {})
-                and not llm_model in config_models.get("langchain", {})
-                and llm_model not in running_models):
-            with st.spinner(f"正在加载模型： {llm_model}，请勿进行操作或刷新页面"):
-                prev_model = st.session_state.get("prev_llm_model")
-                r = api.change_llm_model(prev_model, llm_model)
-                if msg := check_error_msg(r):
-                    st.error(msg)
-                elif msg := check_success_msg(r):
-                    st.success(msg)
-                    st.session_state["prev_llm_model"] = llm_model
+        # if (st.session_state.get("prev_llm_model") != llm_model
+        #         and not is_lite
+        #         and llm_model not in running_models):
+        #     with st.spinner(f"正在加载模型： {llm_model}，请勿进行操作或刷新页面"):
+        #         prev_model = st.session_state.get("prev_llm_model")
+        #         r = api.change_llm_model(prev_model, llm_model)
+        #         if msg := check_error_msg(r):
+        #             st.error(msg)
+        #         elif msg := check_success_msg(r):
+        #             st.success(msg)
+        #             st.session_state["prev_llm_model"] = llm_model
 
         index_prompt = {
             "LLM 对话": "llm_chat",
