@@ -119,24 +119,21 @@ def add_answer_to_db(session,
         print("输入的server.db.repository.knowledge_file_repository.add_answer_to_db的doc_infos参数为None")
         return False
     for d, answer_id, file_name in zip(doc_infos, answer_id_list, file_name_list):
-        doc_id = d["id"]
-
         obj = FileAnswerModel(
             kb_name=kb_name,
             file_name=file_name,
             answer_id=answer_id,
-            doc_id=doc_id,
+            doc_id=d["id"],
             meta_data=d["metadata"],
         )
         session.add(obj)
-        print(f"add_answer_to_db {file_name} {answer_id} {doc_id}")
     return True
 
 
 @with_session
 def list_question_from_db(session,
                           kb_name: str,
-                          answer_id: str = None,
+                          file_name: str = None,
                           metadata: Dict = {},
                           ) -> List[Dict]:
     '''
@@ -144,8 +141,8 @@ def list_question_from_db(session,
     返回形式：[{"id": str, "metadata": dict}, ...]
     '''
     docs = session.query(AnswerQuestionModel).filter_by(kb_name=kb_name)
-    if answer_id:
-        docs = docs.filter_by(answer_id=answer_id)
+    if file_name:
+        docs = docs.filter_by(file_name=file_name)
     for k, v in metadata.items():
         docs = docs.filter(FileDocModel.meta_data[k].as_string() == str(v))
 
@@ -155,16 +152,16 @@ def list_question_from_db(session,
 @with_session
 def delete_question_from_db(session,
                             kb_name: str,
-                            answer_id: str = None,
+                            file_name: str = None,
                             ) -> List[Dict]:
     '''
     删除某知识库某文件对应的所有question，并返回被删除的question。
     返回形式：[{"id": str, "metadata": dict}, ...]
     '''
-    docs = list_question_from_db(kb_name=kb_name, answer_id=answer_id)
+    docs = list_question_from_db(kb_name=kb_name, file_name=file_name)
     query = session.query(AnswerQuestionModel).filter_by(kb_name=kb_name)
-    if answer_id:
-        query = query.filter_by(answer_id=answer_id)
+    if file_name:
+        query = query.filter_by(file_name=file_name)
     query.delete()
     session.commit()
     return docs
@@ -173,6 +170,7 @@ def delete_question_from_db(session,
 @with_session
 def add_question_to_db(session,
                        kb_name: str,
+                       file_name_list,
                        answer_id,
                        question_id_list,
                        doc_infos: List[Dict]):
@@ -184,18 +182,16 @@ def add_question_to_db(session,
     if doc_infos is None:
         print("输入的server.db.repository.knowledge_file_repository.add_question_to_db的doc_infos参数为None")
         return False
-    for d, question_id in zip(doc_infos, question_id_list):
-        doc_id = d["id"]
-
+    for d, file_name, question_id in zip(doc_infos, file_name_list, question_id_list):
         obj = AnswerQuestionModel(
             kb_name=kb_name,
+            file_name=file_name,
             answer_id=answer_id,
             question_id=question_id,
-            doc_id=doc_id,
+            doc_id=d["id"],
             meta_data=d["metadata"],
         )
         session.add(obj)
-        print(f"add_question_to_db {question_id} {doc_id}")
     return True
 
 
@@ -286,8 +282,8 @@ def delete_file_from_db(session, kb_file: KnowledgeFile):
     if existing_file:
         session.delete(existing_file)
         delete_docs_from_db(kb_name=kb_file.kb_name, file_name=kb_file.filename)
-        delete_question_from_db(kb_name=kb_file.kb_name, file_name=kb_file.filename)
         delete_answer_from_db(kb_name=kb_file.kb_name, file_name=kb_file.filename)
+        delete_question_from_db(kb_name=kb_file.kb_name, file_name=kb_file.filename)
         session.commit()
 
         kb = session.query(KnowledgeBaseModel).filter_by(kb_name=kb_file.kb_name).first()

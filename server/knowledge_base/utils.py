@@ -72,7 +72,8 @@ def list_files_from_folder(kb_name: str):
                 for target_entry in target_it:
                     process_entry(target_entry)
         elif entry.is_file():
-            result.append(entry.path)
+            # result.append(entry.path)
+            result.append(entry.name)
         elif entry.is_dir():
             with os.scandir(entry.path) as it:
                 for sub_entry in it:

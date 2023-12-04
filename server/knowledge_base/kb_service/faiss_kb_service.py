@@ -5,10 +5,11 @@ import logging
 from configs import SCORE_THRESHOLD
 from server.knowledge_base.kb_service.base import KBService, SupportedVSType, EmbeddingsFunAdapter
 from server.knowledge_base.kb_cache.faiss_cache import kb_faiss_pool, ThreadSafeFaiss
+from server.knowledge_base.kb_cache.bm25_cache import kb_bm25_pool, ThreadSafeBM25
 from server.knowledge_base.utils import KnowledgeFile, get_kb_path, get_vs_path
 from server.utils import torch_gc
 from langchain.docstore.document import Document
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 
 class FaissKBService(KBService):
@@ -27,6 +28,12 @@ class FaissKBService(KBService):
         return kb_faiss_pool.load_vector_store(kb_name=self.kb_name,
                                                vector_name=vector_name,
                                                embed_model=self.embed_model)
+
+    def load_retriever(self, vector_name) -> ThreadSafeBM25:
+        return kb_faiss_pool.load_retriever(kb_name=self.kb_name,
+                                               vector_name=vector_name,
+                                               embed_model=self.embed_model)
+
 
     def save_vector_store(self, vector_name):
         vs_path = self.get_vs_path(vector_name)
@@ -146,7 +153,7 @@ class FaissKBService(KBService):
                       **kwargs):
         vs_path = self.get_vs_path("docs")
         with self.load_vector_store("docs").acquire() as vs:
-            ids = [k for k, v in vs.docstore._dict.items() if v.metadata.get("source") == kb_file.filepath]
+            ids = [k for k, v in vs.docstore._dict.items() if v.metadata.get("source") == kb_file.filename]
             if len(ids) > 0:
                 vs.delete(ids)
             print(f"{len(ids)} docs deleted from faiss")
@@ -181,7 +188,7 @@ class FaissKBService(KBService):
                            **kwargs):
         vs_path = self.get_vs_path("question")
         with self.load_vector_store("question").acquire() as vs:
-            ids = [k for k, v in vs.docstore._dict.items() if v.metadata.get("source") == kb_file.filepath]
+            ids = [k for k, v in vs.docstore._dict.items() if v.metadata.get("source") == kb_file.filename]
             if len(ids) > 0:
                 vs.delete(ids)
             if not kwargs.get("not_refresh_vs_cache"):
@@ -215,7 +222,7 @@ class FaissKBService(KBService):
                          **kwargs):
         vs_path = self.get_vs_path("answer")
         with self.load_vector_store("answer").acquire() as vs:
-            ids = [k for k, v in vs.docstore._dict.items() if v.metadata.get("source") == kb_file.filepath]
+            ids = [k for k, v in vs.docstore._dict.items() if v.metadata.get("source") == kb_file.filename]
             if len(ids) > 0:
                 vs.delete(ids)
             if not kwargs.get("not_refresh_vs_cache"):

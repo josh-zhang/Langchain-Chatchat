@@ -69,7 +69,7 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
     docs = search_docs(query, knowledge_base_name, top_k, score_threshold)
 
     if len(docs) == 0:  ## 如果没有找到相关文档，使用Empty模板
-        prompt_template = get_prompt_template("knowledge_base_chat", "Empty")
+        prompt_template = get_prompt_template("knowledge_base_chat", "empty")
     else:
         prompt_template = get_prompt_template("knowledge_base_chat", prompt_name)
 

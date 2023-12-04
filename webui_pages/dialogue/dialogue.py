@@ -138,7 +138,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
 
         dialogue_modes = ["LLM 对话",
                           "知识库问答",
-                          "文件对话",
+                          # "文件对话",
                           # "搜索引擎问答",
                           # "自定义Agent问答",
                           ]

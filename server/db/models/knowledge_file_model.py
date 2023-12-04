@@ -57,6 +57,7 @@ class AnswerQuestionModel(Base):
     __tablename__ = 'answer_question'
     id = Column(Integer, primary_key=True, autoincrement=True, comment='ID')
     kb_name = Column(String(50), comment='知识库名称')
+    file_name = Column(String(255), comment='文件名称')
     answer_id = Column(String(50), comment='答案ID')
     question_id = Column(String(50), comment="问题ID")
     doc_id = Column(String(50), comment="向量库文档ID")
@@ -70,6 +71,7 @@ class AnswerQueryModel(Base):
     __tablename__ = 'answer_query'
     id = Column(Integer, primary_key=True, autoincrement=True, comment='ID')
     kb_name = Column(String(50), comment='知识库名称')
+    file_name = Column(String(255), comment='文件名称')
     answer_id = Column(String(50), comment='答案ID')
     query_id = Column(String(50), comment="提问ID")
     doc_id = Column(String(50), comment="向量库文档ID")

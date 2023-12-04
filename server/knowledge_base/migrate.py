@@ -71,9 +71,9 @@ def import_from_db(
 
 def file_to_kbfile(kb_name: str, files: List[str]) -> List[KnowledgeFile]:
     kb_files = []
-    for file in files:
+    for filename in files:
         try:
-            kb_file = KnowledgeFile(filename=file, knowledge_base_name=kb_name)
+            kb_file = KnowledgeFile(filename=filename, knowledge_base_name=kb_name)
             kb_files.append(kb_file)
         except Exception as e:
             msg = f"{e}，已跳过"

@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 import operator
 from abc import ABC, abstractmethod
 import logging
@@ -22,8 +21,9 @@ from server.db.repository.knowledge_base_repository import (
 )
 from server.db.repository.knowledge_file_repository import (
     add_file_to_db, delete_file_from_db, delete_files_from_db, file_exists_in_db,
-    count_files_from_db, list_files_from_db, get_file_detail, list_docs_from_db,
-    add_answer_to_db, add_question_to_db
+    count_files_from_db, list_files_from_db, get_file_detail, list_docs_from_db, list_question_from_db,
+    list_answer_from_db, add_answer_to_db, add_question_to_db, get_answer_id_by_question_raw_id_from_db,
+    get_answer_doc_id_by_answer_id_from_db
 )
 
 from configs import (kbs_config, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD,
@@ -33,12 +33,12 @@ from server.knowledge_base.utils import (
     list_kbs_from_folder, list_files_from_folder,
 )
 
-from typing import List, Union, Dict, Optional
+from typing import List, Union, Dict
 
 from server.embeddings_api import embed_texts
 from server.embeddings_api import embed_documents
 from server.knowledge_base.model.kb_document_model import DocumentWithVSId
-
+from server.knowledge_base.kb_cache.bm25_cache import kb_bm25_pool, ThreadSafeBM25
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -633,6 +633,7 @@ class KBService(ABC):
                 try:
                     source = doc.metadata.get("source", "")
                     rel_path = Path(source).relative_to(self.doc_path)
+                    print(str(rel_path.as_posix().strip("/")))
                     doc.metadata["source"] = str(rel_path.as_posix().strip("/"))
                 except Exception as e:
                     print(f"cannot convert absolute path ({source}) to relative path. error is : {e}")
@@ -642,6 +643,7 @@ class KBService(ABC):
                                     custom_docs=custom_docs,
                                     docs_count=len(docs),
                                     doc_infos=doc_infos)
+            print(f"add_file_to_db {kb_file.filename}")
         else:
             status = False
         return status
@@ -665,9 +667,9 @@ class KBService(ABC):
         print("add_faq")
         print(f"is_generated {is_generated}")
 
-        filepath = kb_file.filepath
+        filename = kb_file.filename
 
-        label_list, std_label_list, answer_list, label_dict, as_count_list, _ = load_faq(filepath,
+        label_list, std_label_list, answer_list, label_dict, as_count_list, _ = load_faq(kb_file.filepath,
                                                                                          is_processed=is_generated)
 
         self.delete_faq(kb_file, **kwargs)
@@ -680,7 +682,7 @@ class KBService(ABC):
             answer = answer_list[a_idx]
 
             docq = Document(page_content=question)
-            docq.metadata["source"] = filepath
+            docq.metadata["source"] = filename
             docq.metadata["raw_id"] = idx
             docq.metadata["answer_id"] = a_idx
 
@@ -689,7 +691,7 @@ class KBService(ABC):
             else:
                 qna = "问题：" + std_label_list[a_idx] + "\n答案：" + answer
                 doca = Document(page_content=qna)
-                doca.metadata["source"] = filepath
+                doca.metadata["source"] = filename
                 doca.metadata["raw_id"] = a_idx
 
                 answer_dict[a_idx] = [doca, docq]
@@ -712,7 +714,8 @@ class KBService(ABC):
 
             doc_infos = self.do_add_question(questions, **kwargs)
 
-            this_status = add_question_to_db(self.kb_name, answer_id_list[0], question_id_list, doc_infos=doc_infos)
+            this_status = add_question_to_db(self.kb_name, file_name_list, answer_id_list[0], question_id_list,
+                                             doc_infos=doc_infos)
 
             status = this_status & status
 
@@ -767,6 +770,80 @@ class KBService(ABC):
     def count_files(self):
         return count_files_from_db(self.kb_name)
 
+    def question_to_answer(self, question_data, answer_data_id_to_skip=None):
+        doc_ids = list()
+        scores = list()
+        for qd, score in question_data:
+            question_id = qd.metadata["raw_id"]
+            answer_id = get_answer_id_by_question_raw_id_from_db(self.kb_name, question_id)
+
+            if not answer_id:
+                continue
+
+            if answer_id in answer_data_id_to_skip:
+                continue
+
+            doc_id = get_answer_doc_id_by_answer_id_from_db(self.kb_name, answer_id)
+
+            if not doc_id:
+                continue
+
+            if doc_id not in doc_ids:
+                doc_ids.append(doc_id)
+                scores.append(score)
+
+        return list(zip(self.get_answer_by_ids(doc_ids), scores))
+
+    def search_allinone(self,
+                        query: str,
+                        top_k: int = VECTOR_SEARCH_TOP_K,
+                        score_threshold: float = SCORE_THRESHOLD,
+                        ):
+        query_embedding, docs_data = self.search_docs(query, top_k, score_threshold)
+
+        _, answer_data = self.search_answer(query, top_k, score_threshold, embeddings=query_embedding)
+        print(f"answer_data {answer_data}")
+
+        answer_data_id = [str(a.metadata["raw_id"]) for a, _ in answer_data]
+
+        print(f"answer_data_id {answer_data_id}")
+
+        _, question_data = self.search_question(query, top_k, score_threshold, embeddings=query_embedding)
+        print(f"question_data {question_data}")
+
+        new_answer_data = self.question_to_answer(question_data, answer_data_id_to_skip=answer_data_id)
+
+        docs_data = docs_data + answer_data + new_answer_data
+
+        docs_data = sorted(docs_data, key=lambda x: x[1])
+
+        return docs_data
+
+    def load_bm25_retriever(self, retriever_name) -> ThreadSafeBM25:
+        return kb_bm25_pool.load_retriever(kb_name=self.kb_name, retriever_name=retriever_name)
+
+    def enhance_search_allinone(self, query: str, top_k: int = VECTOR_SEARCH_TOP_K):
+        with self.load_bm25_retriever("question").acquire() as vs:
+            if len(vs.docstore._dict) > 0:
+                question_data = vs.get_relevant_documents(query, k=top_k)
+
+        with self.load_bm25_retriever("docs").acquire() as vs:
+            if len(vs.docstore._dict) > 0:
+                docs_data = vs.get_relevant_documents(query, k=top_k)
+
+        with self.load_bm25_retriever("answer").acquire() as vs:
+            if len(vs.docstore._dict) > 0:
+                answer_data = vs.get_relevant_documents(query, k=top_k)
+                answer_data_id = [str(a.metadata["raw_id"]) for a, _ in answer_data]
+
+        new_answer_data = self.question_to_answer(question_data, answer_data_id_to_skip=answer_data_id)
+
+        docs_data = docs_data + answer_data + new_answer_data
+
+        docs_data = sorted(docs_data, key=lambda x: x[1])
+
+        return docs_data
+
     def search_docs(self,
                     query: str,
                     top_k: int = VECTOR_SEARCH_TOP_K,
@@ -808,12 +885,51 @@ class KBService(ABC):
         通过file_name或metadata检索Document
         '''
         doc_infos = list_docs_from_db(kb_name=self.kb_name, file_name=file_name, metadata=metadata)
+        doc_infos_ids = [x["id"] for x in doc_infos]
+        doc_infos_s = self.get_doc_by_ids(doc_infos_ids)
         docs = []
-        for x in doc_infos:
-            doc_info_s = self.get_doc_by_ids([x["id"]])
+        for id, doc_info_s in zip(doc_infos_ids, doc_infos_s):
             if doc_info_s is not None and doc_info_s != []:
                 # 处理非空的情况
-                doc_with_id = DocumentWithVSId(**doc_info_s[0].dict(), id=x["id"])
+                doc_with_id = DocumentWithVSId(**doc_info_s[0].dict(), id=id)
+                docs.append(doc_with_id)
+            else:
+                # 处理空的情况
+                # 可以选择跳过当前循环迭代或执行其他操作
+                pass
+        return docs
+
+    def list_questions(self, file_name: str = None, metadata: Dict = {}) -> List[DocumentWithVSId]:
+        '''
+        通过file_name或metadata检索question
+        '''
+        doc_infos = list_question_from_db(kb_name=self.kb_name, file_name=file_name, metadata=metadata)
+        doc_infos_ids = [x["id"] for x in doc_infos]
+        doc_infos_s = self.get_question_by_ids(doc_infos_ids)
+        docs = []
+        for id, doc_info_s in zip(doc_infos_ids, doc_infos_s):
+            if doc_info_s is not None and doc_info_s != []:
+                # 处理非空的情况
+                doc_with_id = DocumentWithVSId(**doc_info_s[0].dict(), id=id)
+                docs.append(doc_with_id)
+            else:
+                # 处理空的情况
+                # 可以选择跳过当前循环迭代或执行其他操作
+                pass
+        return docs
+
+    def list_answers(self, file_name: str = None, metadata: Dict = {}) -> List[DocumentWithVSId]:
+        '''
+        通过file_name或metadata检索answer
+        '''
+        doc_infos = list_answer_from_db(kb_name=self.kb_name, file_name=file_name, metadata=metadata)
+        doc_infos_ids = [x["id"] for x in doc_infos]
+        doc_infos_s = self.get_answer_by_ids(doc_infos_ids)
+        docs = []
+        for id, doc_info_s in zip(doc_infos_ids, doc_infos_s):
+            if doc_info_s is not None and doc_info_s != []:
+                # 处理非空的情况
+                doc_with_id = DocumentWithVSId(**doc_info_s[0].dict(), id=id)
                 docs.append(doc_with_id)
             else:
                 # 处理空的情况
@@ -968,7 +1084,7 @@ class KBServiceFactory:
             return PGKBService(kb_name, embed_model=embed_model)
         elif SupportedVSType.MILVUS == vector_store_type:
             from server.knowledge_base.kb_service.milvus_kb_service import MilvusKBService
-            return MilvusKBService(kb_name,embed_model=embed_model)
+            return MilvusKBService(kb_name, embed_model=embed_model)
         elif SupportedVSType.ZILLIZ == vector_store_type:
             from server.knowledge_base.kb_service.zilliz_kb_service import ZillizKBService
             return ZillizKBService(kb_name, embed_model=embed_model)

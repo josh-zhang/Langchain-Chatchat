@@ -1,11 +1,11 @@
 from configs import CACHED_VS_NUM, CACHED_MEMO_VS_NUM
 from server.knowledge_base.kb_cache.base import *
 from server.knowledge_base.kb_service.base import EmbeddingsFunAdapter
-from server.utils import load_local_embeddings
 from server.knowledge_base.utils import get_vs_path
 from langchain.vectorstores.faiss import FAISS
 from langchain.schema import Document
 import os
+
 
 class ThreadSafeFaiss(ThreadSafeObject):
     def __repr__(self) -> str:
@@ -36,9 +36,9 @@ class ThreadSafeFaiss(ThreadSafeObject):
 
 class _FaissPool(CachePool):
     def new_vector_store(
-        self,
-        embed_model: str = EMBEDDING_MODEL,
-        embed_device: str = embedding_device(),
+            self,
+            embed_model: str = EMBEDDING_MODEL,
+            embed_device: str = embedding_device(),
     ) -> FAISS:
         # TODO: 整个Embeddings加载逻辑有些混乱，待清理
         # create an empty vector store
@@ -49,28 +49,33 @@ class _FaissPool(CachePool):
         vector_store.delete(ids)
         return vector_store
 
-    def save_vector_store(self, kb_name: str, path: str=None):
-        if cache := self.get(kb_name):
-            return cache.save(path)
-
-    def unload_vector_store(self, kb_name: str):
-        if cache := self.get(kb_name):
-            self.pop(kb_name)
-            logger.info(f"成功释放向量库：{kb_name}")
+    # def save_vector_store(self, kb_name: str, path: str=None):
+    #     print(f"save_vector_store {kb_name} {path}")
+    #     if cache := self.get(kb_name):
+    #         return cache.save(path)
+    #
+    # def unload_vector_store(self, kb_name: str):
+    #     if cache := self.get(kb_name):
+    #         self.pop(kb_name)
+    #         logger.info(f"成功释放向量库：{kb_name}")
 
 
 class KBFaissPool(_FaissPool):
+
     def load_vector_store(
             self,
             kb_name: str,
-            vector_name: str = None,
+            vector_name: str,
             create: bool = True,
             embed_model: str = EMBEDDING_MODEL,
             embed_device: str = embedding_device(),
     ) -> ThreadSafeFaiss:
         self.atomic.acquire()
-        vector_name = vector_name or embed_model
-        cache = self.get((kb_name, vector_name)) # 用元组比拼接字符串好一些
+
+        # vector_name = vector_name or embed_model
+        print(f"load_vector_store {kb_name} {vector_name}")
+
+        cache = self.get((kb_name, vector_name))  # 用元组比拼接字符串好一些
         if cache is None:
             item = ThreadSafeFaiss((kb_name, vector_name), pool=self)
             self.set((kb_name, vector_name), item)
@@ -78,9 +83,9 @@ class KBFaissPool(_FaissPool):
                 self.atomic.release()
                 logger.info(f"loading vector store in '{kb_name}/vector_store/{vector_name}' from disk.")
                 vs_path = get_vs_path(kb_name, vector_name)
-
                 if os.path.isfile(os.path.join(vs_path, "index.faiss")):
-                    embeddings = self.load_kb_embeddings(kb_name=kb_name, embed_device=embed_device, default_embed_model=embed_model)
+                    embeddings = self.load_kb_embeddings(kb_name=kb_name, embed_device=embed_device,
+                                                         default_embed_model=embed_model)
                     vector_store = FAISS.load_local(vs_path, embeddings, normalize_L2=True)
                 elif create:
                     # create an empty vector store
@@ -99,10 +104,10 @@ class KBFaissPool(_FaissPool):
 
 class MemoFaissPool(_FaissPool):
     def load_vector_store(
-        self,
-        kb_name: str,
-        embed_model: str = EMBEDDING_MODEL,
-        embed_device: str = embedding_device(),
+            self,
+            kb_name: str,
+            embed_model: str = EMBEDDING_MODEL,
+            embed_device: str = embedding_device(),
     ) -> ThreadSafeFaiss:
         self.atomic.acquire()
         cache = self.get(kb_name)
@@ -124,39 +129,38 @@ class MemoFaissPool(_FaissPool):
 kb_faiss_pool = KBFaissPool(cache_num=CACHED_VS_NUM)
 memo_faiss_pool = MemoFaissPool(cache_num=CACHED_MEMO_VS_NUM)
 
-
-if __name__ == "__main__":
-    import time, random
-    from pprint import pprint
-
-    kb_names = ["vs1", "vs2", "vs3"]
-    # for name in kb_names:
-    #     memo_faiss_pool.load_vector_store(name)
-
-    def worker(vs_name: str, name: str):
-        vs_name = "samples"
-        time.sleep(random.randint(1, 5))
-        embeddings = load_local_embeddings()
-        r = random.randint(1, 3)
-
-        with kb_faiss_pool.load_vector_store(vs_name).acquire(name) as vs:
-            if r == 1: # add docs
-                ids = vs.add_texts([f"text added by {name}"], embeddings=embeddings)
-                pprint(ids)
-            elif r == 2: # search docs
-                docs = vs.similarity_search_with_score(f"{name}", k=3, score_threshold=1.0)
-                pprint(docs)
-        if r == 3: # delete docs
-            logger.warning(f"清除 {vs_name} by {name}")
-            kb_faiss_pool.get(vs_name).clear()
-
-    threads = []
-    for n in range(1, 30):
-        t = threading.Thread(target=worker,
-                             kwargs={"vs_name": random.choice(kb_names), "name": f"worker {n}"},
-                             daemon=True)
-        t.start()
-        threads.append(t)
-
-    for t in threads:
-        t.join()
+# if __name__ == "__main__":
+#     import time, random
+#     from pprint import pprint
+#
+#     kb_names = ["vs1", "vs2", "vs3"]
+#     # for name in kb_names:
+#     #     memo_faiss_pool.load_vector_store(name)
+#
+#     def worker(vs_name: str, name: str):
+#         vs_name = "samples"
+#         time.sleep(random.randint(1, 5))
+#         embeddings = load_local_embeddings()
+#         r = random.randint(1, 3)
+#
+#         with kb_faiss_pool.load_vector_store(vs_name).acquire(name) as vs:
+#             if r == 1: # add docs
+#                 ids = vs.add_texts([f"text added by {name}"], embeddings=embeddings)
+#                 pprint(ids)
+#             elif r == 2: # search docs
+#                 docs = vs.similarity_search_with_score(f"{name}", k=3, score_threshold=1.0)
+#                 pprint(docs)
+#         if r == 3: # delete docs
+#             logger.warning(f"清除 {vs_name} by {name}")
+#             kb_faiss_pool.get(vs_name).clear()
+#
+#     threads = []
+#     for n in range(1, 30):
+#         t = threading.Thread(target=worker,
+#                              kwargs={"vs_name": random.choice(kb_names), "name": f"worker {n}"},
+#                              daemon=True)
+#         t.start()
+#         threads.append(t)
+#
+#     for t in threads:
+#         t.join()

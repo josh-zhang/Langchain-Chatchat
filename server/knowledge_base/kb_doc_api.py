@@ -12,8 +12,7 @@ from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import Json
 import json
 from server.knowledge_base.kb_service.base import KBServiceFactory
-from server.db.repository.knowledge_file_repository import get_file_detail, get_answer_id_by_question_raw_id_from_db, \
-    get_answer_doc_id_by_answer_id_from_db
+from server.db.repository.knowledge_file_repository import get_file_detail
 from langchain.docstore.document import Document
 from typing import List
 
@@ -36,43 +35,12 @@ def search_docs(
     if kb is None:
         return []
 
-    query_embedding, docs_data = kb.search_docs(query, top_k, score_threshold)
+    ks_docs_data = kb.search_allinone(query, top_k, score_threshold)
 
-    _, answer_data = kb.search_answer(query, top_k, score_threshold, embeddings=query_embedding)
-    print(f"answer_data {answer_data}")
+    bm25_docs_data = kb.enhance_search_allinone(query, 3)
 
-    answer_data_id = [str(a.metadata["raw_id"]) for a, _ in answer_data]
-
-    print(f"answer_data_id {answer_data_id}")
-
-    _, question_data = kb.search_question(query, top_k, score_threshold, embeddings=query_embedding)
-    print(f"question_data {question_data}")
-
-    doc_ids = list()
-    scores = list()
-    for qd, score in question_data:
-        question_id = qd.metadata["raw_id"]
-        answer_id = get_answer_id_by_question_raw_id_from_db(knowledge_base_name, question_id)
-
-        if not answer_id:
-            continue
-
-        if answer_id in answer_data_id:
-            continue
-
-        doc_id = get_answer_doc_id_by_answer_id_from_db(knowledge_base_name, answer_id)
-
-        if not doc_id:
-            continue
-
-        doc_ids.append(doc_id)
-        scores.append(score)
-
-    new_answer_data = list(zip(kb.get_answer_by_ids(doc_ids), scores))
-
-    docs_data = docs_data + answer_data + new_answer_data
-
-    docs_data = sorted(docs_data, key=lambda x: x[1])
+    # TODO: merge bm25 0.8
+    docs_data = []
 
     docs = [DocumentWithScore(**x[0].dict(), score=x[1]) for x in docs_data]
 
