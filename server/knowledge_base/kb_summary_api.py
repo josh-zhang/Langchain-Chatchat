@@ -9,7 +9,7 @@ from server.knowledge_base.kb_service.base import KBServiceFactory
 from typing import List, Optional
 from server.knowledge_base.kb_summary.base import KBSummaryService
 from server.knowledge_base.kb_summary.summary_chunk import SummaryAdapter
-from server.utils import wrap_done, get_ChatOpenAI, BaseResponse
+from server.utils import BaseResponse
 from configs import LLM_MODELS, TEMPERATURE
 from server.knowledge_base.model.kb_document_model import DocumentWithVSId
 
@@ -47,16 +47,8 @@ def recreate_summary_vector_store(
             kb_summary.drop_kb_summary()
             kb_summary.create_kb_summary()
 
-            llm = get_ChatOpenAI(
-                model_name=model_name,
-                temperature=temperature,
-                max_tokens=max_tokens,
-            )
-            reduce_llm = get_ChatOpenAI(
-                model_name=model_name,
-                temperature=temperature,
-                max_tokens=max_tokens,
-            )
+            llm = None
+            reduce_llm = None
             # 文本摘要适配器
             summary = SummaryAdapter.form_summary(llm=llm,
                                                   reduce_llm=reduce_llm,
@@ -127,16 +119,8 @@ def summary_file_to_vector_store(
             kb_summary = KBSummaryService(knowledge_base_name, embed_model)
             kb_summary.create_kb_summary()
 
-            llm = get_ChatOpenAI(
-                model_name=model_name,
-                temperature=temperature,
-                max_tokens=max_tokens,
-            )
-            reduce_llm = get_ChatOpenAI(
-                model_name=model_name,
-                temperature=temperature,
-                max_tokens=max_tokens,
-            )
+            llm = None
+            reduce_llm = None
             # 文本摘要适配器
             summary = SummaryAdapter.form_summary(llm=llm,
                                                   reduce_llm=reduce_llm,
@@ -192,16 +176,8 @@ def summary_doc_ids_to_vector_store(
     if not kb.exists():
         return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}", data={})
     else:
-        llm = get_ChatOpenAI(
-            model_name=model_name,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
-        reduce_llm = get_ChatOpenAI(
-            model_name=model_name,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
+        llm = None
+        reduce_llm = None
         # 文本摘要适配器
         summary = SummaryAdapter.form_summary(llm=llm,
                                               reduce_llm=reduce_llm,

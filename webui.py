@@ -8,7 +8,6 @@ import sys
 from configs import VERSION
 from server.utils import api_address
 
-
 api = ApiRequest(base_url=api_address())
 
 if __name__ == "__main__":

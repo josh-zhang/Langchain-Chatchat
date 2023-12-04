@@ -32,17 +32,17 @@ class FaissKBService(KBService):
         vs_path = self.get_vs_path(vector_name)
         self.load_vector_store(vector_name).save(vs_path)
 
-    def get_doc_by_id(self, id: str) -> Optional[Document]:
+    def get_doc_by_ids(self, ids: List[str]) -> List[Document]:
         with self.load_vector_store("docs").acquire() as vs:
-            return vs.docstore._dict.get(id)
+            return [vs.docstore._dict.get(id) for id in ids]
 
-    def get_question_by_id(self, id: str) -> Optional[Document]:
+    def get_question_by_ids(self, ids: List[str]) -> List[Document]:
         with self.load_vector_store("question").acquire() as vs:
-            return vs.docstore._dict.get(id)
+            return [vs.docstore._dict.get(id) for id in ids]
 
-    def get_answer_by_id(self, id: str) -> Optional[Document]:
+    def get_answer_by_ids(self, ids: List[str]) -> List[Document]:
         with self.load_vector_store("answer").acquire() as vs:
-            return vs.docstore._dict.get(id)
+            return [vs.docstore._dict.get(id) for id in ids]
 
     def do_init(self):
         # self.vector_name = self.vector_name or self.embed_model

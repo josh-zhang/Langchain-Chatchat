@@ -13,7 +13,7 @@ from fastapi import Body
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import RedirectResponse
 from server.chat.chat import chat
-from server.chat.completion import completion
+# from server.chat.completion import completion
 from server.chat.feedback import chat_feedback
 from server.embeddings_api import embed_texts_endpoint
 from server.llm_api import (list_running_models, list_config_models, get_model_config)
@@ -128,10 +128,10 @@ def mount_app_routes(app: FastAPI, run_mode: str = None):
         return get_prompt_template(type=type, name=name)
 
     # 其它接口
-    app.post("/other/completion",
-             tags=["Other"],
-             summary="要求llm模型补全(通过LLMChain)",
-             )(completion)
+    # app.post("/other/completion",
+    #          tags=["Other"],
+    #          summary="要求llm模型补全(通过LLMChain)",
+    #          )(completion)
 
     app.post("/other/embed_texts",
              tags=["Other"],
@@ -259,7 +259,7 @@ def run_api(host, port, **kwargs):
                     host=host,
                     port=port,
                     ssl_keyfile=kwargs.get("ssl_keyfile"),
-                    ssl_certfile=kwargs.get("ssl_certfile"),
+                    ssl_certfile=kwargs.get("ssl_certfile")
                     )
     else:
         uvicorn.run(app, host=host, port=port)

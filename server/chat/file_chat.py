@@ -2,8 +2,7 @@ from fastapi import Body, File, Form, UploadFile
 from fastapi.responses import StreamingResponse
 from configs import (LLM_MODELS, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, TEMPERATURE,
                      CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE)
-from server.utils import (wrap_done, get_ChatOpenAI,
-                        BaseResponse, get_prompt_template, get_temp_dir, run_in_thread_pool)
+from server.utils import (wrap_done, BaseResponse, get_prompt_template, get_temp_dir, run_in_thread_pool)
 from server.knowledge_base.kb_cache.faiss_cache import memo_faiss_pool
 from langchain.chains import LLMChain
 from langchain.callbacks import AsyncIteratorCallbackHandler
@@ -118,12 +117,9 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
         if isinstance(max_tokens, int) and max_tokens <= 0:
             max_tokens = None
 
-        model = get_ChatOpenAI(
-            model_name=model_name,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            callbacks=[callback],
-        )
+        # TODO
+        model = None
+
         embed_func = EmbeddingsFunAdapter()
         embeddings = embed_func.embed_query(query)
         with memo_faiss_pool.acquire(knowledge_id) as vs:

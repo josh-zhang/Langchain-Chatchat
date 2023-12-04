@@ -48,12 +48,11 @@ def search_docs(
     _, question_data = kb.search_question(query, top_k, score_threshold, embeddings=query_embedding)
     print(f"question_data {question_data}")
 
+    doc_ids = list()
+    scores = list()
     for qd, score in question_data:
         question_id = qd.metadata["raw_id"]
-        print(f"question_id {question_id}")
-
         answer_id = get_answer_id_by_question_raw_id_from_db(knowledge_base_name, question_id)
-        print(f"get_answer_id_by_quesiton_raw_id_from_db {answer_id}")
 
         if not answer_id:
             continue
@@ -62,16 +61,16 @@ def search_docs(
             continue
 
         doc_id = get_answer_doc_id_by_answer_id_from_db(knowledge_base_name, answer_id)
-        print(f"get_answer_doc_id_by_answer_id_from_db {doc_id}")
 
         if not doc_id:
             continue
 
-        answer = kb.get_answer_by_id(doc_id)
+        doc_ids.append(doc_id)
+        scores.append(score)
 
-        answer_data.append((answer, score))
+    new_answer_data = list(zip(kb.get_answer_by_ids(doc_ids), scores))
 
-    docs_data = docs_data + answer_data
+    docs_data = docs_data + answer_data + new_answer_data
 
     docs_data = sorted(docs_data, key=lambda x: x[1])
 

@@ -797,7 +797,6 @@ class KBService(ABC):
     def get_doc_by_ids(self, ids: List[str]) -> List[Document]:
         return []
 
-
     def get_answer_by_ids(self, ids: List[str]) -> List[Document]:
         return []
 

@@ -25,10 +25,10 @@ VECTOR_SEARCH_TOP_K = 3
 SCORE_THRESHOLD = 1
 
 # 默认搜索引擎。可选：bing, duckduckgo, metaphor
-DEFAULT_SEARCH_ENGINE = "duckduckgo"
+# DEFAULT_SEARCH_ENGINE = "duckduckgo"
 
 # 搜索引擎匹配结题数量
-SEARCH_ENGINE_TOP_K = 3
+# SEARCH_ENGINE_TOP_K = 3
 
 
 # Bing 搜索必备变量
@@ -37,15 +37,15 @@ SEARCH_ENGINE_TOP_K = 3
 # https://learn.microsoft.com/en-us/bing/search-apis/bing-web-search/create-bing-search-service-resource
 # 使用python创建bing api 搜索实例详见:
 # https://learn.microsoft.com/en-us/bing/search-apis/bing-web-search/quickstarts/rest/python
-BING_SEARCH_URL = "https://api.bing.microsoft.com/v7.0/search"
+# BING_SEARCH_URL = "https://api.bing.microsoft.com/v7.0/search"
 # 注意不是bing Webmaster Tools的api key，
 
 # 此外，如果是在服务器上，报Failed to establish a new connection: [Errno 110] Connection timed out
 # 是因为服务器加了防火墙，需要联系管理员加白名单，如果公司的服务器的话，就别想了GG
-BING_SUBSCRIPTION_KEY = ""
+# BING_SUBSCRIPTION_KEY = ""
 
 # metaphor搜索需要KEY
-METAPHOR_API_KEY = ""
+# METAPHOR_API_KEY = ""
 
 
 # 是否开启中文标题加强，以及标题增强的相关配置
@@ -93,7 +93,6 @@ kbs_config = {
     "pg": {
         "connection_uri": "postgresql://postgres:postgres@127.0.0.1:5432/langchain_chatchat",
     },
-
     "es": {
         "host": "127.0.0.1",
         "port": "9200",
