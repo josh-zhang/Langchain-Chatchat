@@ -103,6 +103,7 @@ class KBFaissPool(_FaissPool):
 
 
 class MemoFaissPool(_FaissPool):
+
     def load_vector_store(
             self,
             kb_name: str,

@@ -37,7 +37,8 @@ class FileDocModel(Base):
     meta_data = Column(JSON, default={})
 
     def __repr__(self):
-        return f"<FileDoc(id='{self.id}', kb_name='{self.kb_name}', file_name='{self.file_name}', doc_id='{self.doc_id}', metadata='{self.meta_data}')>"
+        return (f"<FileDoc(id='{self.id}', kb_name='{self.kb_name}', file_name='{self.file_name}', "
+                f"doc_id='{self.doc_id}', metadata='{self.meta_data}')>")
 
 
 class FileAnswerModel(Base):
@@ -50,7 +51,8 @@ class FileAnswerModel(Base):
     meta_data = Column(JSON, default={})
 
     def __repr__(self):
-        return f"<FileAnswer(id='{self.id}', kb_name='{self.kb_name}', file_name='{self.file_name}', answer_id='{self.answer_id}', metadata='{self.meta_data}')>"
+        return (f"<FileAnswer(id='{self.id}', kb_name='{self.kb_name}', file_name='{self.file_name}', "
+                f"answer_id='{self.answer_id}', doc_id='{self.doc_id}', metadata='{self.meta_data}')>")
 
 
 class AnswerQuestionModel(Base):
@@ -64,7 +66,8 @@ class AnswerQuestionModel(Base):
     meta_data = Column(JSON, default={})
 
     def __repr__(self):
-        return f"<AnswerQuestion(id='{self.id}', kb_name='{self.kb_name}', answer_id='{self.answer_id}', question_id='{self.question_id}', metadata='{self.meta_data}')>"
+        return (f"<AnswerQuestion(id='{self.id}', kb_name='{self.kb_name}', file_name='{self.file_name}', "
+                f"answer_id='{self.answer_id}', question_id='{self.question_id}', doc_id='{self.doc_id}', metadata='{self.meta_data}')>")
 
 
 class AnswerQueryModel(Base):

@@ -340,19 +340,8 @@ def get_model_worker_config(model_name: str = None) -> dict:
     优先级:FSCHAT_MODEL_WORKERS[model_name] > ONLINE_LLM_MODEL[model_name] > FSCHAT_MODEL_WORKERS["default"]
     '''
     from configs.model_config import MODEL_PATH
-    from server import model_workers
 
     config = {}
-
-    # if model_name in ONLINE_LLM_MODEL:
-    #     config["online_api"] = True
-    #     if provider := config.get("provider"):
-    #         try:
-    #             config["worker_class"] = getattr(model_workers, provider)
-    #         except Exception as e:
-    #             msg = f"在线模型 ‘{model_name}’ 的provider没有正确配置"
-    #             logger.error(f'{e.__class__.__name__}: {msg}',
-    #                          exc_info=e if log_verbose else None)
     # 本地模型
     if model_name in MODEL_PATH["llm_model"]:
         path = get_model_path(model_name)

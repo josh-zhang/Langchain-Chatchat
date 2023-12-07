@@ -5,7 +5,6 @@ import logging
 from configs import SCORE_THRESHOLD
 from server.knowledge_base.kb_service.base import KBService, SupportedVSType, EmbeddingsFunAdapter
 from server.knowledge_base.kb_cache.faiss_cache import kb_faiss_pool, ThreadSafeFaiss
-from server.knowledge_base.kb_cache.bm25_cache import kb_bm25_pool, ThreadSafeBM25
 from server.knowledge_base.utils import KnowledgeFile, get_kb_path, get_vs_path
 from server.utils import torch_gc
 from langchain.docstore.document import Document
@@ -29,12 +28,6 @@ class FaissKBService(KBService):
                                                vector_name=vector_name,
                                                embed_model=self.embed_model)
 
-    def load_retriever(self, vector_name) -> ThreadSafeBM25:
-        return kb_faiss_pool.load_retriever(kb_name=self.kb_name,
-                                               vector_name=vector_name,
-                                               embed_model=self.embed_model)
-
-
     def save_vector_store(self, vector_name):
         vs_path = self.get_vs_path(vector_name)
         self.load_vector_store(vector_name).save(vs_path)
@@ -49,6 +42,7 @@ class FaissKBService(KBService):
 
     def get_answer_by_ids(self, ids: List[str]) -> List[Document]:
         with self.load_vector_store("answer").acquire() as vs:
+            print(vs.docstore._dict)
             return [vs.docstore._dict.get(id) for id in ids]
 
     def do_init(self):
@@ -83,7 +77,9 @@ class FaissKBService(KBService):
             if len(vs.docstore._dict) == 0:
                 print(f"docs vector_store is empty")
                 return embeddings, []
+            score_threshold = 1 - score_threshold
             docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=score_threshold)
+            docs = [(d, 1 - s) for d, s in docs]
             print(f"{len(docs)} docs found from faiss")
         return embeddings, docs
 
@@ -101,7 +97,9 @@ class FaissKBService(KBService):
             if len(vs.docstore._dict) == 0:
                 print(f"question vector_store is empty")
                 return embeddings, []
+            score_threshold = 1 - score_threshold
             docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=score_threshold)
+            docs = [(d, 1 - s) for d, s in docs]
             print(f"{len(docs)} question found from faiss")
         return embeddings, docs
 
@@ -119,7 +117,9 @@ class FaissKBService(KBService):
             if len(vs.docstore._dict) == 0:
                 print(f"answer vector_store is empty")
                 return embeddings, []
+            score_threshold = 1 - score_threshold
             docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=score_threshold)
+            docs = [(d, 1 - s) for d, s in docs]
             print(f"{len(docs)} answer found from faiss")
         return embeddings, docs
 
@@ -248,6 +248,7 @@ class FaissKBService(KBService):
             return "in_folder"
         else:
             return False
+
 
 if __name__ == '__main__':
     faissService = FaissKBService("test")

@@ -9,6 +9,7 @@ import re
 import functools
 from collections import Counter
 
+import hashlib
 import numpy as np
 import pandas
 from langchain.embeddings.base import Embeddings
@@ -38,7 +39,7 @@ from typing import List, Union, Dict
 from server.embeddings_api import embed_texts
 from server.embeddings_api import embed_documents
 from server.knowledge_base.model.kb_document_model import DocumentWithVSId
-from server.knowledge_base.kb_cache.bm25_cache import kb_bm25_pool, ThreadSafeBM25
+from server.knowledge_base.kb_cache.bm25_cache import kb_bm25_pool, ThreadSafeBM25, get_score
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -553,8 +554,8 @@ class KBService(ABC):
 
     def __init__(self,
                  knowledge_base_name: str,
-                 embed_model: str = EMBEDDING_MODEL,
                  search_enhance: bool = SEARCH_ENHANCE,
+                 embed_model: str = EMBEDDING_MODEL,
                  ):
         self.kb_name = knowledge_base_name
         self.kb_info = KB_INFO.get(knowledge_base_name, f"关于{knowledge_base_name}的知识库")
@@ -585,7 +586,8 @@ class KBService(ABC):
         self.do_create_kb("answer")
         self.do_create_kb("query")
 
-        status = add_kb_to_db(self.kb_name, self.kb_info, self.vs_type(), self.embed_model)
+        status = add_kb_to_db(self.kb_name, self.kb_info, self.vs_type(), self.embed_model, self.search_enhance)
+
         return status
 
     def clear_vs(self):
@@ -666,6 +668,7 @@ class KBService(ABC):
 
         print("add_faq")
         print(f"is_generated {is_generated}")
+        print(f"kb_file.filename {kb_file.filename}")
 
         filename = kb_file.filename
 
@@ -683,8 +686,8 @@ class KBService(ABC):
 
             docq = Document(page_content=question)
             docq.metadata["source"] = filename
-            docq.metadata["raw_id"] = idx
-            docq.metadata["answer_id"] = a_idx
+            docq.metadata["raw_id"] = str(idx)
+            docq.metadata["answer_id"] = str(a_idx)
 
             if a_idx in answer_dict:
                 answer_dict[a_idx].append(docq)
@@ -692,17 +695,19 @@ class KBService(ABC):
                 qna = "问题：" + std_label_list[a_idx] + "\n答案：" + answer
                 doca = Document(page_content=qna)
                 doca.metadata["source"] = filename
-                doca.metadata["raw_id"] = a_idx
+                doca.metadata["raw_id"] = str(a_idx)
 
                 answer_dict[a_idx] = [doca, docq]
 
         for a_idx, ele_list in answer_dict.items():
+            answer_id = str(a_idx)
             answer_obj = ele_list[0]
-            answers = [answer_obj]
             questions = ele_list[1:]
 
-            doc_infos = self.do_add_answer(answers, **kwargs)
+            assert answer_id == answer_obj.metadata["raw_id"]
 
+            answers = [answer_obj]
+            doc_infos = self.do_add_answer(answers, **kwargs)
             answer_id_list = [a.metadata["raw_id"] for a in answers]
             file_name_list = [a.metadata["source"] for a in answers]
 
@@ -710,11 +715,11 @@ class KBService(ABC):
 
             status = this_status & status
 
-            question_id_list = [q.metadata["raw_id"] for q in questions]
-
             doc_infos = self.do_add_question(questions, **kwargs)
+            question_id_list = [q.metadata["raw_id"] for q in questions]
+            file_name_list = [q.metadata["source"] for q in questions]
 
-            this_status = add_question_to_db(self.kb_name, file_name_list, answer_id_list[0], question_id_list,
+            this_status = add_question_to_db(self.kb_name, file_name_list, answer_id, question_id_list,
                                              doc_infos=doc_infos)
 
             status = this_status & status
@@ -739,7 +744,7 @@ class KBService(ABC):
         更新知识库介绍
         """
         self.kb_info = kb_info
-        status = add_kb_to_db(self.kb_name, self.kb_info, self.vs_type(), self.embed_model)
+        status = add_kb_to_db(self.kb_name, self.kb_info, self.vs_type(), self.embed_model, self.search_enhance)
         return status
 
     def update_faq(self, kb_file: KnowledgeFile, is_generated, **kwargs):
@@ -770,20 +775,20 @@ class KBService(ABC):
     def count_files(self):
         return count_files_from_db(self.kb_name)
 
-    def question_to_answer(self, question_data, answer_data_id_to_skip=None):
+    def question_to_answer(self, question_data):
         doc_ids = list()
         scores = list()
         for qd, score in question_data:
             question_id = qd.metadata["raw_id"]
+            # print(f"question_id {question_id} {type(question_id)}")
             answer_id = get_answer_id_by_question_raw_id_from_db(self.kb_name, question_id)
+            # print(f"answer_id {answer_id} {type(answer_id)}")
 
             if not answer_id:
                 continue
 
-            if answer_id in answer_data_id_to_skip:
-                continue
-
             doc_id = get_answer_doc_id_by_answer_id_from_db(self.kb_name, answer_id)
+            # print(f"doc_id {doc_id} {type(doc_id)}")
 
             if not doc_id:
                 continue
@@ -794,6 +799,58 @@ class KBService(ABC):
 
         return list(zip(self.get_answer_by_ids(doc_ids), scores))
 
+    def merge_answers(self, answer_data, answer_data_2, is_max=False):
+        new_answer_data_dict = {a.metadata["raw_id"]: s for a, s in answer_data_2}
+
+        merged_answer_data = list()
+        for answer, score in answer_data:
+            answer_raw_id = answer.metadata["raw_id"]
+
+            if answer_raw_id in new_answer_data_dict:
+                if is_max:
+                    new_score = max(score, new_answer_data_dict[answer_raw_id])
+                else:
+                    new_score = score + new_answer_data_dict[answer_raw_id]
+
+                merged_answer_data.append((answer, new_score))
+            else:
+                merged_answer_data.append((answer, score))
+
+        merged_answer_data_id = [a.metadata["raw_id"] for a, _ in merged_answer_data]
+
+        for answer, score in answer_data_2:
+            answer_raw_id = answer.metadata["raw_id"]
+
+            if answer_raw_id not in merged_answer_data_id:
+                merged_answer_data.append((answer, score))
+
+        return merged_answer_data
+
+    def merge_docs(self, docs_data, docs_data_2, is_max=False):
+        new_docs_data_dict = {d.page_content: s for d, s in docs_data_2}
+        docs_data_value = [d.page_content for d, _ in docs_data]
+        merged_docs_data = list()
+
+        for d, score in docs_data:
+            page_content = d.page_content
+            if page_content in new_docs_data_dict:
+                if is_max:
+                    new_score = max(score, new_docs_data_dict[page_content])
+                else:
+                    new_score = score + new_docs_data_dict[page_content]
+
+                merged_docs_data.append((d, new_score))
+            else:
+                merged_docs_data.append((d, score))
+
+        for d, score in docs_data_2:
+            page_content = d.page_content
+
+            if page_content not in docs_data_value:
+                merged_docs_data.append((d, score))
+
+        return merged_docs_data
+
     def search_allinone(self,
                         query: str,
                         top_k: int = VECTOR_SEARCH_TOP_K,
@@ -802,47 +859,124 @@ class KBService(ABC):
         query_embedding, docs_data = self.search_docs(query, top_k, score_threshold)
 
         _, answer_data = self.search_answer(query, top_k, score_threshold, embeddings=query_embedding)
-        print(f"answer_data {answer_data}")
 
-        answer_data_id = [str(a.metadata["raw_id"]) for a, _ in answer_data]
-
-        print(f"answer_data_id {answer_data_id}")
+        # print(f"answer_data {answer_data}")
 
         _, question_data = self.search_question(query, top_k, score_threshold, embeddings=query_embedding)
-        print(f"question_data {question_data}")
 
-        new_answer_data = self.question_to_answer(question_data, answer_data_id_to_skip=answer_data_id)
+        # print(f"question_data {question_data}")
 
-        docs_data = docs_data + answer_data + new_answer_data
+        new_answer_data = self.question_to_answer(question_data)
 
-        docs_data = sorted(docs_data, key=lambda x: x[1])
+        # print(f"new_answer_data {new_answer_data}")
 
-        return docs_data
+        merged_answer_data = self.merge_answers(answer_data, new_answer_data, is_max=True)
 
-    def load_bm25_retriever(self, retriever_name) -> ThreadSafeBM25:
-        return kb_bm25_pool.load_retriever(kb_name=self.kb_name, retriever_name=retriever_name)
+        # print(f"merged_answer_data {merged_answer_data}")
 
-    def enhance_search_allinone(self, query: str, top_k: int = VECTOR_SEARCH_TOP_K):
-        with self.load_bm25_retriever("question").acquire() as vs:
-            if len(vs.docstore._dict) > 0:
-                question_data = vs.get_relevant_documents(query, k=top_k)
+        return docs_data, merged_answer_data
 
-        with self.load_bm25_retriever("docs").acquire() as vs:
-            if len(vs.docstore._dict) > 0:
-                docs_data = vs.get_relevant_documents(query, k=top_k)
+    def load_bm25_retriever(self, retriever_name, file_names, docs_text_list, metadata_list) -> ThreadSafeBM25:
+        file_names_text = " ".join(file_names)
 
-        with self.load_bm25_retriever("answer").acquire() as vs:
-            if len(vs.docstore._dict) > 0:
-                answer_data = vs.get_relevant_documents(query, k=top_k)
-                answer_data_id = [str(a.metadata["raw_id"]) for a, _ in answer_data]
+        file_md5_sum = hashlib.md5(file_names_text.encode('utf-8')).hexdigest()
 
-        new_answer_data = self.question_to_answer(question_data, answer_data_id_to_skip=answer_data_id)
+        return kb_bm25_pool.load_retriever(self.kb_name, retriever_name, file_md5_sum, docs_text_list, metadata_list)
 
-        docs_data = docs_data + answer_data + new_answer_data
+    def enhance_search_allinone(self, query: str, top_k: int, bm_factor: float):
+        docs_data = list()
+        answer_data = list()
+        question_data = list()
 
-        docs_data = sorted(docs_data, key=lambda x: x[1])
+        file_names = self.list_files()
 
-        return docs_data
+        faq_file_names = [file_name for file_name in file_names if file_name.startswith("faq_")]
+        non_faq_file_names = [file_name for file_name in file_names if not file_name.startswith("faq_")]
+
+        # print(f"0 faq_file_names {faq_file_names}")
+        # print(f"0 non_faq_file_names {non_faq_file_names}")
+
+        if non_faq_file_names:
+            docs_text_list = list()
+            metadata_list = list()
+            for file_name in non_faq_file_names:
+                documentWithVSIds = self.list_docs(file_name=file_name)
+                docs_text_list += [i.page_content for i in documentWithVSIds]
+                metadata_list += [i.metadata for i in documentWithVSIds]
+
+            with self.load_bm25_retriever("docs", non_faq_file_names, docs_text_list, metadata_list).acquire() as vs:
+                if len(vs.docs) > 0:
+                    norm_scores = get_score(vs, query)
+                    top_3_idx = np.argsort(norm_scores)[::-1][:top_k]
+                    for idx, doc in enumerate(vs.docs):
+                        if idx in top_3_idx:
+                            docs_data.append((doc, norm_scores[idx] * bm_factor))
+                        else:
+                            docs_data.append((doc, 0.0))
+
+        print(f"1 docs_data {docs_data}")
+
+        if faq_file_names:
+            docs_text_list = list()
+            metadata_list = list()
+            for file_name in faq_file_names:
+                documentWithVSIds = self.list_answers(file_name=file_name)
+
+                # print(f"documentWithVSIds {documentWithVSIds}")
+
+                docs_text_list += [i.page_content for i in documentWithVSIds]
+                metadata_list += [i.metadata for i in documentWithVSIds]
+
+            # print(f"answer_text_list {docs_text_list}")
+
+            with self.load_bm25_retriever("answer", faq_file_names, docs_text_list, metadata_list).acquire() as vs:
+                if len(vs.docs) > 0:
+                    norm_scores = get_score(vs, query)
+
+                    top_3_idx = np.argsort(norm_scores)[::-1][:top_k]
+                    print(f"top_3_idx {top_3_idx}")
+                    for idx, doc in enumerate(vs.docs):
+                        if idx in top_3_idx:
+                            answer_data.append((doc, norm_scores[idx] * bm_factor))
+                        else:
+                            answer_data.append((doc, 0.0))
+
+        print(f"2 answer_data {answer_data}")
+
+        if faq_file_names:
+            docs_text_list = list()
+            metadata_list = list()
+            for file_name in faq_file_names:
+                documentWithVSIds = self.list_questions(file_name=file_name)
+                docs_text_list += [i.page_content for i in documentWithVSIds]
+                metadata_list += [i.metadata for i in documentWithVSIds]
+
+            # print(f"question_text_list {docs_text_list}")
+
+            with self.load_bm25_retriever("question", faq_file_names, docs_text_list, metadata_list).acquire() as vs:
+                if len(vs.docs) > 0:
+                    norm_scores = get_score(vs, query)
+                    top_3_idx = np.argsort(norm_scores)[::-1][:top_k]
+                    for idx, doc in enumerate(vs.docs):
+                        if idx in top_3_idx:
+                            question_data.append((doc, norm_scores[idx] * bm_factor))
+                        else:
+                            question_data.append((doc, 0.0))
+
+        # print(f"3 question_data {question_data}")
+
+        if question_data:
+            new_answer_data = self.question_to_answer(question_data)
+        else:
+            new_answer_data = list()
+
+        # print(f"4 new_answer_data {new_answer_data}")
+
+        merged_answer_data = self.merge_answers(answer_data, new_answer_data, is_max=True)
+
+        # print(f"5 merged_answer_data {merged_answer_data}")
+
+        return docs_data, merged_answer_data
 
     def search_docs(self,
                     query: str,
@@ -889,9 +1023,9 @@ class KBService(ABC):
         doc_infos_s = self.get_doc_by_ids(doc_infos_ids)
         docs = []
         for id, doc_info_s in zip(doc_infos_ids, doc_infos_s):
-            if doc_info_s is not None and doc_info_s != []:
+            if doc_info_s is not None:
                 # 处理非空的情况
-                doc_with_id = DocumentWithVSId(**doc_info_s[0].dict(), id=id)
+                doc_with_id = DocumentWithVSId(**doc_info_s.dict(), id=id)
                 docs.append(doc_with_id)
             else:
                 # 处理空的情况
@@ -908,9 +1042,9 @@ class KBService(ABC):
         doc_infos_s = self.get_question_by_ids(doc_infos_ids)
         docs = []
         for id, doc_info_s in zip(doc_infos_ids, doc_infos_s):
-            if doc_info_s is not None and doc_info_s != []:
+            if doc_info_s is not None:
                 # 处理非空的情况
-                doc_with_id = DocumentWithVSId(**doc_info_s[0].dict(), id=id)
+                doc_with_id = DocumentWithVSId(**doc_info_s.dict(), id=id)
                 docs.append(doc_with_id)
             else:
                 # 处理空的情况
@@ -927,9 +1061,9 @@ class KBService(ABC):
         doc_infos_s = self.get_answer_by_ids(doc_infos_ids)
         docs = []
         for id, doc_info_s in zip(doc_infos_ids, doc_infos_s):
-            if doc_info_s is not None and doc_info_s != []:
+            if doc_info_s is not None:
                 # 处理非空的情况
-                doc_with_id = DocumentWithVSId(**doc_info_s[0].dict(), id=id)
+                doc_with_id = DocumentWithVSId(**doc_info_s.dict(), id=id)
                 docs.append(doc_with_id)
             else:
                 # 处理空的情况
@@ -1078,32 +1212,32 @@ class KBServiceFactory:
             vector_store_type = getattr(SupportedVSType, vector_store_type.upper())
         if SupportedVSType.FAISS == vector_store_type:
             from server.knowledge_base.kb_service.faiss_kb_service import FaissKBService
-            return FaissKBService(kb_name, embed_model=embed_model, search_enhance=search_enhance)
-        elif SupportedVSType.PG == vector_store_type:
-            from server.knowledge_base.kb_service.pg_kb_service import PGKBService
-            return PGKBService(kb_name, embed_model=embed_model)
-        elif SupportedVSType.MILVUS == vector_store_type:
-            from server.knowledge_base.kb_service.milvus_kb_service import MilvusKBService
-            return MilvusKBService(kb_name, embed_model=embed_model)
-        elif SupportedVSType.ZILLIZ == vector_store_type:
-            from server.knowledge_base.kb_service.zilliz_kb_service import ZillizKBService
-            return ZillizKBService(kb_name, embed_model=embed_model)
-        elif SupportedVSType.DEFAULT == vector_store_type:
-            from server.knowledge_base.kb_service.faiss_kb_service import FaissKBService
-            return FaissKBService(kb_name, embed_model=embed_model, search_enhance=search_enhance)
-        elif SupportedVSType.ES == vector_store_type:
-            from server.knowledge_base.kb_service.es_kb_service import ESKBService
-            return ESKBService(kb_name, embed_model=embed_model)
-        elif SupportedVSType.DEFAULT == vector_store_type:  # kb_exists of default kbservice is False, to make validation easier.
-            from server.knowledge_base.kb_service.default_kb_service import DefaultKBService
-            return DefaultKBService(kb_name)
+            return FaissKBService(kb_name, search_enhance, embed_model=embed_model)
+        # elif SupportedVSType.PG == vector_store_type:
+        #     from server.knowledge_base.kb_service.pg_kb_service import PGKBService
+        #     return PGKBService(kb_name, embed_model=embed_model)
+        # elif SupportedVSType.MILVUS == vector_store_type:
+        #     from server.knowledge_base.kb_service.milvus_kb_service import MilvusKBService
+        #     return MilvusKBService(kb_name, embed_model=embed_model)
+        # elif SupportedVSType.ZILLIZ == vector_store_type:
+        #     from server.knowledge_base.kb_service.zilliz_kb_service import ZillizKBService
+        #     return ZillizKBService(kb_name, embed_model=embed_model)
+        # elif SupportedVSType.DEFAULT == vector_store_type:
+        #     from server.knowledge_base.kb_service.faiss_kb_service import FaissKBService
+        #     return FaissKBService(kb_name, search_enhance, embed_model=embed_model)
+        # elif SupportedVSType.ES == vector_store_type:
+        #     from server.knowledge_base.kb_service.es_kb_service import ESKBService
+        #     return ESKBService(kb_name, embed_model=embed_model)
+        # elif SupportedVSType.DEFAULT == vector_store_type:  # kb_exists of default kbservice is False, to make validation easier.
+        #     from server.knowledge_base.kb_service.default_kb_service import DefaultKBService
+        #     return DefaultKBService(kb_name)
 
     @staticmethod
     def get_service_by_name(kb_name: str) -> KBService:
-        _, vs_type, embed_model = load_kb_from_db(kb_name)
+        _, vs_type, embed_model, search_enhance = load_kb_from_db(kb_name)
         if _ is None:  # kb not in db, just return None
             return None
-        return KBServiceFactory.get_service(kb_name, vs_type, embed_model)
+        return KBServiceFactory.get_service(kb_name, vs_type, embed_model, search_enhance)
 
     @staticmethod
     def get_default():

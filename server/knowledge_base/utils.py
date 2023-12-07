@@ -387,8 +387,7 @@ def make_text_splitter(
             elif text_splitter_dict[splitter_name]["source"] == "huggingface":  ## 从huggingface加载
                 if text_splitter_dict[splitter_name]["tokenizer_name_or_path"] == "":
                     config = get_model_worker_config(llm_model)
-                    text_splitter_dict[splitter_name]["tokenizer_name_or_path"] = \
-                        config.get("model_path")
+                    text_splitter_dict[splitter_name]["tokenizer_name_or_path"] = config.get("model_path")
 
                 if text_splitter_dict[splitter_name]["tokenizer_name_or_path"] == "gpt2":
                     from transformers import GPT2TokenizerFast

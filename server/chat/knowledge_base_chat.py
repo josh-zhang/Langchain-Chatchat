@@ -75,15 +75,15 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
 
     history = [History.from_data(h) for h in history]
 
-    print(f"prompt_template {prompt_template}")
-    print(f"history {history}")
+    # print(f"prompt_template {prompt_template}")
+    # print(f"history {history}")
 
     input_msg = History(role="user", content=prompt_template).to_msg_template(False)
     chat_prompt = ChatPromptTemplate.from_messages(
         [i.to_msg_template() for i in history] + [input_msg])
 
-    print(f"chat_prompt {chat_prompt.messages}")
-    print(f"chat_prompt {chat_prompt.input_variables}")
+    # print(f"chat_prompt {chat_prompt.messages}")
+    # print(f"chat_prompt {chat_prompt.input_variables}")
 
     context = "\n".join([doc.page_content for doc in docs])
 
@@ -131,7 +131,7 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
             parameters = urlencode({"knowledge_base_name": knowledge_base_name, "file_name": filename})
             base_url = request.base_url
             url = f"{base_url}knowledge_base/download_doc?" + parameters
-            text = f"""出处 [{inum + 1}] [{filename}]({url}) \n\n{doc.page_content}\n\n"""
+            text = f"""出处 [{inum + 1}] [{filename}]({url})  匹配度 {int(doc.score/2*100)}%\n\n{doc.page_content}\n\n"""
             source_documents.append(text)
         if len(source_documents) == 0:  # 没有找到相关文档
             source_documents.append(f"<span style='color:red'>未找到相关文档,该回答为大模型自身能力解答！</span>")

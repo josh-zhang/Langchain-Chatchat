@@ -35,16 +35,27 @@ def search_docs(
     if kb is None:
         return []
 
-    ks_docs_data = kb.search_allinone(query, top_k, score_threshold)
+    ks_docs_data, ks_qa_data = kb.search_allinone(query, top_k * 2, 0.0)
 
-    bm25_docs_data = kb.enhance_search_allinone(query, 3)
+    if kb.search_enhance:
+        bm25_docs_data, bm25_qa_data = kb.enhance_search_allinone(query, 3, 0.8)
+        docs_data = kb.merge_docs(ks_docs_data, bm25_docs_data, is_max=False)
+        qa_data = kb.merge_answers(ks_qa_data, bm25_qa_data, is_max=False)
+    else:
+        docs_data = ks_docs_data
+        qa_data = ks_qa_data
 
-    # TODO: merge bm25 0.8
-    docs_data = []
+    docs_data = docs_data + qa_data
 
-    docs = [DocumentWithScore(**x[0].dict(), score=x[1]) for x in docs_data]
+    docs_data = sorted(docs_data, key=lambda x: x[1], reverse=True)
 
-    print(f"docs total searched {len(docs)}")
+    print(f"final docs_data {docs_data}")
+
+    docs = [DocumentWithScore(**x[0].dict(), score=x[1]) for x in docs_data if x[1] >= score_threshold]
+
+    print(f"top_k {top_k} and {len(docs)} docs total searched ")
+
+    docs = docs[:top_k]
 
     return docs
 
