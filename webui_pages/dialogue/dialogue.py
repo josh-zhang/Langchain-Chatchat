@@ -291,7 +291,8 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                                   conversation_id=conversation_id,
                                   model=llm_model,
                                   prompt_name=prompt_template_name,
-                                  temperature=temperature)
+                                  temperature=temperature,
+                                  max_tokens=4000)
                 for t in r:
                     if error_msg := check_error_msg(t):  # check whether error occured
                         st.error(error_msg)
@@ -361,7 +362,8 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                                                  history=history,
                                                  model=llm_model,
                                                  prompt_name=prompt_template_name,
-                                                 temperature=temperature):
+                                                 temperature=temperature,
+                                                 max_tokens=4000):
                     if error_msg := check_error_msg(d):  # check whether error occured
                         st.error(error_msg)
                     elif chunk := d.get("answer"):

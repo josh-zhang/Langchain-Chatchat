@@ -12,8 +12,9 @@ def list_running_models(
     从fastchat controller获取已加载模型列表及其配置项
     '''
     try:
-        # controller_address = controller_address or fschat_controller_address()
-        controller_address = "http://127.0.0.1:8000"
+        host = LLM_MODELS["host"]
+        port = LLM_MODELS["port"]
+        controller_address = f"http://{host}:{port}"
         with get_httpx_client() as client:
             # r = client.post(controller_address + "/list_models")
             # models = r.json()["models"]
