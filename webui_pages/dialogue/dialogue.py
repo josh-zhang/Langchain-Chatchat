@@ -97,9 +97,17 @@ def parse_command(text: str, modal: Modal) -> bool:
 
 
 def dialogue_page(api: ApiRequest, is_lite: bool = False):
+    available_models = api.list_running_models()
+    if not available_models:
+        st.info("对话系统异常，暂时无法访问问答功能")
+        return
+
+    available_models = list(available_models)
+
     st.session_state.setdefault("conversation_ids", {})
     st.session_state["conversation_ids"].setdefault(chat_box.cur_chat_name, uuid.uuid4().hex)
     st.session_state.setdefault("file_chat_id", None)
+
     default_model = api.get_default_llm_model()[0]
 
     if not chat_box.chat_inited:
@@ -151,9 +159,9 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
 
         def on_llm_change():
             if llm_model:
-                config = api.get_model_config(llm_model)
-                if not config.get("online_api"):  # 只有本地model_worker可以切换模型
-                    st.session_state["prev_llm_model"] = llm_model
+                # config = api.get_model_config(llm_model)
+                # if not config.get("online_api"):  # 只有本地model_worker可以切换模型
+                #     st.session_state["prev_llm_model"] = llm_model
                 st.session_state["cur_llm_model"] = st.session_state.llm_model
 
         def llm_model_format_func(x):
@@ -161,7 +169,6 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                 return f"{x} (Running)"
             return x
 
-        available_models = list(api.list_running_models())
         running_models = available_models[0]
 
         llm_models = available_models

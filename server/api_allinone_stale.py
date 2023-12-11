@@ -20,7 +20,7 @@ from api import create_app
 import uvicorn
 
 parser.add_argument("--api-host", type=str, default="0.0.0.0")
-parser.add_argument("--api-port", type=int, default=7861)
+parser.add_argument("--api-port", type=int, default=30001)
 parser.add_argument("--ssl_keyfile", type=str)
 parser.add_argument("--ssl_certfile", type=str)
 

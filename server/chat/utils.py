@@ -25,7 +25,7 @@ class History(BaseModel):
         }
         role = role_maps.get(self.role, self.role)
         if is_raw: # 当前默认历史消息都是没有input_variable的文本。
-            content = "{% raw %}" + self.content + "{% endraw %}"
+            content = self.content
         else:
             content = self.content
 

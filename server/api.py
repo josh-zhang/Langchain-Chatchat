@@ -270,7 +270,7 @@ if __name__ == "__main__":
                                      description='About langchain-ChatGLM, local knowledge based ChatGLM with langchain'
                                                  ' ｜ 基于本地知识库的 ChatGLM 问答')
     parser.add_argument("--host", type=str, default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=7861)
+    parser.add_argument("--port", type=int, default=30001)
     parser.add_argument("--ssl_keyfile", type=str)
     parser.add_argument("--ssl_certfile", type=str)
     # 初始化消息

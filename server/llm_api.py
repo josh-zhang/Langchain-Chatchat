@@ -1,5 +1,5 @@
 from fastapi import Body
-from configs import logger, log_verbose, LLM_MODELS, HTTPX_DEFAULT_TIMEOUT
+from configs import logger, log_verbose, LLM_MODELS, HTTPX_DEFAULT_TIMEOUT, LLM_SERVER
 from server.utils import (BaseResponse, list_config_llm_models, get_httpx_client, get_model_worker_config)
 from typing import List
 
@@ -12,13 +12,10 @@ def list_running_models(
     从fastchat controller获取已加载模型列表及其配置项
     '''
     try:
-        host = LLM_MODELS["host"]
-        port = LLM_MODELS["port"]
+        host = LLM_SERVER["host"]
+        port = LLM_SERVER["port"]
         controller_address = f"http://{host}:{port}"
         with get_httpx_client() as client:
-            # r = client.post(controller_address + "/list_models")
-            # models = r.json()["models"]
-            # data = {m: get_model_config(m).data for m in models}
             r = client.post(controller_address + "/v1/models")
             data = r.json()['data']
             return BaseResponse(data=data)
