@@ -13,7 +13,6 @@ from fastapi import Body
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import RedirectResponse
 from server.chat.chat import chat
-# from server.chat.completion import completion
 from server.chat.feedback import chat_feedback
 from server.embeddings_api import embed_texts_endpoint
 from server.llm_api import (list_running_models, list_config_models, get_model_config)
@@ -146,7 +145,7 @@ def mount_knowledge_routes(app: FastAPI):
     from server.knowledge_base.kb_api import list_kbs, create_kb, delete_kb
     from server.knowledge_base.kb_doc_api import (list_files, upload_docs, delete_docs,
                                                 update_docs, download_doc, recreate_vector_store,
-                                                search_docs, DocumentWithScore, update_info, download_faq)
+                                                search_docs, DocumentWithScores, update_info, download_faq)
 
     app.post("/chat/knowledge_base_chat",
              tags=["Chat"],
@@ -187,7 +186,7 @@ def mount_knowledge_routes(app: FastAPI):
 
     app.post("/knowledge_base/search_docs",
              tags=["Knowledge Base Management"],
-             response_model=List[DocumentWithScore],
+             response_model=List[DocumentWithScores],
              summary="搜索知识库"
              )(search_docs)
 

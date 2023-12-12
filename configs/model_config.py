@@ -135,27 +135,9 @@ TOP_P = 0.95 # ChatOpenAI暂不支持该参数
 #       2.2 如果以上本地路径不存在，则使用huggingface模型
 MODEL_PATH = {
     "embed_model": {
-        "ernie-tiny": "nghuyong/ernie-3.0-nano-zh",
-        "ernie-base": "nghuyong/ernie-3.0-base-zh",
-        "text2vec-base": "shibing624/text2vec-base-chinese",
-        "text2vec": "GanymedeNil/text2vec-large-chinese",
-        "text2vec-paraphrase": "shibing624/text2vec-base-chinese-paraphrase",
-        "text2vec-sentence": "shibing624/text2vec-base-chinese-sentence",
-        "text2vec-multilingual": "shibing624/text2vec-base-multilingual",
-        "text2vec-bge-large-chinese": "shibing624/text2vec-bge-large-chinese",
-        "m3e-small": "moka-ai/m3e-small",
-        "m3e-base": "moka-ai/m3e-base",
-        "m3e-large": "moka-ai/m3e-large",
-        "bge-small-zh": "BAAI/bge-small-zh",
-        "bge-base-zh": "BAAI/bge-base-zh",
-        "bge-large-zh": "BAAI/bge-large-zh",
-        "bge-large-zh-noinstruct": "BAAI/bge-large-zh-noinstruct",
-        "bge-base-zh-v1.5": "BAAI/bge-base-zh-v1.5",
-        "bge-large-zh-v1.5": "BAAI/bge-large-zh-v1.5",
-        "piccolo-base-zh": "sensenova/piccolo-base-zh",
-        "piccolo-large-zh": "sensenova/piccolo-large-zh",
-        "nlp_gte_sentence-embedding_chinese-large": "damo/nlp_gte_sentence-embedding_chinese-large",
-        "text-embedding-ada-002": "your OPENAI_API_KEY",
+        "bge-base-zh": "/opt/projects/hf_models/bge-base-zh",
+        "bge-large-zh": "/opt/projects/hf_models/bge-large-zh",
+        "bge-large-zh-v1.5": "/opt/projects/hf_models/bge-large-zh-v1.5",
     },
 
     "llm_model": {

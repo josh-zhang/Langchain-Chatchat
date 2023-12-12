@@ -67,57 +67,6 @@ def merge_scores(x, y, is_max=False):
         return {k: x.get(k, 0.0) + y.get(k, 0.0) for k in set(x) | set(y)}
 
 
-def merge_answers(answer_data: List[DocumentWithScores], answer_data_2: List[DocumentWithScores], is_max=False) -> List[
-    DocumentWithScores]:
-    new_answer_data_dict = {a.metadata["raw_id"]: a.scores for a in answer_data_2}
-
-    merged_answer_data = list()
-    for answer in answer_data:
-        answer_raw_id = answer.metadata["raw_id"]
-
-        if answer_raw_id in new_answer_data_dict:
-            new_score = merge_scores(answer.scores, new_answer_data_dict[answer_raw_id], is_max=is_max)
-
-            merged_answer_data.append((answer, new_score))
-        else:
-            merged_answer_data.append((answer, answer.scores))
-
-    merged_answer_data_id = [a.metadata["raw_id"] for a, _ in merged_answer_data]
-
-    for answer, score in answer_data_2:
-        answer_raw_id = answer.metadata["raw_id"]
-
-        if answer_raw_id not in merged_answer_data_id:
-            merged_answer_data.append((answer, score))
-
-    return [DocumentWithScores(**d.dict(), scores=s) for d, s in merged_answer_data]
-
-
-def merge_docs(docs_data: List[DocumentWithScores], docs_data_2: List[DocumentWithScores], is_max=False) -> \
-        List[DocumentWithScores]:
-    new_docs_data_dict = {d.page_content: d.scores for d in docs_data_2}
-    docs_data_value = [d.page_content for d, _ in docs_data]
-    merged_docs_data = list()
-
-    for d in docs_data:
-        page_content = d.page_content
-
-        if page_content in new_docs_data_dict:
-            new_score = merge_scores(d.scores, new_docs_data_dict[page_content], is_max=is_max)
-
-            merged_docs_data.append((d, new_score))
-        else:
-            merged_docs_data.append((d, d.scores))
-
-    for d, score in docs_data_2:
-        page_content = d.page_content
-
-        if page_content not in docs_data_value:
-            merged_docs_data.append((d, score))
-
-    return [DocumentWithScores(**d.dict(), scores=s) for d, s in merged_docs_data]
-
-
 class KBService(ABC):
 
     def __init__(self,
@@ -343,6 +292,59 @@ class KBService(ABC):
     def count_files(self):
         return count_files_from_db(self.kb_name)
 
+    def merge_answers(self, answer_data: List[DocumentWithScores], answer_data_2: List[DocumentWithScores],
+                      is_max=False) -> \
+            List[
+                DocumentWithScores]:
+        new_answer_data_dict = {a.metadata["raw_id"]: a.scores for a in answer_data_2}
+
+        merged_answer_data = list()
+        for answer in answer_data:
+            answer_raw_id = answer.metadata["raw_id"]
+
+            if answer_raw_id in new_answer_data_dict:
+                new_score = merge_scores(answer.scores, new_answer_data_dict[answer_raw_id], is_max=is_max)
+
+                merged_answer_data.append((answer, new_score))
+            else:
+                merged_answer_data.append((answer, answer.scores))
+
+        merged_answer_data_id = [a.metadata["raw_id"] for a, _ in merged_answer_data]
+
+        for answer in answer_data_2:
+            answer_raw_id = answer.metadata["raw_id"]
+
+            if answer_raw_id not in merged_answer_data_id:
+                merged_answer_data.append((answer, answer.scores))
+
+        return [DocumentWithScores(**{"page_content": d.page_content, "metadata": d.metadata}, scores=s) for d, s in
+                merged_answer_data]
+
+    def merge_docs(self, docs_data: List[DocumentWithScores], docs_data_2: List[DocumentWithScores], is_max=False) -> \
+            List[DocumentWithScores]:
+        new_docs_data_dict = {d.page_content: d.scores for d in docs_data_2}
+        docs_data_value = [d.page_content for d in docs_data]
+        merged_docs_data = list()
+
+        for d in docs_data:
+            page_content = d.page_content
+
+            if page_content in new_docs_data_dict:
+                new_score = merge_scores(d.scores, new_docs_data_dict[page_content], is_max=is_max)
+
+                merged_docs_data.append((d, new_score))
+            else:
+                merged_docs_data.append((d, d.scores))
+
+        for d in docs_data_2:
+            page_content = d.page_content
+
+            if page_content not in docs_data_value:
+                merged_docs_data.append((d, d.scores))
+
+        return [DocumentWithScores(**{"page_content": d.page_content, "metadata": d.metadata}, scores=s) for d, s in
+                merged_docs_data]
+
     def question_to_answer(self, question_data: List[DocumentWithScores]):
         doc_ids = list()
         scores_list = list()
@@ -369,7 +371,7 @@ class KBService(ABC):
 
         answers = list(zip(self.get_answer_by_ids(doc_ids), scores_list))
 
-        return [DocumentWithScores(**d.dict(), scores=s) for d, s in answers]
+        return [DocumentWithScores(**{"page_content": d.page_content, "metadata": d.metadata}, scores=s) for d, s in answers]
 
     def search_allinone(self,
                         query: str,
@@ -391,7 +393,7 @@ class KBService(ABC):
         else:
             new_question_data = list()
         print(f"new_question_data {new_question_data}")
-        merged_answer_data = merge_answers(answer_data, new_question_data, is_max=True)
+        merged_answer_data = self.merge_answers(answer_data, new_question_data, is_max=True)
         print(f"merged_answer_data {merged_answer_data}")
 
         return docs_data, merged_answer_data
@@ -488,7 +490,7 @@ class KBService(ABC):
         else:
             new_question_data = list()
         print(f"4 new_question_data {new_question_data}")
-        merged_answer_data = merge_answers(answer_data, new_question_data, is_max=True)
+        merged_answer_data = self.merge_answers(answer_data, new_question_data, is_max=True)
         print(f"5 merged_answer_data {merged_answer_data}")
 
         return docs_data, merged_answer_data

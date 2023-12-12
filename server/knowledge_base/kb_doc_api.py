@@ -11,7 +11,7 @@ from server.knowledge_base.utils import (validate_kb_name, list_files_from_folde
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import Json
 import json
-from server.knowledge_base.kb_service.base import KBServiceFactory, merge_docs, merge_answers
+from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.db.repository.knowledge_file_repository import get_file_detail
 from langchain.docstore.document import Document
 from typing import List
@@ -19,7 +19,21 @@ from typing import List
 
 def get_total_score_sorted(docs_data: List[DocumentWithScores], score_threshold) -> List[DocumentWithScores]:
     for ds in docs_data:
-        ds.scores["total"] = sum(ds.scores.values())
+        sbert_doc = ds.scores.get("sbert_doc", 0.0)
+        sbert_que = ds.scores.get("sbert_que", 0.0)
+        sbert_ans = ds.scores.get("sbert_ans", 0.0)
+
+        bm_doc = ds.scores.get("bm_doc", 0.0)
+        bm_que = ds.scores.get("bm_que", 0.0)
+        bm_ans = ds.scores.get("bm_ans", 0.0)
+
+        doc = sbert_doc + bm_doc
+        que = sbert_que + bm_que
+        ans = sbert_ans + bm_ans
+        qa = max(que + ans)
+
+        ds.scores["total"] = doc + qa
+
     return sorted([ds for ds in docs_data if ds.scores["total"] >= score_threshold], key=lambda x: x.scores["total"],
                   reverse=True)
 
@@ -41,9 +55,9 @@ def search_docs(
     ks_docs_data, ks_qa_data = kb.search_allinone(query, top_k * 2, 0.0)
 
     if kb.search_enhance:
-        bm25_docs_data, bm25_qa_data = kb.enhance_search_allinone(query, 3, 0.8)
-        docs_data = merge_docs(ks_docs_data, bm25_docs_data, is_max=True)
-        qa_data = merge_answers(ks_qa_data, bm25_qa_data, is_max=True)
+        bm25_docs_data, bm25_qa_data = kb.enhance_search_allinone(query, 2, 0.4)
+        docs_data = kb.merge_docs(ks_docs_data, bm25_docs_data, is_max=True)
+        qa_data = kb.merge_answers(ks_qa_data, bm25_qa_data, is_max=True)
     else:
         docs_data = ks_docs_data
         qa_data = ks_qa_data

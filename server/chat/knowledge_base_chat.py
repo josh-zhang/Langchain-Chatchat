@@ -132,7 +132,7 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
             parameters = urlencode({"knowledge_base_name": knowledge_base_name, "file_name": filename})
             base_url = request.base_url
             url = f"{base_url}knowledge_base/download_doc?" + parameters
-            text = f"""出处 [{inum + 1}] [{filename}]({url})  匹配度 {int(doc.score/2*100)}%\n\n{doc.page_content}\n\n"""
+            text = f"""出处 [{inum + 1}] [{filename}]({url})  匹配度 {int(doc.scores["total"]/1.4*100)}%\n\n{doc.page_content}\n\n"""
             source_documents.append(text)
         if len(source_documents) == 0:  # 没有找到相关文档
             source_documents.append(f"<span style='color:red'>未找到相关文档,该回答为大模型自身能力解答！</span>")

@@ -6,11 +6,8 @@ import pandas as pd
 from server.knowledge_base.utils import get_file_path, LOADER_DICT
 from server.knowledge_base.kb_service.base import get_kb_details, get_kb_file_details
 from typing import Literal, Dict, Tuple
-from configs import (kbs_config,
-                    EMBEDDING_MODEL, DEFAULT_VS_TYPE,
-                    CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE)
+from configs import kbs_config, EMBEDDING_MODEL, DEFAULT_VS_TYPE, CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE
 from server.utils import list_embed_models
-# from server.utils import list_online_embed_models
 import os
 import time
 
@@ -38,7 +35,7 @@ def config_aggrid(
     gb.configure_pagination(
         enabled=True,
         paginationAutoPageSize=False,
-        paginationPageSize=10
+        paginationPageSize=30
     )
     return gb
 
