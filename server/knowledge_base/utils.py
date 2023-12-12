@@ -24,6 +24,10 @@ from unstructured.documents.elements import Element, Text, ElementMetadata, Titl
 from unstructured.partition.common import get_last_modified_date
 
 
+class DocumentWithScores(Document):
+    scores: Dict = {}
+
+
 def validate_kb_name(knowledge_base_id: str) -> bool:
     # 检查是否包含预期外的字符或路径攻击关键字
     if "../" in knowledge_base_id:

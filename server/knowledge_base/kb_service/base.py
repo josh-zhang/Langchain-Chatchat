@@ -26,7 +26,7 @@ from configs import (kbs_config, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD,
                      EMBEDDING_MODEL, KB_INFO, SEARCH_ENHANCE)
 from server.knowledge_base.utils import (
     get_kb_path, get_doc_path, KnowledgeFile,
-    list_kbs_from_folder, list_files_from_folder,
+    list_kbs_from_folder, list_files_from_folder, DocumentWithScores
 )
 from server.knowledge_base.faq_utils import load_faq
 
@@ -58,6 +58,64 @@ class SupportedVSType:
     ZILLIZ = 'zilliz'
     PG = 'pg'
     ES = 'es'
+
+
+def merge_scores(x, y, is_max=False):
+    if is_max:
+        return {k: max(x.get(k, 0.0), y.get(k, 0.0)) for k in set(x) | set(y)}
+    else:
+        return {k: x.get(k, 0.0) + y.get(k, 0.0) for k in set(x) | set(y)}
+
+
+def merge_answers(answer_data: List[DocumentWithScores], answer_data_2: List[DocumentWithScores], is_max=False) -> List[
+    DocumentWithScores]:
+    new_answer_data_dict = {a.metadata["raw_id"]: a.scores for a in answer_data_2}
+
+    merged_answer_data = list()
+    for answer in answer_data:
+        answer_raw_id = answer.metadata["raw_id"]
+
+        if answer_raw_id in new_answer_data_dict:
+            new_score = merge_scores(answer.scores, new_answer_data_dict[answer_raw_id], is_max=is_max)
+
+            merged_answer_data.append((answer, new_score))
+        else:
+            merged_answer_data.append((answer, answer.scores))
+
+    merged_answer_data_id = [a.metadata["raw_id"] for a, _ in merged_answer_data]
+
+    for answer, score in answer_data_2:
+        answer_raw_id = answer.metadata["raw_id"]
+
+        if answer_raw_id not in merged_answer_data_id:
+            merged_answer_data.append((answer, score))
+
+    return [DocumentWithScores(**d.dict(), scores=s) for d, s in merged_answer_data]
+
+
+def merge_docs(docs_data: List[DocumentWithScores], docs_data_2: List[DocumentWithScores], is_max=False) -> \
+        List[DocumentWithScores]:
+    new_docs_data_dict = {d.page_content: d.scores for d in docs_data_2}
+    docs_data_value = [d.page_content for d, _ in docs_data]
+    merged_docs_data = list()
+
+    for d in docs_data:
+        page_content = d.page_content
+
+        if page_content in new_docs_data_dict:
+            new_score = merge_scores(d.scores, new_docs_data_dict[page_content], is_max=is_max)
+
+            merged_docs_data.append((d, new_score))
+        else:
+            merged_docs_data.append((d, d.scores))
+
+    for d, score in docs_data_2:
+        page_content = d.page_content
+
+        if page_content not in docs_data_value:
+            merged_docs_data.append((d, score))
+
+    return [DocumentWithScores(**d.dict(), scores=s) for d, s in merged_docs_data]
 
 
 class KBService(ABC):
@@ -285,11 +343,13 @@ class KBService(ABC):
     def count_files(self):
         return count_files_from_db(self.kb_name)
 
-    def question_to_answer(self, question_data):
+    def question_to_answer(self, question_data: List[DocumentWithScores]):
         doc_ids = list()
-        scores = list()
-        for qd, score in question_data:
+        scores_list = list()
+        for qd in question_data:
             question_id = qd.metadata["raw_id"]
+            scores = qd.scores
+
             # print(f"question_id {question_id} {type(question_id)}")
             answer_id = get_answer_id_by_question_raw_id_from_db(self.kb_name, question_id)
             # print(f"answer_id {answer_id} {type(answer_id)}")
@@ -305,67 +365,17 @@ class KBService(ABC):
 
             if doc_id not in doc_ids:
                 doc_ids.append(doc_id)
-                scores.append(score)
+                scores_list.append(scores)
 
-        return list(zip(self.get_answer_by_ids(doc_ids), scores))
+        answers = list(zip(self.get_answer_by_ids(doc_ids), scores_list))
 
-    def merge_answers(self, answer_data, answer_data_2, is_max=False):
-        new_answer_data_dict = {a.metadata["raw_id"]: s for a, s in answer_data_2}
-
-        merged_answer_data = list()
-        for answer, score in answer_data:
-            answer_raw_id = answer.metadata["raw_id"]
-
-            if answer_raw_id in new_answer_data_dict:
-                if is_max:
-                    new_score = max(score, new_answer_data_dict[answer_raw_id])
-                else:
-                    new_score = score + new_answer_data_dict[answer_raw_id]
-
-                merged_answer_data.append((answer, new_score))
-            else:
-                merged_answer_data.append((answer, score))
-
-        merged_answer_data_id = [a.metadata["raw_id"] for a, _ in merged_answer_data]
-
-        for answer, score in answer_data_2:
-            answer_raw_id = answer.metadata["raw_id"]
-
-            if answer_raw_id not in merged_answer_data_id:
-                merged_answer_data.append((answer, score))
-
-        return merged_answer_data
-
-    def merge_docs(self, docs_data, docs_data_2, is_max=False):
-        new_docs_data_dict = {d.page_content: s for d, s in docs_data_2}
-        docs_data_value = [d.page_content for d, _ in docs_data]
-        merged_docs_data = list()
-
-        for d, score in docs_data:
-            page_content = d.page_content
-            if page_content in new_docs_data_dict:
-                if is_max:
-                    new_score = max(score, new_docs_data_dict[page_content])
-                else:
-                    new_score = score + new_docs_data_dict[page_content]
-
-                merged_docs_data.append((d, new_score))
-            else:
-                merged_docs_data.append((d, score))
-
-        for d, score in docs_data_2:
-            page_content = d.page_content
-
-            if page_content not in docs_data_value:
-                merged_docs_data.append((d, score))
-
-        return merged_docs_data
+        return [DocumentWithScores(**d.dict(), scores=s) for d, s in answers]
 
     def search_allinone(self,
                         query: str,
                         top_k: int = VECTOR_SEARCH_TOP_K,
                         score_threshold: float = SCORE_THRESHOLD,
-                        ):
+                        ) -> (List[DocumentWithScores], List[DocumentWithScores]):
         query_embedding, docs_data = self.search_docs(query, top_k, score_threshold)
 
         _, answer_data = self.search_answer(query, top_k, score_threshold, embeddings=query_embedding)
@@ -376,13 +386,13 @@ class KBService(ABC):
 
         # print(f"question_data {question_data}")
 
-        new_answer_data = self.question_to_answer(question_data)
-
-        # print(f"new_answer_data {new_answer_data}")
-
-        merged_answer_data = self.merge_answers(answer_data, new_answer_data, is_max=True)
-
-        # print(f"merged_answer_data {merged_answer_data}")
+        if question_data:
+            new_question_data = self.question_to_answer(question_data)
+        else:
+            new_question_data = list()
+        print(f"new_question_data {new_question_data}")
+        merged_answer_data = merge_answers(answer_data, new_question_data, is_max=True)
+        print(f"merged_answer_data {merged_answer_data}")
 
         return docs_data, merged_answer_data
 
@@ -393,7 +403,8 @@ class KBService(ABC):
 
         return kb_bm25_pool.load_retriever(self.kb_name, retriever_name, file_md5_sum, docs_text_list, metadata_list)
 
-    def enhance_search_allinone(self, query: str, top_k: int, bm_factor: float):
+    def enhance_search_allinone(self, query: str, top_k: int, bm_factor: float) -> (
+            List[DocumentWithScores], List[DocumentWithScores]):
         docs_data = list()
         answer_data = list()
         question_data = list()
@@ -404,9 +415,6 @@ class KBService(ABC):
                           any(file_name.startswith(i) for i in faq_file_prefix_list)]
         non_faq_file_names = [file_name for file_name in file_names if
                               not any(file_name.startswith(i) for i in faq_file_prefix_list)]
-
-        # print(f"0 faq_file_names {faq_file_names}")
-        # print(f"0 non_faq_file_names {non_faq_file_names}")
 
         if non_faq_file_names:
             docs_text_list = list()
@@ -434,12 +442,8 @@ class KBService(ABC):
             for file_name in faq_file_names:
                 documentWithVSIds = self.list_answers(file_name=file_name)
 
-                # print(f"documentWithVSIds {documentWithVSIds}")
-
                 docs_text_list += [i.page_content for i in documentWithVSIds]
                 metadata_list += [i.metadata for i in documentWithVSIds]
-
-            # print(f"answer_text_list {docs_text_list}")
 
             with self.load_bm25_retriever("answer", faq_file_names, docs_text_list, metadata_list).acquire() as vs:
                 if len(vs.docs) > 0:
@@ -463,8 +467,6 @@ class KBService(ABC):
                 docs_text_list += [i.page_content for i in documentWithVSIds]
                 metadata_list += [i.metadata for i in documentWithVSIds]
 
-            # print(f"question_text_list {docs_text_list}")
-
             with self.load_bm25_retriever("question", faq_file_names, docs_text_list, metadata_list).acquire() as vs:
                 if len(vs.docs) > 0:
                     norm_scores = get_score(vs, query)
@@ -475,18 +477,19 @@ class KBService(ABC):
                         else:
                             question_data.append((doc, 0.0))
 
-        # print(f"3 question_data {question_data}")
+        print(f"3 question_data {question_data}")
+
+        docs_data = [DocumentWithScores(**d.dict(), scores={"bm_doc": s}) for d, s in docs_data]
+        answer_data = [DocumentWithScores(**d.dict(), scores={"bm_ans": s}) for d, s in answer_data]
+        question_data = [DocumentWithScores(**d.dict(), scores={"bm_que": s}) for d, s in question_data]
 
         if question_data:
-            new_answer_data = self.question_to_answer(question_data)
+            new_question_data = self.question_to_answer(question_data)
         else:
-            new_answer_data = list()
-
-        # print(f"4 new_answer_data {new_answer_data}")
-
-        merged_answer_data = self.merge_answers(answer_data, new_answer_data, is_max=True)
-
-        # print(f"5 merged_answer_data {merged_answer_data}")
+            new_question_data = list()
+        print(f"4 new_question_data {new_question_data}")
+        merged_answer_data = merge_answers(answer_data, new_question_data, is_max=True)
+        print(f"5 merged_answer_data {merged_answer_data}")
 
         return docs_data, merged_answer_data
 
@@ -495,7 +498,7 @@ class KBService(ABC):
                     top_k: int = VECTOR_SEARCH_TOP_K,
                     score_threshold: float = SCORE_THRESHOLD,
                     embeddings: List[float] = None,
-                    ):
+                    ) -> (List[float], List[DocumentWithScores]):
         embedding, docs = self.do_search_docs(query, top_k, score_threshold, embeddings=embeddings)
         return embedding, docs
 
@@ -504,7 +507,7 @@ class KBService(ABC):
                         top_k: int = VECTOR_SEARCH_TOP_K,
                         score_threshold: float = SCORE_THRESHOLD,
                         embeddings: List[float] = None,
-                        ):
+                        ) -> (List[float], List[DocumentWithScores]):
         embedding, docs = self.do_search_question(query, top_k, score_threshold, embeddings=embeddings)
         return embedding, docs
 
@@ -513,7 +516,7 @@ class KBService(ABC):
                       top_k: int = VECTOR_SEARCH_TOP_K,
                       score_threshold: float = SCORE_THRESHOLD,
                       embeddings: List[float] = None,
-                      ):
+                      ) -> (List[float], List[DocumentWithScores]):
         embedding, docs = self.do_search_answer(query, top_k, score_threshold, embeddings=embeddings)
         return embedding, docs
 
@@ -623,7 +626,7 @@ class KBService(ABC):
                        top_k: int,
                        score_threshold: float,
                        embeddings: List[float] = None,
-                       ) -> (List[float], List[Document]):
+                       ) -> (List[float], List[DocumentWithScores]):
         """
         搜索知识库子类实自己逻辑
         """
@@ -635,7 +638,7 @@ class KBService(ABC):
                            top_k: int,
                            score_threshold: float,
                            embeddings: List[float] = None,
-                           ) -> (List[float], List[Document]):
+                           ) -> (List[float], List[DocumentWithScores]):
         """
         搜索知识库子类实自己逻辑
         """
@@ -647,7 +650,7 @@ class KBService(ABC):
                          top_k: int,
                          score_threshold: float,
                          embeddings: List[float] = None,
-                         ) -> (List[float], List[Document]):
+                         ) -> (List[float], List[DocumentWithScores]):
         """
         搜索知识库子类实自己逻辑
         """

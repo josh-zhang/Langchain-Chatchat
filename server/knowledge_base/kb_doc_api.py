@@ -7,18 +7,21 @@ from configs import (DEFAULT_VS_TYPE, EMBEDDING_MODEL,
                      logger, log_verbose, )
 from server.utils import BaseResponse, ListResponse, run_in_thread_pool
 from server.knowledge_base.utils import (validate_kb_name, list_files_from_folder, get_file_path,
-                                         files2docs_in_thread, KnowledgeFile)
+                                         files2docs_in_thread, KnowledgeFile, DocumentWithScores)
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import Json
 import json
-from server.knowledge_base.kb_service.base import KBServiceFactory
+from server.knowledge_base.kb_service.base import KBServiceFactory, merge_docs, merge_answers
 from server.db.repository.knowledge_file_repository import get_file_detail
 from langchain.docstore.document import Document
 from typing import List
 
 
-class DocumentWithScore(Document):
-    score: float = None
+def get_total_score_sorted(docs_data: List[DocumentWithScores], score_threshold) -> List[DocumentWithScores]:
+    for ds in docs_data:
+        ds.scores["total"] = sum(ds.scores.values())
+    return sorted([ds for ds in docs_data if ds.scores["total"] >= score_threshold], key=lambda x: x.scores["total"],
+                  reverse=True)
 
 
 def search_docs(
@@ -30,7 +33,7 @@ def search_docs(
                                                   "SCORE越小，相关度越高，"
                                                   "取到1相当于不筛选，建议设置在0.5左右",
                                       ge=0, le=1),
-) -> List[DocumentWithScore]:
+) -> List[DocumentWithScores]:
     kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
     if kb is None:
         return []
@@ -39,25 +42,25 @@ def search_docs(
 
     if kb.search_enhance:
         bm25_docs_data, bm25_qa_data = kb.enhance_search_allinone(query, 3, 0.8)
-        docs_data = kb.merge_docs(ks_docs_data, bm25_docs_data, is_max=False)
-        qa_data = kb.merge_answers(ks_qa_data, bm25_qa_data, is_max=False)
+        docs_data = merge_docs(ks_docs_data, bm25_docs_data, is_max=True)
+        qa_data = merge_answers(ks_qa_data, bm25_qa_data, is_max=True)
     else:
         docs_data = ks_docs_data
         qa_data = ks_qa_data
 
+    print(f"final docs_data {docs_data}")
+    print(f"final qa_data {qa_data}")
+
     docs_data = docs_data + qa_data
 
-    docs_data = sorted(docs_data, key=lambda x: x[1], reverse=True)
+    docs_data = get_total_score_sorted(docs_data, score_threshold)
 
-    print(f"final docs_data {docs_data}")
+    print(f"top_k {top_k} and {len(docs_data)} docs total searched ")
+    print(docs_data)
 
-    docs = [DocumentWithScore(**x[0].dict(), score=x[1]) for x in docs_data if x[1] >= score_threshold]
+    docs_data = docs_data[:top_k]
 
-    print(f"top_k {top_k} and {len(docs)} docs total searched ")
-
-    docs = docs[:top_k]
-
-    return docs
+    return docs_data
 
 
 def list_files(

@@ -5,7 +5,7 @@ import logging
 from configs import SCORE_THRESHOLD
 from server.knowledge_base.kb_service.base import KBService, SupportedVSType, EmbeddingsFunAdapter
 from server.knowledge_base.kb_cache.faiss_cache import kb_faiss_pool, ThreadSafeFaiss
-from server.knowledge_base.utils import KnowledgeFile, get_kb_path, get_vs_path
+from server.knowledge_base.utils import KnowledgeFile, get_kb_path, get_vs_path, DocumentWithScores
 from server.utils import torch_gc
 from langchain.docstore.document import Document
 from typing import List, Dict
@@ -68,7 +68,7 @@ class FaissKBService(KBService):
                        top_k: int,
                        score_threshold: float = SCORE_THRESHOLD,
                        embeddings: List[float] = None,
-                       ) -> (List[float], List[Document]):
+                       ) -> (List[float], List[DocumentWithScores]):
         if embeddings is None:
             embed_func = EmbeddingsFunAdapter(self.embed_model)
             embeddings = embed_func.embed_query(query)
@@ -79,7 +79,7 @@ class FaissKBService(KBService):
                 return embeddings, []
             score_threshold = 1 - score_threshold
             docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=score_threshold)
-            docs = [(d, 1 - s) for d, s in docs]
+            docs = [DocumentWithScores(**d.dict(), scores={"sbert_doc": 1 - s}) for d, s in docs]
             print(f"{len(docs)} docs found from faiss")
         return embeddings, docs
 
@@ -88,7 +88,7 @@ class FaissKBService(KBService):
                            top_k: int,
                            score_threshold: float = SCORE_THRESHOLD,
                            embeddings: List[float] = None,
-                           ) -> (List[float], List[Document]):
+                           ) -> (List[float], List[DocumentWithScores]):
         if embeddings is None:
             embed_func = EmbeddingsFunAdapter(self.embed_model)
             embeddings = embed_func.embed_query(query)
@@ -99,7 +99,7 @@ class FaissKBService(KBService):
                 return embeddings, []
             score_threshold = 1 - score_threshold
             docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=score_threshold)
-            docs = [(d, 1 - s) for d, s in docs]
+            docs = [DocumentWithScores(**d.dict(), scores={"sbert_que": 1 - s}) for d, s in docs]
             print(f"{len(docs)} question found from faiss")
         return embeddings, docs
 
@@ -108,7 +108,7 @@ class FaissKBService(KBService):
                          top_k: int,
                          score_threshold: float = SCORE_THRESHOLD,
                          embeddings: List[float] = None,
-                         ) -> (List[float], List[Document]):
+                         ) -> (List[float], List[DocumentWithScores]):
         if embeddings is None:
             embed_func = EmbeddingsFunAdapter(self.embed_model)
             embeddings = embed_func.embed_query(query)
@@ -119,7 +119,7 @@ class FaissKBService(KBService):
                 return embeddings, []
             score_threshold = 1 - score_threshold
             docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=score_threshold)
-            docs = [(d, 1 - s) for d, s in docs]
+            docs = [DocumentWithScores(**d.dict(), scores={"sbert_ans": 1 - s}) for d, s in docs]
             print(f"{len(docs)} answer found from faiss")
         return embeddings, docs
 
