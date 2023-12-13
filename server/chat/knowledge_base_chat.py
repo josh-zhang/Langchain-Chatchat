@@ -9,11 +9,14 @@ from fastapi import Body, Request
 from fastapi.responses import StreamingResponse
 from langchain.prompts.chat import ChatPromptTemplate
 from urllib.parse import urlencode
+from urllib.parse import urlparse
+
 from server.utils import BaseResponse, get_prompt_template
 from server.chat.utils import History
 from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.knowledge_base.kb_doc_api import search_docs
-from configs import LLM_MODELS, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, TEMPERATURE, TOP_P, LLM_SERVER
+from configs import LLM_MODELS, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, TEMPERATURE, TOP_P, LLM_SERVER, \
+    LLM_SERVER_HOST_MAPPING, LLM_SERVER_PORT_MAPPING
 
 
 def with_urllib3(url, headers):
@@ -65,6 +68,12 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
     kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
     if kb is None:
         return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}")
+
+    base_url = request.base_url.__str__()
+    base_url_parsed = urlparse(base_url)
+    hostname_altered = LLM_SERVER_HOST_MAPPING.get(base_url_parsed.hostname, base_url_parsed.hostname)
+    port_altered = str(LLM_SERVER_PORT_MAPPING.get(base_url_parsed.port, base_url_parsed.port))
+    base_url_altered = base_url_parsed.scheme + "://" + hostname_altered + ":" + port_altered + "/"
 
     docs = search_docs(query, knowledge_base_name, top_k, score_threshold)
 
@@ -130,9 +139,8 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
         for inum, doc in enumerate(docs):
             filename = doc.metadata.get("source")
             parameters = urlencode({"knowledge_base_name": knowledge_base_name, "file_name": filename})
-            base_url = request.base_url
-            url = f"{base_url}knowledge_base/download_doc?" + parameters
-            text = f"""出处 [{inum + 1}] [{filename}]({url})  匹配度 {int(doc.scores["total"]/1.4*100)}%\n\n{doc.page_content}\n\n"""
+            url = f"{base_url_altered}knowledge_base/download_doc?" + parameters
+            text = f"""出处 [{inum + 1}] [{filename}]({url})  匹配度 {int(doc.scores["total"] / 1.4 * 100)}%\n\n{doc.page_content}\n\n"""
             source_documents.append(text)
         if len(source_documents) == 0:  # 没有找到相关文档
             source_documents.append(f"<span style='color:red'>未找到相关文档,该回答为大模型自身能力解答！</span>")

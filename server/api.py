@@ -1,24 +1,26 @@
-import nltk
 import sys
 import os
+from typing import List, Literal
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
+import nltk
+import uvicorn
+
+import argparse
+from fastapi import Body
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.responses import RedirectResponse
 
 from configs import VERSION
 from configs.model_config import NLTK_DATA_PATH
 from configs.server_config import OPEN_CROSS_DOMAIN
-import argparse
-import uvicorn
-from fastapi import Body
-from fastapi.middleware.cors import CORSMiddleware
-from starlette.responses import RedirectResponse
 from server.chat.chat import chat
 from server.chat.feedback import chat_feedback
 from server.embeddings_api import embed_texts_endpoint
 from server.llm_api import (list_running_models, list_config_models, get_model_config)
 from server.utils import (BaseResponse, ListResponse, FastAPI, MakeFastAPIOffline,
                           get_server_configs, get_prompt_template)
-from typing import List, Literal
 
 nltk.data.path = [NLTK_DATA_PATH] + nltk.data.path
 
@@ -144,8 +146,8 @@ def mount_knowledge_routes(app: FastAPI):
     # from server.chat.agent_chat import agent_chat
     from server.knowledge_base.kb_api import list_kbs, create_kb, delete_kb
     from server.knowledge_base.kb_doc_api import (list_files, upload_docs, delete_docs,
-                                                update_docs, download_doc, recreate_vector_store,
-                                                search_docs, DocumentWithScores, update_info, download_faq)
+                                                  update_docs, download_doc, recreate_vector_store,
+                                                  search_docs, DocumentWithScores, update_info, download_faq)
 
     app.post("/chat/knowledge_base_chat",
              tags=["Chat"],
@@ -251,7 +253,6 @@ def mount_filename_summary_routes(app: FastAPI):
              )(recreate_summary_vector_store)
 
 
-
 def run_api(host, port, **kwargs):
     if kwargs.get("ssl_keyfile") and kwargs.get("ssl_certfile"):
         uvicorn.run(app,
@@ -283,4 +284,3 @@ if __name__ == "__main__":
             ssl_keyfile=args.ssl_keyfile,
             ssl_certfile=args.ssl_certfile,
             )
-

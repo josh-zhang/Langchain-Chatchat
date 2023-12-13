@@ -7,7 +7,8 @@ def add_kb_to_db(session, kb_name, kb_info, vs_type, embed_model, search_enhance
     # 创建知识库实例
     kb = session.query(KnowledgeBaseModel).filter_by(kb_name=kb_name).first()
     if not kb:
-        kb = KnowledgeBaseModel(kb_name=kb_name, kb_info=kb_info, vs_type=vs_type, embed_model=embed_model, search_enhance=search_enhance)
+        kb = KnowledgeBaseModel(kb_name=kb_name, kb_info=kb_info, vs_type=vs_type, embed_model=embed_model,
+                                search_enhance=search_enhance)
         session.add(kb)
     else:  # update kb with new vs_type and embed_model
         kb.kb_info = kb_info

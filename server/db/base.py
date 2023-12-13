@@ -5,7 +5,6 @@ from sqlalchemy.orm import sessionmaker
 from configs import SQLALCHEMY_DATABASE_URI
 import json
 
-
 engine = create_engine(
     SQLALCHEMY_DATABASE_URI,
     json_serializer=lambda obj: json.dumps(obj, ensure_ascii=False),

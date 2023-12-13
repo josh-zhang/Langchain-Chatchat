@@ -71,10 +71,7 @@ class KBFaissPool(_FaissPool):
             embed_device: str = embedding_device(),
     ) -> ThreadSafeFaiss:
         self.atomic.acquire()
-
         # vector_name = vector_name or embed_model
-        print(f"load_vector_store {kb_name} {vector_name}")
-
         cache = self.get((kb_name, vector_name))  # 用元组比拼接字符串好一些
         if cache is None:
             item = ThreadSafeFaiss((kb_name, vector_name), pool=self)

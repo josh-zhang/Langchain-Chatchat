@@ -1,17 +1,18 @@
 import sys
+
 sys.path.append(".")
 from server.knowledge_base.migrate import (create_tables, reset_tables, import_from_db,
                                            folder2db, prune_db_docs, prune_folder_files)
 from configs.model_config import NLTK_DATA_PATH, EMBEDDING_MODEL
 import nltk
+
 nltk.data.path = [NLTK_DATA_PATH] + nltk.data.path
 from datetime import datetime
 import sys
 
-
 if __name__ == "__main__":
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="please specify only one operate method once time.")
 
     parser.add_argument(
@@ -22,7 +23,7 @@ if __name__ == "__main__":
             recreate vector store.
             use this option if you have copied document files to the content folder, but vector store has not been populated or DEFAUL_VS_TYPE/EMBEDDING_MODEL changed.
             '''
-        )
+              )
     )
     parser.add_argument(
         "--create-tables",
@@ -46,7 +47,7 @@ if __name__ == "__main__":
             update vector store for files exist in database.
             use this option if you want to recreate vectors for files exist in db and skip files exist in local folder only.
             '''
-        )
+              )
     )
     parser.add_argument(
         "-i",
@@ -56,7 +57,7 @@ if __name__ == "__main__":
             update vector store for files exist in local folder and not exist in database.
             use this option if you want to create vectors increamentally.
             '''
-        )
+              )
     )
     parser.add_argument(
         "--prune-db",
@@ -65,7 +66,7 @@ if __name__ == "__main__":
             delete docs in database that not existed in local folder.
             it is used to delete database docs after user deleted some doc files in file browser
             '''
-        )
+              )
     )
     parser.add_argument(
         "--prune-folder",
@@ -74,7 +75,7 @@ if __name__ == "__main__":
             delete doc files in local folder that not existed in database.
             is is used to free local disk space by delete unused doc files.
             '''
-        )
+              )
     )
     parser.add_argument(
         "-n",
@@ -96,7 +97,7 @@ if __name__ == "__main__":
     start_time = datetime.now()
 
     if args.create_tables:
-        create_tables() # confirm tables exist
+        create_tables()  # confirm tables exist
 
     if args.clear_tables:
         reset_tables()
@@ -118,4 +119,4 @@ if __name__ == "__main__":
         prune_folder_files(args.kb_name)
 
     end_time = datetime.now()
-    print(f"总计用时： {end_time-start_time}")
+    print(f"总计用时： {end_time - start_time}")

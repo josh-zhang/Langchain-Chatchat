@@ -24,42 +24,17 @@ VECTOR_SEARCH_TOP_K = 3
 # 知识库匹配相关度阈值，取值范围在0-1之间，SCORE越小，相关度越高，取到1相当于不筛选，建议设置在0.5左右
 SCORE_THRESHOLD = 1
 
-# 默认搜索引擎。可选：bing, duckduckgo, metaphor
-# DEFAULT_SEARCH_ENGINE = "duckduckgo"
-
-# 搜索引擎匹配结题数量
-# SEARCH_ENGINE_TOP_K = 3
-
-
-# Bing 搜索必备变量
-# 使用 Bing 搜索需要使用 Bing Subscription Key,需要在azure port中申请试用bing search
-# 具体申请方式请见
-# https://learn.microsoft.com/en-us/bing/search-apis/bing-web-search/create-bing-search-service-resource
-# 使用python创建bing api 搜索实例详见:
-# https://learn.microsoft.com/en-us/bing/search-apis/bing-web-search/quickstarts/rest/python
-# BING_SEARCH_URL = "https://api.bing.microsoft.com/v7.0/search"
-# 注意不是bing Webmaster Tools的api key，
-
-# 此外，如果是在服务器上，报Failed to establish a new connection: [Errno 110] Connection timed out
-# 是因为服务器加了防火墙，需要联系管理员加白名单，如果公司的服务器的话，就别想了GG
-# BING_SUBSCRIPTION_KEY = ""
-
-# metaphor搜索需要KEY
-# METAPHOR_API_KEY = ""
-
 
 # 是否开启中文标题加强，以及标题增强的相关配置
 # 通过增加标题判断，判断哪些文本为标题，并在metadata中进行标记；
 # 然后将文本与往上一级的标题进行拼合，实现文本信息的增强。
 ZH_TITLE_ENHANCE = False
 
-
 # 每个知识库的初始化介绍，用于在初始化知识库时显示和Agent调用，没写则没有介绍，不会被Agent调用。
 KB_INFO = {
     "知识库名称": "知识库介绍",
     "samples": "关于本项目issue的解答",
 }
-
 
 # 通常情况下不需要更改以下内容
 
@@ -89,7 +64,7 @@ kbs_config = {
         "user": "",
         "password": "",
         "secure": True,
-        },
+    },
     "pg": {
         "connection_uri": "postgresql://postgres:postgres@127.0.0.1:5432/langchain_chatchat",
     },
@@ -105,7 +80,7 @@ kbs_config = {
 # TextSplitter配置项，如果你不明白其中的含义，就不要修改。
 text_splitter_dict = {
     "ChineseRecursiveTextSplitter": {
-        "source": "huggingface",   # 选择tiktoken则使用openai的方法
+        "source": "huggingface",  # 选择tiktoken则使用openai的方法
         "tokenizer_name_or_path": "",
     },
     "SpacyTextSplitter": {

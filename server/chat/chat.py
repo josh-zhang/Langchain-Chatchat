@@ -45,8 +45,7 @@ async def chat(query: str = Body(..., description="用户输入", examples=["恼
             message_id = add_message_to_db(chat_type="llm_chat", query=query, conversation_id=conversation_id)
             # 负责保存llm response到message db
             conversation_callback = ConversationCallbackHandler(conversation_id=conversation_id, message_id=message_id,
-                                                                chat_type="llm_chat",
-                                                                query=query)
+                                                                chat_type="llm_chat", query=query)
             callbacks.append(conversation_callback)
 
         if isinstance(max_tokens, int) and max_tokens <= 0:

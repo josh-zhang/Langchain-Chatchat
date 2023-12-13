@@ -1,32 +1,12 @@
 import os
 import re
 import functools
-from LAC import LAC
 
 from langchain.retrievers import BM25Retriever
 from langchain.schema import Document
 from server.knowledge_base.kb_cache.base import *
+from server.knowledge_base.faq_utils import lac, stopwords
 from configs import CACHED_VS_NUM
-
-lac = LAC(mode='seg')
-term_dict_file = "/opt/projects/zhimakaimen/data/kbqa/custom_20230720.txt"
-if not os.path.exists(term_dict_file):
-    term_dict_file = ""
-term_dictionary = list()
-if term_dict_file:
-    with open(term_dict_file) as f:
-        term_dictionary = [i.replace("\n", "")[:-4] for i in f.readlines()]
-    logger.info(f"term_dictionary len {len(term_dictionary)}")
-    lac.load_customization(term_dict_file, sep=None)
-
-stopwords_file = "/opt/projects/zhimakaimen/data/kbqa/stopwords.txt"
-if not os.path.exists(stopwords_file):
-    stopwords_file = ""
-stopwords = list()
-if stopwords_file:
-    with open(stopwords_file) as f:
-        stopwords = [i.replace("\n", "") for i in f.readlines()]
-    logger.info(f"stopwords len {len(stopwords)}")
 
 
 @functools.lru_cache()
@@ -36,9 +16,15 @@ def preprocess_func(sentence: str) -> List[str]:
     sentence = re.sub(" {2,}", " ", sentence).strip()
     sentence = sentence.strip().upper()
 
-    seg_sentence = lac.run([sentence])[0]
+    seg_text = lac.run([sentence])[0]
 
-    return [j.strip() for j in seg_sentence if j.strip()]
+    result = list()
+    for word in seg_text:
+        word = word.strip()
+        if word and word not in stopwords:
+            result.append(word)
+
+    return result
 
 
 def norm(score_list: List[float]) -> List[float]:

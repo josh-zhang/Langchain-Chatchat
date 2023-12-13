@@ -258,8 +258,9 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                     st.session_state["file_chat_id"] = upload_temp_docs(files, api)
 
     if "prompt_template_select" in st.session_state:
-        st.text(
-            f"当前Prompt:\n{PROMPT_TEMPLATES[index_prompt[dialogue_mode]][st.session_state.prompt_template_select]}")
+        with st.expander("当前提示词", True):
+            st.text(
+                f"{PROMPT_TEMPLATES[index_prompt[dialogue_mode]][st.session_state.prompt_template_select]}")
 
     # Display chat messages from history on app rerun
     chat_box.output_messages()
@@ -318,50 +319,51 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                                        on_submit=on_feedback,
                                        kwargs={"message_id": message_id, "history_index": len(chat_box.history) - 1})
 
-            elif dialogue_mode == "自定义Agent问答":
-                if not any(agent in llm_model for agent in SUPPORT_AGENT_MODEL):
-                    chat_box.ai_say([
-                        f"正在思考... \n\n <span style='color:red'>该模型并没有进行Agent对齐，请更换支持Agent的模型获得更好的体验！</span>\n\n\n",
-                        Markdown("...", in_expander=True, title="思考过程", state="complete"),
-
-                    ])
-                else:
-                    chat_box.ai_say([
-                        f"正在思考...",
-                        Markdown("...", in_expander=True, title="思考过程", state="complete"),
-
-                    ])
-                text = ""
-                ans = ""
-                for d in api.agent_chat(prompt,
-                                        history=history,
-                                        model=llm_model,
-                                        prompt_name=prompt_template_name,
-                                        temperature=temperature,
-                                        ):
-                    try:
-                        d = json.loads(d)
-                    except:
-                        pass
-                    if error_msg := check_error_msg(d):  # check whether error occured
-                        st.error(error_msg)
-                    if chunk := d.get("answer"):
-                        text += chunk
-                        chat_box.update_msg(text, element_index=1)
-                    if chunk := d.get("final_answer"):
-                        ans += chunk
-                        chat_box.update_msg(ans, element_index=0)
-                    if chunk := d.get("tools"):
-                        text += "\n\n".join(d.get("tools", []))
-                        chat_box.update_msg(text, element_index=1)
-                chat_box.update_msg(ans, element_index=0, streaming=False)
-                chat_box.update_msg(text, element_index=1, streaming=False)
+            # elif dialogue_mode == "自定义Agent问答":
+            #     if not any(agent in llm_model for agent in SUPPORT_AGENT_MODEL):
+            #         chat_box.ai_say([
+            #             f"正在思考... \n\n <span style='color:red'>该模型并没有进行Agent对齐，请更换支持Agent的模型获得更好的体验！</span>\n\n\n",
+            #             Markdown("...", in_expander=True, title="思考过程", state="complete"),
+            #
+            #         ])
+            #     else:
+            #         chat_box.ai_say([
+            #             f"正在思考...",
+            #             Markdown("...", in_expander=True, title="思考过程", state="complete"),
+            #
+            #         ])
+            #     text = ""
+            #     ans = ""
+            #     for d in api.agent_chat(prompt,
+            #                             history=history,
+            #                             model=llm_model,
+            #                             prompt_name=prompt_template_name,
+            #                             temperature=temperature,
+            #                             ):
+            #         try:
+            #             d = json.loads(d)
+            #         except:
+            #             pass
+            #         if error_msg := check_error_msg(d):  # check whether error occured
+            #             st.error(error_msg)
+            #         if chunk := d.get("answer"):
+            #             text += chunk
+            #             chat_box.update_msg(text, element_index=1)
+            #         if chunk := d.get("final_answer"):
+            #             ans += chunk
+            #             chat_box.update_msg(ans, element_index=0)
+            #         if chunk := d.get("tools"):
+            #             text += "\n\n".join(d.get("tools", []))
+            #             chat_box.update_msg(text, element_index=1)
+            #     chat_box.update_msg(ans, element_index=0, streaming=False)
+            #     chat_box.update_msg(text, element_index=1, streaming=False)
             elif dialogue_mode == "知识库问答":
                 chat_box.ai_say([
                     f"正在查询知识库 `{selected_kb}` ...",
                     Markdown("...", in_expander=True, title="知识库匹配结果", state="complete"),
                 ])
                 text = ""
+                d = None
                 for d in api.knowledge_base_chat(prompt,
                                                  knowledge_base_name=selected_kb,
                                                  top_k=kb_top_k,
@@ -375,8 +377,9 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                         st.error(error_msg)
                     elif chunk := d.get("answer"):
                         text += chunk
-                        chat_box.update_msg(text, element_index=0)
-                    chat_box.update_msg(text, element_index=0, streaming=False)
+                        # chat_box.update_msg(text, element_index=0)
+                chat_box.update_msg(text, element_index=0, streaming=False)
+                if d:
                     chat_box.update_msg("\n\n".join(d.get("docs", [])), element_index=1, streaming=False)
             elif dialogue_mode == "文件对话":
                 if st.session_state["file_chat_id"] is None:
@@ -387,6 +390,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                     Markdown("...", in_expander=True, title="文件匹配结果", state="complete"),
                 ])
                 text = ""
+                d = None
                 for d in api.file_chat(prompt,
                                        knowledge_id=st.session_state["file_chat_id"],
                                        top_k=kb_top_k,
@@ -399,9 +403,10 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                         st.error(error_msg)
                     elif chunk := d.get("answer"):
                         text += chunk
-                        chat_box.update_msg(text, element_index=0)
+                        # chat_box.update_msg(text, element_index=0)
                 chat_box.update_msg(text, element_index=0, streaming=False)
-                chat_box.update_msg("\n\n".join(d.get("docs", [])), element_index=1, streaming=False)
+                if d:
+                    chat_box.update_msg("\n\n".join(d.get("docs", [])), element_index=1, streaming=False)
 
     if st.session_state.get("need_rerun"):
         st.session_state["need_rerun"] = False

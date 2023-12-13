@@ -18,16 +18,17 @@ from pathlib import Path
 
 
 def _parse_files_in_thread(
-    files: List[UploadFile],
-    dir: str,
-    zh_title_enhance: bool,
-    chunk_size: int,
-    chunk_overlap: int,
+        files: List[UploadFile],
+        dir: str,
+        zh_title_enhance: bool,
+        chunk_size: int,
+        chunk_overlap: int,
 ):
     """
     通过多线程将上传的文件保存到对应目录内。
     生成器返回保存结果：[success or error, filename, msg, docs]
     """
+
     def parse_file(file: UploadFile) -> dict:
         '''
         保存单个文件。
@@ -57,11 +58,11 @@ def _parse_files_in_thread(
 
 
 def upload_temp_docs(
-    files: List[UploadFile] = File(..., description="上传文件，支持多文件"),
-    prev_id: str = Form(None, description="前知识库ID"),
-    chunk_size: int = Form(CHUNK_SIZE, description="知识库中单段文本最大长度"),
-    chunk_overlap: int = Form(OVERLAP_SIZE, description="知识库中相邻文本重合长度"),
-    zh_title_enhance: bool = Form(ZH_TITLE_ENHANCE, description="是否开启中文标题加强"),
+        files: List[UploadFile] = File(..., description="上传文件，支持多文件"),
+        prev_id: str = Form(None, description="前知识库ID"),
+        chunk_size: int = Form(CHUNK_SIZE, description="知识库中单段文本最大长度"),
+        chunk_overlap: int = Form(OVERLAP_SIZE, description="知识库中相邻文本重合长度"),
+        zh_title_enhance: bool = Form(ZH_TITLE_ENHANCE, description="是否开启中文标题加强"),
 ) -> BaseResponse:
     '''
     将文件保存到临时目录，并进行向量化。
@@ -74,10 +75,10 @@ def upload_temp_docs(
     documents = []
     path, id = get_temp_dir(prev_id)
     for success, file, msg, docs in _parse_files_in_thread(files=files,
-                                                        dir=path,
-                                                        zh_title_enhance=zh_title_enhance,
-                                                        chunk_size=chunk_size,
-                                                        chunk_overlap=chunk_overlap):
+                                                           dir=path,
+                                                           zh_title_enhance=zh_title_enhance,
+                                                           chunk_size=chunk_size,
+                                                           chunk_overlap=chunk_overlap):
         if success:
             documents += docs
         else:
@@ -91,21 +92,24 @@ def upload_temp_docs(
 async def file_chat(query: str = Body(..., description="用户输入", examples=["你好"]),
                     knowledge_id: str = Body(..., description="临时知识库ID"),
                     top_k: int = Body(VECTOR_SEARCH_TOP_K, description="匹配向量数"),
-                    score_threshold: float = Body(SCORE_THRESHOLD, description="知识库匹配相关度阈值，取值范围在0-1之间，SCORE越小，相关度越高，取到1相当于不筛选，建议设置在0.5左右", ge=0, le=2),
+                    score_threshold: float = Body(SCORE_THRESHOLD,
+                                                  description="知识库匹配相关度阈值，取值范围在0-1之间，SCORE越小，相关度越高，取到1相当于不筛选，建议设置在0.5左右",
+                                                  ge=0, le=2),
                     history: List[History] = Body([],
-                                                description="历史对话",
-                                                examples=[[
-                                                    {"role": "user",
-                                                    "content": "我们来玩成语接龙，我先来，生龙活虎"},
-                                                    {"role": "assistant",
-                                                    "content": "虎头虎脑"}]]
-                                                ),
+                                                  description="历史对话",
+                                                  examples=[[
+                                                      {"role": "user",
+                                                       "content": "我们来玩成语接龙，我先来，生龙活虎"},
+                                                      {"role": "assistant",
+                                                       "content": "虎头虎脑"}]]
+                                                  ),
                     stream: bool = Body(False, description="流式输出"),
                     model_name: str = Body(LLM_MODELS[0], description="LLM 模型名称。"),
                     temperature: float = Body(TEMPERATURE, description="LLM 采样温度", ge=0.0, le=1.0),
                     max_tokens: Optional[int] = Body(None, description="限制LLM生成Token数量，默认None代表模型最大值"),
-                    prompt_name: str = Body("default", description="使用的prompt模板名称(在configs/prompt_config.py中配置)"),
-                ):
+                    prompt_name: str = Body("default",
+                                            description="使用的prompt模板名称(在configs/prompt_config.py中配置)"),
+                    ):
     if knowledge_id not in memo_faiss_pool.keys():
         return BaseResponse(code=404, msg=f"未找到临时知识库 {knowledge_id}，请先上传文件")
 
@@ -127,7 +131,7 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
             docs = [x[0] for x in docs]
 
         context = "\n".join([doc.page_content for doc in docs])
-        if len(docs) == 0: ## 如果没有找到相关文档，使用Empty模板
+        if len(docs) == 0:  ## 如果没有找到相关文档，使用Empty模板
             prompt_template = get_prompt_template("knowledge_base_chat", "Empty")
         else:
             prompt_template = get_prompt_template("knowledge_base_chat", prompt_name)
@@ -149,7 +153,7 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
             text = f"""出处 [{inum + 1}] [{filename}] \n\n{doc.page_content}\n\n"""
             source_documents.append(text)
 
-        if len(source_documents) == 0: # 没有找到相关文档
+        if len(source_documents) == 0:  # 没有找到相关文档
             source_documents.append(f"""<span style='color:red'>未找到相关文档,该回答为大模型自身能力解答！</span>""")
 
         if stream:

@@ -30,7 +30,7 @@ def get_total_score_sorted(docs_data: List[DocumentWithScores], score_threshold)
         doc = sbert_doc + bm_doc
         que = sbert_que + bm_que
         ans = sbert_ans + bm_ans
-        qa = max(que + ans)
+        qa = max(que, ans)
 
         ds.scores["total"] = doc + qa
 
@@ -62,8 +62,8 @@ def search_docs(
         docs_data = ks_docs_data
         qa_data = ks_qa_data
 
-    print(f"final docs_data {docs_data}")
-    print(f"final qa_data {qa_data}")
+    # print(f"final docs_data {docs_data}")
+    # print(f"final qa_data {qa_data}")
 
     docs_data = docs_data + qa_data
 

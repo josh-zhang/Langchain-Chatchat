@@ -28,62 +28,6 @@ async def wrap_done(fn: Awaitable, event: asyncio.Event):
         event.set()
 
 
-# def get_ChatOpenAI(
-#         model_name: str,
-#         temperature: float,
-#         max_tokens: int = None,
-#         streaming: bool = True,
-#         callbacks: List[Callable] = [],
-#         verbose: bool = True,
-#         **kwargs: Any,
-# ) -> ChatOpenAI:
-#     config = get_model_worker_config(model_name)
-#     if model_name == "openai-api":
-#         model_name = config.get("model_name")
-#     model = ChatOpenAI(
-#         streaming=streaming,
-#         verbose=verbose,
-#         callbacks=callbacks,
-#         openai_api_key=config.get("api_key", "EMPTY"),
-#         openai_api_base=config.get("api_base_url", fschat_openai_api_address()),
-#         model_name=model_name,
-#         temperature=temperature,
-#         max_tokens=max_tokens,
-#         openai_proxy=config.get("openai_proxy"),
-#         **kwargs
-#     )
-#     return model
-
-
-# def get_OpenAI(
-#         model_name: str,
-#         temperature: float,
-#         max_tokens: int = None,
-#         streaming: bool = True,
-#         echo: bool = True,
-#         callbacks: List[Callable] = [],
-#         verbose: bool = True,
-#         **kwargs: Any,
-# ) -> OpenAI:
-#     config = get_model_worker_config(model_name)
-#     if model_name == "openai-api":
-#         model_name = config.get("model_name")
-#     model = OpenAI(
-#         streaming=streaming,
-#         verbose=verbose,
-#         callbacks=callbacks,
-#         openai_api_key=config.get("api_key", "EMPTY"),
-#         openai_api_base=config.get("api_base_url", fschat_openai_api_address()),
-#         model_name=model_name,
-#         temperature=temperature,
-#         max_tokens=max_tokens,
-#         openai_proxy=config.get("openai_proxy"),
-#         echo=echo,
-#         **kwargs
-#     )
-#     return model
-
-
 class BaseResponse(BaseModel):
     code: int = pydantic.Field(200, description="API status code")
     msg: str = pydantic.Field("success", description="API status message")
@@ -352,45 +296,6 @@ def get_model_worker_config(model_name: str = None) -> dict:
     return config
 
 
-# def get_all_model_worker_configs() -> dict:
-#     result = {}
-#     model_names = set(FSCHAT_MODEL_WORKERS.keys())
-#     for name in model_names:
-#         if name != "default":
-#             result[name] = get_model_worker_config(name)
-#     return result
-#
-#
-# def fschat_controller_address() -> str:
-#     from configs.server_config import FSCHAT_CONTROLLER
-#
-#     host = FSCHAT_CONTROLLER["host"]
-#     if host == "0.0.0.0":
-#         host = "127.0.0.1"
-#     port = FSCHAT_CONTROLLER["port"]
-#     return f"http://{host}:{port}"
-#
-#
-# def fschat_model_worker_address(model_name: str = LLM_MODELS[0]) -> str:
-#     if model := get_model_worker_config(model_name):  # TODO: depends fastchat
-#         host = model["host"]
-#         if host == "0.0.0.0":
-#             host = "127.0.0.1"
-#         port = model["port"]
-#         return f"http://{host}:{port}"
-#     return ""
-#
-#
-# def fschat_openai_api_address() -> str:
-#     from configs.server_config import FSCHAT_OPENAI_API
-#
-#     host = FSCHAT_OPENAI_API["host"]
-#     if host == "0.0.0.0":
-#         host = "127.0.0.1"
-#     port = FSCHAT_OPENAI_API["port"]
-#     return f"http://{host}:{port}/v1"
-
-
 def api_address() -> str:
     from configs.server_config import API_SERVER
 
@@ -615,18 +520,6 @@ def get_server_configs() -> Dict:
     }
 
     return {**{k: v for k, v in locals().items() if k[0] != "_"}, **_custom}
-
-
-# def list_online_embed_models() -> List[str]:
-#     from server import model_workers
-#
-#     ret = []
-#     for k, v in list_config_llm_models()["online"].items():
-#         if provider := v.get("provider"):
-#             worker_class = getattr(model_workers, provider, None)
-#             if worker_class is not None and worker_class.can_embedding():
-#                 ret.append(k)
-#     return ret
 
 
 def load_local_embeddings(model: str = None, device: str = embedding_device()):

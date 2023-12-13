@@ -35,7 +35,6 @@ PROMPT_TEMPLATES = {
             '{{ input }}',
     },
 
-
     "knowledge_base_chat": {
         "default":
             '<指令>根据已知信息，简洁和专业的来回答问题。如果无法从中得到答案，请说 “根据已知信息无法回答该问题”，'
@@ -53,7 +52,6 @@ PROMPT_TEMPLATES = {
             '{{ question }}\n\n',
     },
 
-
     "search_engine_chat": {
         "default":
             '<指令>这是我搜索到的互联网信息，请你根据这些信息进行提取并有调理，简洁的回答问题。'
@@ -66,7 +64,6 @@ PROMPT_TEMPLATES = {
             '<已知信息>{{ context }}</已知信息>\n'
             '<问题>{{ question }}</问题>\n',
     },
-
 
     "agent_chat": {
         "default":

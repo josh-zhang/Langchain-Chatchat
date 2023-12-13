@@ -392,9 +392,9 @@ class KBService(ABC):
             new_question_data = self.question_to_answer(question_data)
         else:
             new_question_data = list()
-        print(f"new_question_data {new_question_data}")
+        # print(f"new_question_data {new_question_data}")
         merged_answer_data = self.merge_answers(answer_data, new_question_data, is_max=True)
-        print(f"merged_answer_data {merged_answer_data}")
+        # print(f"merged_answer_data {merged_answer_data}")
 
         return docs_data, merged_answer_data
 
@@ -436,7 +436,7 @@ class KBService(ABC):
                         else:
                             docs_data.append((doc, 0.0))
 
-        print(f"1 docs_data {docs_data}")
+        # print(f"1 docs_data {docs_data}")
 
         if faq_file_names:
             docs_text_list = list()
@@ -452,14 +452,14 @@ class KBService(ABC):
                     norm_scores = get_score(vs, query)
 
                     top_3_idx = np.argsort(norm_scores)[::-1][:top_k]
-                    print(f"top_3_idx {top_3_idx}")
+
                     for idx, doc in enumerate(vs.docs):
                         if idx in top_3_idx:
                             answer_data.append((doc, norm_scores[idx] * bm_factor))
                         else:
                             answer_data.append((doc, 0.0))
 
-        print(f"2 answer_data {answer_data}")
+        # print(f"2 answer_data {answer_data}")
 
         if faq_file_names:
             docs_text_list = list()
@@ -479,7 +479,7 @@ class KBService(ABC):
                         else:
                             question_data.append((doc, 0.0))
 
-        print(f"3 question_data {question_data}")
+        # print(f"3 question_data {question_data}")
 
         docs_data = [DocumentWithScores(**d.dict(), scores={"bm_doc": s}) for d, s in docs_data]
         answer_data = [DocumentWithScores(**d.dict(), scores={"bm_ans": s}) for d, s in answer_data]
@@ -489,9 +489,9 @@ class KBService(ABC):
             new_question_data = self.question_to_answer(question_data)
         else:
             new_question_data = list()
-        print(f"4 new_question_data {new_question_data}")
+        # print(f"4 new_question_data {new_question_data}")
         merged_answer_data = self.merge_answers(answer_data, new_question_data, is_max=True)
-        print(f"5 merged_answer_data {merged_answer_data}")
+        # print(f"5 merged_answer_data {merged_answer_data}")
 
         return docs_data, merged_answer_data
 

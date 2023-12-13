@@ -4,7 +4,6 @@ import langchain
 import tempfile
 import shutil
 
-
 # 是否显示详细日志
 log_verbose = False
 langchain.verbose = False
@@ -16,7 +15,6 @@ LOG_FORMAT = "%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(mes
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logging.basicConfig(format=LOG_FORMAT)
-
 
 # 日志存储路径
 LOG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs")

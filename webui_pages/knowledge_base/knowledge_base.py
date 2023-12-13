@@ -11,7 +11,6 @@ from server.utils import list_embed_models
 import os
 import time
 
-
 # SENTENCE_SIZE = 100
 
 cell_renderer = JsCode("""function(params) {if(params.value==true){return '✓'}else{return '×'}}""")
@@ -54,17 +53,19 @@ def file_exists(kb: str, selected_rows: List) -> Tuple[str, str]:
 
 
 def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
+    selected_kb_index = 0
+    kb_names = []
+    kb_list = []
+
     try:
         kb_list = {x["kb_name"]: x for x in get_kb_details()}
+        kb_names = list(kb_list.keys())
+        if "selected_kb_name" in st.session_state and st.session_state["selected_kb_name"] in kb_names:
+            selected_kb_index = kb_names.index(st.session_state["selected_kb_name"])
     except Exception as e:
-        st.error("获取知识库信息错误，请检查是否已按照 `README.md` 中 `4 知识库初始化与迁移` 步骤完成初始化或迁移，或是否为数据库连接错误。")
+        st.error(
+            "获取知识库信息错误，请检查是否已按照 `README.md` 中 `4 知识库初始化与迁移` 步骤完成初始化或迁移，或是否为数据库连接错误。")
         st.stop()
-    kb_names = list(kb_list.keys())
-
-    if "selected_kb_name" in st.session_state and st.session_state["selected_kb_name"] in kb_names:
-        selected_kb_index = kb_names.index(st.session_state["selected_kb_name"])
-    else:
-        selected_kb_index = 0
 
     if "selected_kb_info" not in st.session_state:
         st.session_state["selected_kb_info"] = ""
@@ -152,8 +153,8 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                                  [i for ls in LOADER_DICT.values() for i in ls],
                                  accept_multiple_files=True,
                                  )
-        kb_info = st.text_area("请输入知识库介绍:", value=st.session_state["selected_kb_info"], max_chars=None, key=None,
-                               help=None, on_change=None, args=None, kwargs=None)
+        kb_info = st.text_area("请输入知识库介绍:", value=st.session_state["selected_kb_info"], max_chars=None,
+                               key=None, help=None, on_change=None, args=None, kwargs=None)
 
         if kb_info != st.session_state["selected_kb_info"]:
             st.session_state["selected_kb_info"] = kb_info
@@ -253,7 +254,8 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
             st.write()
             # 将文件分词并加载到向量库中
             if cols[1].button(
-                    "重新添加至向量库" if selected_rows and (pd.DataFrame(selected_rows)["in_db"]).any() else "添加至向量库",
+                    "重新添加至向量库" if selected_rows and (
+                            pd.DataFrame(selected_rows)["in_db"]).any() else "添加至向量库",
                     disabled=not file_exists(kb, selected_rows)[0],
                     use_container_width=True,
             ):
@@ -298,9 +300,9 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 empty = st.empty()
                 empty.progress(0.0, "")
                 for d in api.recreate_vector_store(kb,
-                                                chunk_size=chunk_size,
-                                                chunk_overlap=chunk_overlap,
-                                                zh_title_enhance=zh_title_enhance):
+                                                   chunk_size=chunk_size,
+                                                   chunk_overlap=chunk_overlap,
+                                                   zh_title_enhance=zh_title_enhance):
                     if msg := check_error_msg(d):
                         st.toast(msg)
                     else:

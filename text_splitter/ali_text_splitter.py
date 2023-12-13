@@ -24,7 +24,6 @@ class AliTextSplitter(CharacterTextSplitter):
                 "Please install modelscope with `pip install modelscope`. "
             )
 
-
         p = pipeline(
             task="document-segmentation",
             model='damo/nlp_bert_document-segmentation_chinese-base',

@@ -42,7 +42,6 @@ class FaissKBService(KBService):
 
     def get_answer_by_ids(self, ids: List[str]) -> List[Document]:
         with self.load_vector_store("answer").acquire() as vs:
-            print(vs.docstore._dict)
             return [vs.docstore._dict.get(id) for id in ids]
 
     def do_init(self):
@@ -75,7 +74,6 @@ class FaissKBService(KBService):
 
         with self.load_vector_store("docs").acquire() as vs:
             if len(vs.docstore._dict) == 0:
-                print(f"docs vector_store is empty")
                 return embeddings, []
             score_threshold = 1 - score_threshold
             docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=score_threshold)
@@ -95,7 +93,6 @@ class FaissKBService(KBService):
 
         with self.load_vector_store("question").acquire() as vs:
             if len(vs.docstore._dict) == 0:
-                print(f"question vector_store is empty")
                 return embeddings, []
             score_threshold = 1 - score_threshold
             docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=score_threshold)
@@ -144,7 +141,6 @@ class FaissKBService(KBService):
             logging.warning(vs.index_to_docstore_id)
 
         doc_infos = [{"id": id, "metadata": doc.metadata} for id, doc in zip(ids, docs)]
-        print(doc_infos)
         torch_gc()
         return doc_infos
 
@@ -177,8 +173,6 @@ class FaissKBService(KBService):
                 vs_path = self.get_vs_path("question")
                 vs.save_local(vs_path)
 
-                print(f"add_question local")
-
         doc_infos = [{"id": id, "metadata": doc.metadata} for id, doc in zip(ids, docs)]
         torch_gc()
         return doc_infos
@@ -205,13 +199,9 @@ class FaissKBService(KBService):
             ids = vs.add_embeddings(text_embeddings=zip(data["texts"], data["embeddings"]),
                                     metadatas=data["metadatas"])
 
-            print(f"add_answer")
-
             if not kwargs.get("not_refresh_vs_cache"):
                 vs_path = self.get_vs_path("answer")
                 vs.save_local(vs_path)
-
-                print(f"add_answer local")
 
         doc_infos = [{"id": id, "metadata": doc.metadata} for id, doc in zip(ids, docs)]
         torch_gc()
