@@ -95,7 +95,15 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
     # print(f"chat_prompt {chat_prompt.messages}")
     # print(f"chat_prompt {chat_prompt.input_variables}")
 
-    context = "\n".join([doc.page_content for doc in docs])
+    header = "已知信息"
+    if prompt_name == "faq":
+        header = "常见问答"
+
+    context = ""
+    index = 1
+    for doc in docs:
+        context += f"\n{header}{index}\n{doc.page_content}"
+        index += 1
 
     messages = [{'role': 'system', 'content': ''}]
     for chatMessagePromptTemplate in chat_prompt.messages:
