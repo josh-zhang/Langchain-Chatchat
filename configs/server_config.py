@@ -13,7 +13,7 @@ DEFAULT_BIND_HOST = "0.0.0.0" if sys.platform != "win32" else "127.0.0.1"
 # webui.py server
 WEBUI_SERVER = {
     "host": DEFAULT_BIND_HOST,
-    "port": 8501,
+    "port": 6006,
 }
 
 # api.py server

@@ -102,7 +102,7 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
     context = ""
     index = 1
     for doc in docs:
-        context += f"\n{header}{index}\n{doc.page_content}"
+        context += f"\n##{header}{index}##\n{doc.page_content}\n"
         index += 1
 
     messages = [{'role': 'system', 'content': ''}]
@@ -110,12 +110,8 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
         role = chatMessagePromptTemplate.role
         prompt = chatMessagePromptTemplate.prompt
         template = prompt.template
-
-        if prompt_name in ["default", "text"]:
-            template = template.replace("{{ question }}", query)
-            template = template.replace("{{ context }}", context)
-        elif "Empty" == prompt_name:
-            template = template.replace("{{ question }}", query)
+        template = template.replace("{{ question }}", query)
+        template = template.replace("{{ context }}", context)
 
         messages.append({'role': role, 'content': template})
 
