@@ -433,8 +433,8 @@ class KBService(ABC):
                     for idx, doc in enumerate(vs.docs):
                         if idx in top_3_idx:
                             docs_data.append((doc, norm_scores[idx] * bm_factor))
-                        else:
-                            docs_data.append((doc, 0.0))
+                        # else:
+                        #     docs_data.append((doc, 0.0))
 
         # print(f"1 docs_data {docs_data}")
 
@@ -456,8 +456,8 @@ class KBService(ABC):
                     for idx, doc in enumerate(vs.docs):
                         if idx in top_3_idx:
                             answer_data.append((doc, norm_scores[idx] * bm_factor))
-                        else:
-                            answer_data.append((doc, 0.0))
+                        # else:
+                        #     answer_data.append((doc, 0.0))
 
         # print(f"2 answer_data {answer_data}")
 
@@ -476,8 +476,8 @@ class KBService(ABC):
                     for idx, doc in enumerate(vs.docs):
                         if idx in top_3_idx:
                             question_data.append((doc, norm_scores[idx] * bm_factor))
-                        else:
-                            question_data.append((doc, 0.0))
+                        # else:
+                        #     question_data.append((doc, 0.0))
 
         # print(f"3 question_data {question_data}")
 
