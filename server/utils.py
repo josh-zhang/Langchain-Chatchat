@@ -1,16 +1,17 @@
+import os
+import logging
+import asyncio
+from typing import Literal, Optional, Callable, Generator, Dict, Any, Awaitable, Union, Tuple, List
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+
+import httpx
 import pydantic
 from pydantic import BaseModel
-from typing import List
 from fastapi import FastAPI
-from pathlib import Path
-import asyncio
+
 from configs import (LLM_DEVICE, EMBEDDING_DEVICE, MODEL_PATH, MODEL_ROOT_PATH, logger, log_verbose,
                      HTTPX_DEFAULT_TIMEOUT)
-import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import httpx
-from typing import Literal, Optional, Callable, Generator, Dict, Any, Awaitable, Union, Tuple
-import logging
 
 
 async def wrap_done(fn: Awaitable, event: asyncio.Event):
@@ -522,7 +523,7 @@ def get_server_configs() -> Dict:
     return {**{k: v for k, v in locals().items() if k[0] != "_"}, **_custom}
 
 
-def load_local_embeddings(model: str = None, device: str = embedding_device()):
+def load_local_embeddings(model: str = None, normalize_embeddings: bool = False, device: str = embedding_device()):
     '''
     从缓存中加载embeddings，可以避免多线程时竞争加载。
     '''
@@ -530,7 +531,7 @@ def load_local_embeddings(model: str = None, device: str = embedding_device()):
     from configs import EMBEDDING_MODEL
 
     model = model or EMBEDDING_MODEL
-    return embeddings_pool.load_embeddings(model=model, device=device)
+    return embeddings_pool.load_embeddings(model=model, device=device, normalize_embeddings=normalize_embeddings)
 
 
 def get_temp_dir(id: str = None) -> Tuple[str, str]:

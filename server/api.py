@@ -17,7 +17,7 @@ from configs.model_config import NLTK_DATA_PATH
 from configs.server_config import OPEN_CROSS_DOMAIN
 from server.chat.chat import chat
 from server.chat.feedback import chat_feedback
-from server.embeddings_api import embed_texts_endpoint
+from server.embeddings_api import embed_texts_endpoint, embed_texts_simi_endpoint
 from server.llm_api import (list_running_models, list_config_models, get_model_config)
 from server.utils import (BaseResponse, ListResponse, FastAPI, MakeFastAPIOffline,
                           get_server_configs, get_prompt_template)
@@ -136,8 +136,13 @@ def mount_app_routes(app: FastAPI, run_mode: str = None):
 
     app.post("/other/embed_texts",
              tags=["Other"],
-             summary="将文本向量化，支持本地模型和在线模型",
+             summary="将文本向量化，支持本地模型",
              )(embed_texts_endpoint)
+
+    app.post("/other/texts_simi",
+             tags=["Other"],
+             summary="比较任意两个文本的相似度，支持本地模型",
+             )(embed_texts_simi_endpoint)
 
 
 def mount_knowledge_routes(app: FastAPI):
