@@ -18,7 +18,6 @@ def embed_texts(
     TODO: 也许需要加入缓存机制，减少 token 消耗
     '''
     try:
-        # if embed_model in list_embed_models(): # 使用本地Embeddings模型
         from server.utils import load_local_embeddings
 
         embeddings = load_local_embeddings(model=embed_model)
@@ -40,16 +39,15 @@ def embed_texts_endpoint(
 
 
 def embed_texts_simi_endpoint(
-        text_a: str = Body(..., description="要嵌入的文本列表", examples=[["hello", "world"]]),
-        text_b: str = Body(..., description="要嵌入的文本列表", examples=[["hi", "world"]]),
+        text_a: str = Body(..., description="要计算的文本一", examples=["hello world"]),
+        text_b: str = Body(..., description="要计算的文本二", examples=["hi world"]),
 ) -> BaseResponse:
     '''
-    对文本进行向量化，返回 BaseResponse(data=List[List[float]])
+    计算两个文本相似度，返回 BaseResponse(data=List[float]])
     '''
     from server.utils import load_local_embeddings
 
     embeddings = load_local_embeddings(model="bge-base-zh", normalize_embeddings=True)
-
     embedding_a = embeddings.embed_documents([text_a])[0]
     embedding_b = embeddings.embed_documents([text_b])[0]
     query_embed_2d_a = np.reshape(embedding_a, (1, -1))
