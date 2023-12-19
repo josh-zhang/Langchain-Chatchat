@@ -14,18 +14,13 @@ DEFAULT_BIND_HOST = "0.0.0.0" if sys.platform != "win32" else "127.0.0.1"
 # webui.py server
 WEBUI_SERVER = {
     "host": DEFAULT_BIND_HOST,
-    "port": 6006,
+    "port": 8080,
 }
 
 # api.py server
 API_SERVER = {
     "host": DEFAULT_BIND_HOST,
-    "port": 8080,
-}
-
-LLM_SERVER = {
-    "host": DEFAULT_BIND_HOST,
-    "port": 30000,
+    "port": 6006,
 }
 
 API_SERVER_HOST_MAPPING = {
@@ -48,7 +43,7 @@ API_SERVER_PORT_MAPPING = {
 # fastchat openai_api server
 FSCHAT_OPENAI_API = {
     "host": DEFAULT_BIND_HOST,
-    "port": 8080,
+    "port": 30002,
 }
 
 # fastchat controller server
@@ -57,6 +52,11 @@ FSCHAT_CONTROLLER = {
     "port": 4141,
     "dispatch_method": "shortest_queue",
 }
+
+# LLM_SERVER = {
+#     "host": DEFAULT_BIND_HOST,
+#     "port": 30000,
+# }
 
 # fastchat model_worker server
 # 这些模型必须是在model_config.MODEL_PATH或ONLINE_MODEL中正确配置的。

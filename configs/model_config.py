@@ -135,11 +135,11 @@ NLTK_DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "nltk_
 
 # 你认为支持Agent能力的模型，可以在这里添加，添加后不会出现可视化界面的警告
 # 经过我们测试，原生支持Agent的模型仅有以下几个
-SUPPORT_AGENT_MODEL = [
-    "azure-api",
-    "openai-api",
-    "qwen-api",
-    "Qwen",
-    "chatglm3",
-    "xinghuo-api",
-]
+# SUPPORT_AGENT_MODEL = [
+#     "azure-api",
+#     "openai-api",
+#     "qwen-api",
+#     "Qwen",
+#     "chatglm3",
+#     "xinghuo-api",
+# ]

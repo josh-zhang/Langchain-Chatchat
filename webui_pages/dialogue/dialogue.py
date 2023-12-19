@@ -6,8 +6,7 @@ from datetime import datetime
 import os
 import re
 import time
-from configs import (TEMPERATURE, HISTORY_LEN, PROMPT_TEMPLATES,
-                     DEFAULT_KNOWLEDGE_BASE, SUPPORT_AGENT_MODEL)
+from configs import TEMPERATURE, HISTORY_LEN, PROMPT_TEMPLATES, DEFAULT_KNOWLEDGE_BASE
 from server.knowledge_base.utils import LOADER_DICT
 import uuid
 from typing import List, Dict
@@ -312,7 +311,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                 metadata = {
                     "message_id": message_id,
                 }
-                chat_box.update_msg(text, streaming=False)  # 更新最终的字符串，去除光标
+                # chat_box.update_msg(text, streaming=False)  # 更新最终的字符串，去除光标
                 chat_box.update_msg(text, streaming=False, metadata=metadata)  # 更新最终的字符串，去除光标
                 chat_box.show_feedback(**feedback_kwargs,
                                        key=message_id,
@@ -377,7 +376,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                         st.error(error_msg)
                     elif chunk := d.get("answer"):
                         text += chunk
-                        # chat_box.update_msg(text, element_index=0)
+                        chat_box.update_msg(text, element_index=0)
                 chat_box.update_msg(text, element_index=0, streaming=False)
                 if d:
                     chat_box.update_msg("\n\n".join(d.get("docs", [])), element_index=1, streaming=False)

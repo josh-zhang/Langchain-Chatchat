@@ -141,17 +141,13 @@ def mount_app_routes(app: FastAPI, run_mode: str = None):
 
 
 def mount_knowledge_routes(app: FastAPI):
-    from server.chat.knowledge_base_chat import knowledge_base_chat, knowledge_base_chat_v1
+    from server.chat.knowledge_base_chat import knowledge_base_chat
     from server.chat.file_chat import upload_temp_docs, file_chat
     # from server.chat.agent_chat import agent_chat
     from server.knowledge_base.kb_api import list_kbs, create_kb, delete_kb
     from server.knowledge_base.kb_doc_api import (list_files, upload_docs, delete_docs,
                                                   update_docs, download_doc, recreate_vector_store,
                                                   search_docs, DocumentWithScores, update_info, download_faq)
-
-    app.post("/chat/knowledge_base_chat_v1",
-             tags=["Chat"],
-             summary="与知识库对话")(knowledge_base_chat_v1)
 
     app.post("/chat/knowledge_base_chat",
              tags=["Chat"],
@@ -274,7 +270,7 @@ if __name__ == "__main__":
                                      description='About langchain-ChatGLM, local knowledge based ChatGLM with langchain'
                                                  ' ｜ 基于本地知识库的 ChatGLM 问答')
     parser.add_argument("--host", type=str, default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=30001)
+    parser.add_argument("--port", type=int, default=6006)
     parser.add_argument("--ssl_keyfile", type=str)
     parser.add_argument("--ssl_certfile", type=str)
     # 初始化消息

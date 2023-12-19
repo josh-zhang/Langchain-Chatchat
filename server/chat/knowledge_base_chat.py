@@ -18,7 +18,7 @@ from server.utils import BaseResponse, get_prompt_template, wrap_done, get_ChatO
 from server.chat.utils import History
 from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.knowledge_base.kb_doc_api import search_docs
-from configs import LLM_MODELS, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, TEMPERATURE, TOP_P, LLM_SERVER, \
+from configs import LLM_MODELS, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, TEMPERATURE, TOP_P, \
     API_SERVER_HOST_MAPPING, API_SERVER_PORT_MAPPING
 
 
@@ -57,6 +57,12 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
     if kb is None:
         return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}")
 
+    base_url = request.base_url.__str__()
+    base_url_parsed = urlparse(base_url)
+    hostname_altered = API_SERVER_HOST_MAPPING.get(base_url_parsed.hostname, base_url_parsed.hostname)
+    port_altered = str(API_SERVER_PORT_MAPPING.get(base_url_parsed.port, base_url_parsed.port))
+    base_url_altered = base_url_parsed.scheme + "://" + hostname_altered + ":" + port_altered + "/"
+
     history = [History.from_data(h) for h in history]
 
     async def knowledge_base_chat_iterator(
@@ -68,6 +74,7 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
     ) -> AsyncIterable[str]:
         nonlocal max_tokens
         callback = AsyncIteratorCallbackHandler()
+        callbacks = [callback]
         if isinstance(max_tokens, int) and max_tokens <= 0:
             max_tokens = None
 
@@ -75,10 +82,10 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
             model_name=model_name,
             temperature=temperature,
             max_tokens=max_tokens,
-            callbacks=[callback],
+            callbacks=callbacks,
         )
         docs = search_docs(query, knowledge_base_name, top_k, score_threshold)
-        context = "\n".join([doc.page_content for doc in docs])
+        # context = "\n".join([doc.page_content for doc in docs])
         if len(docs) == 0:  # 如果没有找到相关文档，使用empty模板
             prompt_template = get_prompt_template("knowledge_base_chat", "empty")
         else:
@@ -88,6 +95,15 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
             [i.to_msg_template() for i in history] + [input_msg])
 
         chain = LLMChain(prompt=chat_prompt, llm=model)
+
+        header = "已知信息"
+        if prompt_name == "faq":
+            header = "常见问答"
+        context = ""
+        index = 1
+        for doc in docs:
+            context += f"\n##{header}{index}##\n{doc.page_content}\n"
+            index += 1
 
         # Begin a task that runs in the background.
         task = asyncio.create_task(wrap_done(
@@ -99,9 +115,9 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
         for inum, doc in enumerate(docs):
             filename = doc.metadata.get("source")
             parameters = urlencode({"knowledge_base_name": knowledge_base_name, "file_name": filename})
-            base_url = request.base_url
-            url = f"{base_url}knowledge_base/download_doc?" + parameters
-            text = f"""出处 [{inum + 1}] [{filename}]({url}) \n\n{doc.page_content}\n\n"""
+            # base_url = request.base_url
+            url = f"{base_url_altered}knowledge_base/download_doc?" + parameters
+            text = f"""出处 [{inum + 1}] [{filename}]({url})  匹配度 {int(doc.scores["total"] / 1.4 * 100)}%\n\n{doc.page_content}\n\n"""
             source_documents.append(text)
 
         if len(source_documents) == 0:  # 没有找到相关文档
