@@ -1,4 +1,15 @@
 import os
+import json
+import importlib
+from typing import List, Union, Dict, Tuple, Generator
+
+import chardet
+import langchain.document_loaders
+from unstructured.documents.elements import Element, Text, ElementMetadata, Title
+from unstructured.partition.common import get_last_modified_date
+from langchain.docstore.document import Document
+from langchain.text_splitter import TextSplitter
+
 from configs import (
     KB_ROOT_PATH,
     CHUNK_SIZE,
@@ -10,18 +21,9 @@ from configs import (
     LLM_MODELS,
     TEXT_SPLITTER_NAME,
 )
-import importlib
 from text_splitter import zh_title_enhance as func_zh_title_enhance
-import langchain.document_loaders
-from langchain.docstore.document import Document
-from langchain.text_splitter import TextSplitter
-from server.utils import run_in_thread_pool, get_model_worker_config
+from server.utils import run_in_thread_pool, get_model_path, llm_device
 from server.knowledge_base.faq_utils import load_gen_file
-import json
-from typing import List, Union, Dict, Tuple, Generator
-import chardet
-from unstructured.documents.elements import Element, Text, ElementMetadata, Title
-from unstructured.partition.common import get_last_modified_date
 
 
 class DocumentWithScores(Document):
@@ -268,6 +270,24 @@ def get_loader(loader_name: str, file_path: str, loader_kwargs: Dict = None):
 
     loader = DocumentLoader(file_path, **loader_kwargs)
     return loader
+
+
+def get_model_worker_config(model_name: str = None) -> dict:
+    '''
+    加载model worker的配置项。
+    优先级:FSCHAT_MODEL_WORKERS[model_name] > ONLINE_LLM_MODEL[model_name] > FSCHAT_MODEL_WORKERS["default"]
+    '''
+    from configs.model_config import MODEL_PATH
+
+    config = {}
+    # 本地模型
+    if model_name in MODEL_PATH["llm_model"]:
+        path = get_model_path(model_name)
+        config["model_path"] = path
+        if path and os.path.isdir(path):
+            config["model_path_exists"] = True
+        config["device"] = llm_device(config.get("device"))
+    return config
 
 
 def make_text_splitter(

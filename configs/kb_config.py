@@ -58,13 +58,13 @@ kbs_config = {
         "password": "",
         "secure": False,
     },
-    "zilliz": {
-        "host": "in01-a7ce524e41e3935.ali-cn-hangzhou.vectordb.zilliz.com.cn",
-        "port": "19530",
-        "user": "",
-        "password": "",
-        "secure": True,
-    },
+    # "zilliz": {
+    #     "host": "in01-a7ce524e41e3935.ali-cn-hangzhou.vectordb.zilliz.com.cn",
+    #     "port": "19530",
+    #     "user": "",
+    #     "password": "",
+    #     "secure": True,
+    # },
     "pg": {
         "connection_uri": "postgresql://postgres:postgres@127.0.0.1:5432/langchain_chatchat",
     },

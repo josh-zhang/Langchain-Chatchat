@@ -17,6 +17,7 @@ if __name__ == "__main__":
         "知识库问答系统",
         os.path.join("img", "chatchat_icon_blue_square_v2.png"),
         initial_sidebar_state="expanded",
+        layout='wide',
         menu_items={
             'About': f"""欢迎使用 知识库问答系统 {VERSION}！"""
         }
