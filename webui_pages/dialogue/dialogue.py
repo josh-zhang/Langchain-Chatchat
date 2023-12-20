@@ -229,14 +229,21 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
         if dialogue_mode == "知识库问答":
             with st.expander("知识库配置", True):
                 kb_list = api.list_knowledge_bases()
+                kb_dict = {kb[0]: kb[1] for kb in kb_list}
+                kb_name_list = [kb[0] for kb in kb_list]
                 index = 0
-                if DEFAULT_KNOWLEDGE_BASE in kb_list:
-                    index = kb_list.index(DEFAULT_KNOWLEDGE_BASE)
+                if DEFAULT_KNOWLEDGE_BASE in kb_name_list:
+                    index = kb_name_list.index(DEFAULT_KNOWLEDGE_BASE)
+
+                def format_func(option):
+                    return kb_dict[option]
+
                 selected_kb = st.selectbox(
                     "请选择知识库：",
-                    kb_list,
+                    kb_name_list,
                     index=index,
                     on_change=on_kb_change,
+                    format_func=format_func,
                     key="selected_kb",
                 )
                 kb_top_k = st.number_input("匹配知识条数：", 1, 20, VECTOR_SEARCH_TOP_K)
@@ -257,7 +264,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                     st.session_state["file_chat_id"] = upload_temp_docs(files, api)
 
     if "prompt_template_select" in st.session_state:
-        with st.expander("当前提示词", True):
+        with st.expander("当前提示词", False):
             st.text(
                 f"{PROMPT_TEMPLATES[index_prompt[dialogue_mode]][st.session_state.prompt_template_select]}")
 

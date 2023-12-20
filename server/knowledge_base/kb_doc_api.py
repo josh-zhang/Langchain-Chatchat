@@ -1,10 +1,8 @@
 import os
 import urllib
 from fastapi import File, Form, Body, Query, UploadFile
-from configs import (DEFAULT_VS_TYPE, EMBEDDING_MODEL,
-                     VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD,
-                     CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE,
-                     logger, log_verbose, )
+from configs import (DEFAULT_VS_TYPE, EMBEDDING_MODEL, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD,
+                     CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE, SEARCH_ENHANCE, logger, log_verbose)
 from server.utils import BaseResponse, ListResponse, run_in_thread_pool
 from server.knowledge_base.utils import (validate_kb_name, list_files_from_folder, get_file_path,
                                          files2docs_in_thread, KnowledgeFile, DocumentWithScores)
@@ -439,6 +437,7 @@ def download_faq(
 
 def recreate_vector_store(
         knowledge_base_name: str = Body(..., examples=["samples"]),
+        kb_info: str = Body(..., examples=["samples_introduction"]),
         allow_empty_kb: bool = Body(True),
         vs_type: str = Body(DEFAULT_VS_TYPE),
         embed_model: str = Body(EMBEDDING_MODEL),
@@ -446,6 +445,7 @@ def recreate_vector_store(
         chunk_overlap: int = Body(OVERLAP_SIZE, description="知识库中相邻文本重合长度"),
         zh_title_enhance: bool = Body(ZH_TITLE_ENHANCE, description="是否开启中文标题加强"),
         not_refresh_vs_cache: bool = Body(False, description="暂不保存向量库（用于FAISS）"),
+        search_enhance: bool = Body(SEARCH_ENHANCE),
 ):
     """
     recreate vector store from the content.
@@ -455,7 +455,7 @@ def recreate_vector_store(
     """
 
     def output():
-        kb = KBServiceFactory.get_service(knowledge_base_name, vs_type, embed_model)
+        kb = KBServiceFactory.get_service(knowledge_base_name, kb_info, vs_type, embed_model)
         if not kb.exists() and not allow_empty_kb:
             yield {"code": 404, "msg": f"未找到知识库 ‘{knowledge_base_name}’"}
         else:

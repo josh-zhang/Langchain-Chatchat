@@ -15,7 +15,7 @@ from starlette.responses import RedirectResponse
 from configs import VERSION
 from configs.model_config import NLTK_DATA_PATH
 from configs.server_config import OPEN_CROSS_DOMAIN
-from server.chat.chat import chat, chat_v1
+from server.chat.chat import chat
 from server.chat.feedback import chat_feedback
 from server.embeddings_api import embed_texts_endpoint, embed_texts_simi_endpoint
 from server.llm_api import list_running_models
@@ -66,11 +66,6 @@ def mount_app_routes(app: FastAPI, run_mode: str = None):
              summary="与llm模型对话",
              )(chat)
 
-    app.post("/chat/chat_v1",
-             tags=["Chat"],
-             summary="与llm模型对话",
-             )(chat_v1)
-
     app.post("/chat/feedback",
              tags=["Chat"],
              summary="返回llm模型对话评分",
@@ -79,7 +74,7 @@ def mount_app_routes(app: FastAPI, run_mode: str = None):
     # 知识库相关接口
     mount_knowledge_routes(app)
     # 摘要相关接口
-    mount_filename_summary_routes(app)
+    # mount_filename_summary_routes(app)
 
     # LLM模型相关接口
     app.post("/llm_model/list_running_models",
@@ -234,23 +229,23 @@ def mount_knowledge_routes(app: FastAPI):
              )(upload_temp_docs)
 
 
-def mount_filename_summary_routes(app: FastAPI):
-    from server.knowledge_base.kb_summary_api import (summary_file_to_vector_store, recreate_summary_vector_store,
-                                                      summary_doc_ids_to_vector_store)
-
-    app.post("/knowledge_base/kb_summary_api/summary_file_to_vector_store",
-             tags=["Knowledge kb_summary_api Management"],
-             summary="单个知识库根据文件名称摘要"
-             )(summary_file_to_vector_store)
-    app.post("/knowledge_base/kb_summary_api/summary_doc_ids_to_vector_store",
-             tags=["Knowledge kb_summary_api Management"],
-             summary="单个知识库根据doc_ids摘要",
-             response_model=BaseResponse,
-             )(summary_doc_ids_to_vector_store)
-    app.post("/knowledge_base/kb_summary_api/recreate_summary_vector_store",
-             tags=["Knowledge kb_summary_api Management"],
-             summary="重建单个知识库文件摘要"
-             )(recreate_summary_vector_store)
+# def mount_filename_summary_routes(app: FastAPI):
+#     from server.knowledge_base.kb_summary_api import (summary_file_to_vector_store, recreate_summary_vector_store,
+#                                                       summary_doc_ids_to_vector_store)
+#
+#     app.post("/knowledge_base/kb_summary_api/summary_file_to_vector_store",
+#              tags=["Knowledge kb_summary_api Management"],
+#              summary="单个知识库根据文件名称摘要"
+#              )(summary_file_to_vector_store)
+#     app.post("/knowledge_base/kb_summary_api/summary_doc_ids_to_vector_store",
+#              tags=["Knowledge kb_summary_api Management"],
+#              summary="单个知识库根据doc_ids摘要",
+#              response_model=BaseResponse,
+#              )(summary_doc_ids_to_vector_store)
+#     app.post("/knowledge_base/kb_summary_api/recreate_summary_vector_store",
+#              tags=["Knowledge kb_summary_api Management"],
+#              summary="重建单个知识库文件摘要"
+#              )(recreate_summary_vector_store)
 
 
 def run_api(host, port, **kwargs):

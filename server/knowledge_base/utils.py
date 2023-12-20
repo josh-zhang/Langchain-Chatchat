@@ -272,22 +272,22 @@ def get_loader(loader_name: str, file_path: str, loader_kwargs: Dict = None):
     return loader
 
 
-def get_model_worker_config(model_name: str = None) -> dict:
-    '''
-    加载model worker的配置项。
-    优先级:FSCHAT_MODEL_WORKERS[model_name] > ONLINE_LLM_MODEL[model_name] > FSCHAT_MODEL_WORKERS["default"]
-    '''
-    from configs.model_config import MODEL_PATH
-
-    config = {}
-    # 本地模型
-    if model_name in MODEL_PATH["llm_model"]:
-        path = get_model_path(model_name)
-        config["model_path"] = path
-        if path and os.path.isdir(path):
-            config["model_path_exists"] = True
-        config["device"] = llm_device(config.get("device"))
-    return config
+# def get_model_worker_config(model_name: str = None) -> dict:
+#     '''
+#     加载model worker的配置项。
+#     优先级:FSCHAT_MODEL_WORKERS[model_name] > ONLINE_LLM_MODEL[model_name] > FSCHAT_MODEL_WORKERS["default"]
+#     '''
+#     from configs.model_config import MODEL_PATH
+#
+#     config = {}
+#     # 本地模型
+#     if model_name in MODEL_PATH["llm_model"]:
+#         path = get_model_path(model_name)
+#         config["model_path"] = path
+#         if path and os.path.isdir(path):
+#             config["model_path_exists"] = True
+#         config["device"] = llm_device(config.get("device"))
+#     return config
 
 
 def make_text_splitter(
@@ -330,8 +330,7 @@ def make_text_splitter(
                     )
             elif text_splitter_dict[splitter_name]["source"] == "huggingface":  ## 从huggingface加载
                 if text_splitter_dict[splitter_name]["tokenizer_name_or_path"] == "":
-                    config = get_model_worker_config(llm_model)
-                    text_splitter_dict[splitter_name]["tokenizer_name_or_path"] = config.get("model_path")
+                    assert False, f"{splitter_name} tokenizer_name_or_path is empty"
 
                 if text_splitter_dict[splitter_name]["tokenizer_name_or_path"] == "gpt2":
                     from transformers import GPT2TokenizerFast

@@ -55,11 +55,11 @@ def file_exists(kb: str, selected_rows: List) -> Tuple[str, str]:
 def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
     selected_kb_index = 0
     kb_names = []
-    kb_list = []
+    kb_dict = []
 
     try:
-        kb_list = {x["kb_name"]: x for x in get_kb_details()}
-        kb_names = list(kb_list.keys())
+        kb_dict = {x["kb_name"]: x for x in get_kb_details()}
+        kb_names = list(kb_dict.keys())
         if "selected_kb_name" in st.session_state and st.session_state["selected_kb_name"] in kb_names:
             selected_kb_index = kb_names.index(st.session_state["selected_kb_name"])
     except Exception as e:
@@ -71,7 +71,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
         st.session_state["selected_kb_info"] = ""
 
     def format_selected_kb(kb_name: str) -> str:
-        if kb := kb_list.get(kb_name):
+        if kb := kb_dict.get(kb_name):
             return f"{kb_name} ({kb['vs_type']} @ {kb['embed_model']})"
         else:
             return kb_name
@@ -131,11 +131,12 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
         if submit_create_kb:
             if not kb_name or not kb_name.strip():
                 st.error(f"知识库名称不能为空！")
-            elif kb_name in kb_list:
+            elif kb_name in kb_dict:
                 st.error(f"名为 {kb_name} 的知识库已经存在！")
             else:
                 ret = api.create_knowledge_base(
                     knowledge_base_name=kb_name,
+                    knowledge_base_info=kb_info,
                     vector_store_type=vs_type,
                     embed_model=embed_model,
                     search_enhance=search_enhance,
@@ -147,7 +148,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
 
     elif selected_kb:
         kb = selected_kb
-        st.session_state["selected_kb_info"] = kb_list[kb]['kb_info']
+        st.session_state["selected_kb_info"] = kb_dict[kb]['kb_info']
         # 上传文件
         files = st.file_uploader("上传知识文件：",
                                  [i for ls in LOADER_DICT.values() for i in ls],
@@ -194,9 +195,9 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
         # st.info("请选择文件，点击按钮进行操作。")
         doc_details = pd.DataFrame(get_kb_file_details(kb))
         if not len(doc_details):
-            st.info(f"知识库 `{kb}` 中暂无文件")
+            st.info(f"知识库【`{kb_info}`】 中暂无文件")
         else:
-            st.write(f"知识库 `{kb}` 中已有文件:")
+            st.write(f"知识库【`{kb_info}`】中已有文件:")
             st.info("知识库中包含源文件与向量库，请从下表中选择文件后操作")
             doc_details.drop(columns=["kb_name"], inplace=True)
             doc_details = doc_details[[
