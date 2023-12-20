@@ -12,7 +12,7 @@ def add_kb_to_db(session, kb_name, kb_info, kb_summary, vs_type, embed_model, se
         session.add(kb)
     else:  # update kb with new vs_type and embed_model
         kb.kb_info = kb_info
-        kb.kb_sum = kb_summary
+        kb.kb_summary = kb_summary
         kb.vs_type = vs_type
         kb.embed_model = embed_model
         kb.search_enhance = search_enhance

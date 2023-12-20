@@ -104,7 +104,8 @@ class KBService(ABC):
         self.do_create_kb("answer")
         self.do_create_kb("query")
 
-        status = add_kb_to_db(self.kb_name, self.kb_info, self.kb_summary, self.vs_type(), self.embed_model, self.search_enhance)
+        status = add_kb_to_db(self.kb_name, self.kb_info, self.kb_summary, self.vs_type(), self.embed_model,
+                              self.search_enhance)
 
         return status
 
@@ -262,7 +263,8 @@ class KBService(ABC):
         更新知识库介绍
         """
         self.kb_info = kb_info
-        status = add_kb_to_db(self.kb_name, self.kb_info, self.kb_summary, self.vs_type(), self.embed_model, self.search_enhance)
+        status = add_kb_to_db(self.kb_name, self.kb_info, self.kb_summary, self.vs_type(), self.embed_model,
+                              self.search_enhance)
         return status
 
     def update_faq(self, kb_file: KnowledgeFile, is_generated, **kwargs):
@@ -372,7 +374,8 @@ class KBService(ABC):
 
         answers = list(zip(self.get_answer_by_ids(doc_ids), scores_list))
 
-        return [DocumentWithScores(**{"page_content": d.page_content, "metadata": d.metadata}, scores=s) for d, s in answers]
+        return [DocumentWithScores(**{"page_content": d.page_content, "metadata": d.metadata}, scores=s) for d, s in
+                answers]
 
     def search_allinone(self,
                         query: str,
