@@ -101,8 +101,6 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
         st.info("对话系统异常，暂时无法访问问答功能")
         return
 
-    available_models = list(available_models)
-
     st.session_state.setdefault("conversation_ids", {})
     st.session_state["conversation_ids"].setdefault(chat_box.cur_chat_name, uuid.uuid4().hex)
     st.session_state.setdefault("file_chat_id", None)
@@ -164,11 +162,9 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                 st.session_state["cur_llm_model"] = st.session_state.llm_model
 
         def llm_model_format_func(x):
-            if x in running_models:
-                return f"{x} (Running)"
+            if x in available_models:
+                return f"{x} (运行中)"
             return x
-
-        running_models = available_models[0]
 
         llm_models = available_models
 
@@ -220,7 +216,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
             key="prompt_template_select",
         )
         prompt_template_name = st.session_state.prompt_template_select
-        temperature = st.slider("Temperature：", 0.0, 1.0, TEMPERATURE, 0.05)
+        temperature = st.slider("生成温度：", 0.0, 1.0, TEMPERATURE, 0.05)
         history_len = st.number_input("历史对话轮数：", 0, 20, HISTORY_LEN)
 
         def on_kb_change():
