@@ -22,7 +22,7 @@ def add_kb_to_db(session, kb_name, kb_info, kb_summary, vs_type, embed_model, se
 @with_session
 def list_kbs_from_db(session, min_file_count: int = -1):
     kbs = session.query(KnowledgeBaseModel).filter(KnowledgeBaseModel.file_count > min_file_count).all()
-    kbs = [(kb.kb_name, kb.kb_info) for kb in kbs]
+    kbs = [[kb.kb_name, kb.info] for kb in kbs]
     return kbs
 
 

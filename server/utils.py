@@ -84,6 +84,19 @@ class ListResponse(BaseResponse):
         }
 
 
+class ListListResponse(BaseResponse):
+    data: List[List[str]] = pydantic.Field(..., description="List of lists")
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "code": 200,
+                "msg": "success",
+                "data": [["doc1.docx", "doc1.docx"]],
+            }
+        }
+
+
 class ChatMessage(BaseModel):
     question: str = pydantic.Field(..., description="Question text")
     response: str = pydantic.Field(..., description="Response text")

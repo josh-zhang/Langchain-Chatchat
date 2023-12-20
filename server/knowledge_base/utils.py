@@ -148,7 +148,8 @@ class CustomHTMLLoader(langchain.document_loaders.unstructured.UnstructuredFileL
 
             paragraphs = chapter_tuple[1]
             for iii, paragraph_tuple in enumerate(paragraphs):
-                paragraph_title = chapter_tuple[0] + self.delimiter + paragraph_tuple[0]
+                # paragraph_title = chapter_tuple[0] + self.delimiter + paragraph_tuple[0]
+                paragraph_title = file_name + self.delimiter + paragraph_tuple[0]
                 paragraph_text = paragraph_tuple[1]
                 sub_paragraphs = paragraph_tuple[2]
 
@@ -163,7 +164,12 @@ class CustomHTMLLoader(langchain.document_loaders.unstructured.UnstructuredFileL
 
                 if sub_paragraphs:
                     for iii, sub_paragraph_tuple in enumerate(sub_paragraphs):
-                        sub_paragraph_title = paragraph_tuple[0] + self.delimiter + sub_paragraph_tuple[0]
+                        if sub_paragraph_tuple[0]:
+                            sub_paragraph_title = file_name + self.delimiter + paragraph_tuple[0] + self.delimiter + \
+                                                  sub_paragraph_tuple[0]
+                        else:
+                            sub_paragraph_title = file_name + self.delimiter + paragraph_tuple[0] + f" 段落{iii+1}"
+
                         sub_paragraph_text = sub_paragraph_tuple[1]
 
                         sub_paragraph_title_ele = Title(text=sub_paragraph_title,
@@ -359,10 +365,11 @@ def make_text_splitter(
                         chunk_overlap=chunk_overlap
                     )
     except Exception as e:
-        print(e)
-        text_splitter_module = importlib.import_module('langchain.text_splitter')
-        TextSplitter = getattr(text_splitter_module, "RecursiveCharacterTextSplitter")
-        text_splitter = TextSplitter(chunk_size=250, chunk_overlap=50)
+        # print(e)
+        # text_splitter_module = importlib.import_module('langchain.text_splitter')
+        # TextSplitter = getattr(text_splitter_module, "RecursiveCharacterTextSplitter")
+        # text_splitter = TextSplitter(chunk_size=250, chunk_overlap=50)
+        text_splitter = None
     return text_splitter
 
 
@@ -421,7 +428,7 @@ class KnowledgeFile:
         if not docs:
             return []
 
-        print(f"文档切分示例：{docs[0]}")
+        print(f"文档 {self.filename} 切分示例：{docs[0]}")
         if zh_title_enhance:
             docs = func_zh_title_enhance(docs)
         self.splited_docs = docs

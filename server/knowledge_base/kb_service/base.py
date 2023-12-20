@@ -784,7 +784,8 @@ def get_kb_details() -> List[Dict]:
             "in_db": False,
         }
 
-    for kb_name, _ in kbs_in_db:
+    for kb in kbs_in_db:
+        kb_name = kb[0]
         kb_detail = get_kb_detail(kb_name)
         if kb_detail:
             kb_detail["in_db"] = True

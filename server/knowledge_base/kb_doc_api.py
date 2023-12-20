@@ -455,7 +455,7 @@ def recreate_vector_store(
     """
 
     def output():
-        kb = KBServiceFactory.get_service(knowledge_base_name, kb_info, vs_type, embed_model)
+        kb = KBServiceFactory.get_service(knowledge_base_name, kb_info, vs_type, embed_model, search_enhance)
         if not kb.exists() and not allow_empty_kb:
             yield {"code": 404, "msg": f"未找到知识库 ‘{knowledge_base_name}’"}
         else:

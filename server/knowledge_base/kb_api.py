@@ -1,5 +1,5 @@
 import urllib
-from server.utils import BaseResponse, ListResponse
+from server.utils import BaseResponse, ListListResponse
 from server.knowledge_base.utils import validate_kb_name
 from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.db.repository.knowledge_base_repository import list_kbs_from_db
@@ -9,7 +9,7 @@ from fastapi import Body
 
 def list_kbs():
     # Get List of Knowledge Base
-    return ListResponse(data=list_kbs_from_db())
+    return ListListResponse(data=list_kbs_from_db())
 
 
 def create_kb(knowledge_base_name: str = Body(..., examples=["samples"]),

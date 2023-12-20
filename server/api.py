@@ -19,7 +19,7 @@ from server.chat.chat import chat
 from server.chat.feedback import chat_feedback
 from server.embeddings_api import embed_texts_endpoint, embed_texts_simi_endpoint
 from server.llm_api import list_running_models
-from server.utils import (BaseResponse, ListResponse, FastAPI, MakeFastAPIOffline,
+from server.utils import (BaseResponse, ListResponse, ListListResponse, FastAPI, MakeFastAPIOffline,
                           get_server_configs, get_prompt_template)
 
 nltk.data.path = [NLTK_DATA_PATH] + nltk.data.path
@@ -160,7 +160,7 @@ def mount_knowledge_routes(app: FastAPI):
     # Tag: Knowledge Base Management
     app.get("/knowledge_base/list_knowledge_bases",
             tags=["Knowledge Base Management"],
-            response_model=ListResponse,
+            response_model=ListListResponse,
             summary="获取知识库列表")(list_kbs)
 
     app.post("/knowledge_base/create_knowledge_base",
