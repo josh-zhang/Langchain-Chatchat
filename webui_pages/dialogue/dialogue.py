@@ -141,9 +141,9 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                     text = f"{text} 当前知识库： `{cur_kb}`。"
             st.toast(text)
 
-        dialogue_modes = ["LLM 对话",
-                          "知识库问答",
+        dialogue_modes = ["知识库问答",
                           "文件对话",
+                          "LLM 对话",
                           # "自定义Agent问答",
                           ]
         dialogue_mode = st.selectbox("请选择对话模式：",
@@ -226,9 +226,9 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                 kb_list = api.list_knowledge_bases()
                 kb_dict = {kb[0]: kb[1] for kb in kb_list}
                 kb_name_list = [kb[0] for kb in kb_list]
-                index = 0
-                if DEFAULT_KNOWLEDGE_BASE in kb_name_list:
-                    index = kb_name_list.index(DEFAULT_KNOWLEDGE_BASE)
+                index = len(kb_name_list) - 1
+                # if DEFAULT_KNOWLEDGE_BASE in kb_name_list:
+                #     index = kb_name_list.index(DEFAULT_KNOWLEDGE_BASE)
 
                 def format_func(option):
                     return kb_dict[option]
