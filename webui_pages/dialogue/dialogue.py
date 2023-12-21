@@ -143,8 +143,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
 
         dialogue_modes = ["LLM 对话",
                           "知识库问答",
-                          # "文件对话",
-                          # "搜索引擎问答",
+                          "文件对话",
                           # "自定义Agent问答",
                           ]
         dialogue_mode = st.selectbox("请选择对话模式：",
@@ -320,7 +319,6 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                                        key=message_id,
                                        on_submit=on_feedback,
                                        kwargs={"message_id": message_id, "history_index": len(chat_box.history) - 1})
-
             # elif dialogue_mode == "自定义Agent问答":
             #     if not any(agent in llm_model for agent in SUPPORT_AGENT_MODEL):
             #         chat_box.ai_say([
@@ -405,7 +403,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                         st.error(error_msg)
                     elif chunk := d.get("answer"):
                         text += chunk
-                        # chat_box.update_msg(text, element_index=0)
+                        chat_box.update_msg(text, element_index=0)
                 chat_box.update_msg(text, element_index=0, streaming=False)
                 if d:
                     chat_box.update_msg("\n\n".join(d.get("docs", [])), element_index=1, streaming=False)
