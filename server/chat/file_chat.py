@@ -189,3 +189,4 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
         await task
 
     return StreamingResponse(knowledge_base_chat_iterator(), media_type="text/event-stream")
+
