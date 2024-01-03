@@ -115,7 +115,7 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
             url = f"{base_url_altered}knowledge_base/download_doc?" + parameters
             text = ""
             if inum > 0:
-                text = "--------"
+                text = "--------\n"
             text += f"""出处 [{inum + 1}] [{filename}]({url})  匹配度 {int(doc.scores["total"] / 1.4 * 100)}%\n\n{doc.page_content}\n\n"""
             source_documents.append(text)
 

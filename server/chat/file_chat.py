@@ -133,7 +133,7 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
         embed_func = EmbeddingsFunAdapter()
         embeddings = embed_func.embed_query(query)
         with memo_faiss_pool.acquire(knowledge_id) as vs:
-            docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=score_threshold)
+            docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=1 - score_threshold)
             docs = [x[0] for x in docs]
 
         # context = "\n".join([doc.page_content for doc in docs])
@@ -167,7 +167,7 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
             filename = doc.metadata.get("source")
             text = ""
             if inum > 0:
-                text = "--------"
+                text = "--------\n"
             text += f"""出处 [{inum + 1}] [{filename}] \n\n{doc.page_content}\n\n"""
             source_documents.append(text)
 

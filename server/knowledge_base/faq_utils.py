@@ -400,7 +400,7 @@ def load_df_raw(faq_full_file):
 def load_df_processed(faq_file):
     query_list = list()
     this_df = pandas.read_excel(faq_file)
-    this_df.set_index('序号')
+    this_df.set_index('生成序号')
     this_df.fillna("", inplace=True)
     this_df = this_df.astype(str)
     logger.info(f"this_df {this_df.shape}")

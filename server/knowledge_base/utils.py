@@ -95,28 +95,29 @@ def list_files_from_folder(kb_name: str):
 
 LOADER_DICT = {"CustomHTMLLoader": ['.html'],
                # "UnstructuredHTMLLoader": ['.html'],
-               "UnstructuredMarkdownLoader": ['.md'],
-               "JSONLoader": [".json"],
-               "JSONLinesLoader": [".jsonl"],
-               "CSVLoader": [".csv"],
+               # "UnstructuredMarkdownLoader": ['.md'],
+               # "JSONLoader": [".json"],
+               # "JSONLinesLoader": [".jsonl"],
+               # "CSVLoader": [".csv"],
                # "FilteredCSVLoader": [".csv"], # 需要自己指定，目前还没有支持
-               "RapidOCRPDFLoader": [".pdf"],
-               "RapidOCRLoader": ['.png', '.jpg', '.jpeg', '.bmp'],
-               "UnstructuredEmailLoader": ['.eml', '.msg'],
-               "UnstructuredEPubLoader": ['.epub'],
-               "UnstructuredExcelLoader": ['.xlsx', '.xlsd'],
-               "NotebookLoader": ['.ipynb'],
-               "UnstructuredODTLoader": ['.odt'],
-               "PythonLoader": ['.py'],
-               "UnstructuredRSTLoader": ['.rst'],
-               "UnstructuredRTFLoader": ['.rtf'],
-               "SRTLoader": ['.srt'],
-               "TomlLoader": ['.toml'],
-               "UnstructuredTSVLoader": ['.tsv'],
-               "UnstructuredWordDocumentLoader": ['.docx', 'doc'],
-               "UnstructuredXMLLoader": ['.xml'],
-               "UnstructuredPowerPointLoader": ['.ppt', '.pptx'],
-               "UnstructuredFileLoader": ['.txt'],
+               # "RapidOCRPDFLoader": [".pdf"],
+               # "RapidOCRLoader": ['.png', '.jpg', '.jpeg', '.bmp'],
+               # "UnstructuredEmailLoader": ['.eml', '.msg'],
+               # "UnstructuredEPubLoader": ['.epub'],
+               # "UnstructuredExcelLoader": ['.xlsx', '.xlsd'],
+               # "NotebookLoader": ['.ipynb'],
+               # "UnstructuredODTLoader": ['.odt'],
+               # "PythonLoader": ['.py'],
+               # "UnstructuredRSTLoader": ['.rst'],
+               # "UnstructuredRTFLoader": ['.rtf'],
+               # "SRTLoader": ['.srt'],
+               # "TomlLoader": ['.toml'],
+               # "UnstructuredTSVLoader": ['.tsv'],
+               # "UnstructuredWordDocumentLoader": ['.docx', 'doc'],
+               # "UnstructuredXMLLoader": ['.xml'],
+               # "UnstructuredPowerPointLoader": ['.ppt', '.pptx'],
+               # "UnstructuredFileLoader": ['.txt'],
+               "TextLoader": ['.txt'],
                }
 SUPPORTED_EXTS = [ext for sublist in LOADER_DICT.values() for ext in sublist]
 
@@ -168,7 +169,7 @@ class CustomHTMLLoader(langchain.document_loaders.unstructured.UnstructuredFileL
                             sub_paragraph_title = file_name + self.delimiter + paragraph_tuple[0] + self.delimiter + \
                                                   sub_paragraph_tuple[0]
                         else:
-                            sub_paragraph_title = file_name + self.delimiter + paragraph_tuple[0] + f" 段落{iii+1}"
+                            sub_paragraph_title = file_name + self.delimiter + paragraph_tuple[0] + f" 段落{iii + 1}"
 
                         sub_paragraph_text = sub_paragraph_tuple[1]
 
