@@ -1,12 +1,13 @@
+import threading
+from typing import List, Any, Union, Tuple
+from collections import OrderedDict
+from contextlib import contextmanager
+
 from langchain.embeddings.base import Embeddings
 from langchain.vectorstores.faiss import FAISS
-import threading
-from configs import (EMBEDDING_MODEL, CHUNK_SIZE,
-                    logger, log_verbose)
+
+from configs import (EMBEDDING_MODEL, CHUNK_SIZE, logger, log_verbose)
 from server.utils import embedding_device, get_model_path
-from contextlib import contextmanager
-from collections import OrderedDict
-from typing import List, Any, Union, Tuple
 
 
 class ThreadSafeObject:
@@ -99,30 +100,26 @@ class CachePool:
             return cache
 
     def load_kb_embeddings(
-        self,
-        kb_name: str,
-        embed_device: str = embedding_device(),
-        default_embed_model: str = EMBEDDING_MODEL,
+            self,
+            kb_name: str,
+            embed_device: str = embedding_device(),
+            default_embed_model: str = EMBEDDING_MODEL,
     ) -> Embeddings:
         from server.db.repository.knowledge_base_repository import get_kb_detail
         from server.knowledge_base.kb_service.base import EmbeddingsFunAdapter
 
         kb_detail = get_kb_detail(kb_name)
         embed_model = kb_detail.get("embed_model", default_embed_model)
-
-        # if embed_model in list_online_embed_models():
-        #     return EmbeddingsFunAdapter(embed_model)
-        # else:
-        #     return embeddings_pool.load_embeddings(model=embed_model, device=embed_device)
-        return embeddings_pool.load_embeddings(model=embed_model, device=embed_device)
+        return embeddings_pool.load_embeddings(model=embed_model, device=embed_device,
+                                               normalize_embeddings=False)
 
 
 class EmbeddingsPool(CachePool):
-    def load_embeddings(self, model: str = None, device: str = None) -> Embeddings:
+    def load_embeddings(self, model: str = None, device: str = None, normalize_embeddings=False) -> Embeddings:
         self.atomic.acquire()
         model = model or EMBEDDING_MODEL
         device = embedding_device()
-        key = (model, device)
+        key = (model, device, normalize_embeddings)
         if not self.get(key):
             item = ThreadSafeObject(key, pool=self)
             self.set(key, item)
@@ -146,12 +143,14 @@ class EmbeddingsPool(CachePool):
                         query_instruction = ""
                     embeddings = HuggingFaceBgeEmbeddings(model_name=get_model_path(model),
                                                           model_kwargs={'device': device},
-                                                          query_instruction=query_instruction)             
+                                                          encode_kwargs={'normalize_embeddings': normalize_embeddings},
+                                                          query_instruction=query_instruction)
                     if model == "bge-large-zh-noinstruct":  # bge large -noinstruct embedding
                         embeddings.query_instruction = ""
                 else:
                     from langchain.embeddings.huggingface import HuggingFaceEmbeddings
-                    embeddings = HuggingFaceEmbeddings(model_name=get_model_path(model), model_kwargs={'device': device})
+                    embeddings = HuggingFaceEmbeddings(model_name=get_model_path(model),
+                                                       model_kwargs={'device': device})
                 item.obj = embeddings
                 item.finish_loading()
         else:
@@ -159,4 +158,4 @@ class EmbeddingsPool(CachePool):
         return self.get(key).obj
 
 
-embeddings_pool = EmbeddingsPool(cache_num=1)
+embeddings_pool = EmbeddingsPool(cache_num=2)

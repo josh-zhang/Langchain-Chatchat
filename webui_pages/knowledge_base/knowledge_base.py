@@ -55,11 +55,11 @@ def file_exists(kb: str, selected_rows: List) -> Tuple[str, str]:
 def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
     selected_kb_index = 0
     kb_names = []
-    kb_list = []
+    kb_dict = []
 
     try:
-        kb_list = {x["kb_name"]: x for x in get_kb_details()}
-        kb_names = list(kb_list.keys())
+        kb_dict = {x["kb_name"]: x for x in get_kb_details()}
+        kb_names = list(kb_dict.keys())
         if "selected_kb_name" in st.session_state and st.session_state["selected_kb_name"] in kb_names:
             selected_kb_index = kb_names.index(st.session_state["selected_kb_name"])
     except Exception as e:
@@ -67,11 +67,11 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
             "获取知识库信息错误，请检查是否已按照 `README.md` 中 `4 知识库初始化与迁移` 步骤完成初始化或迁移，或是否为数据库连接错误。")
         st.stop()
 
-    if "selected_kb_info" not in st.session_state:
-        st.session_state["selected_kb_info"] = ""
+    # if "selected_kb_info" not in st.session_state:
+    #     st.session_state["selected_kb_info"] = ""
 
     def format_selected_kb(kb_name: str) -> str:
-        if kb := kb_list.get(kb_name):
+        if kb := kb_dict.get(kb_name):
             return f"{kb_name} ({kb['vs_type']} @ {kb['embed_model']})"
         else:
             return kb_name
@@ -87,13 +87,13 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
         with st.form("新建知识库"):
 
             kb_name = st.text_input(
-                "新建知识库名称",
-                placeholder="新知识库名称，不支持中文命名",
+                "新建知识库ID",
+                placeholder="新知识库ID，不支持中文命名",
                 key="kb_name",
             )
             kb_info = st.text_input(
-                "知识库简介",
-                placeholder="知识库简介，方便Agent查找",
+                "知识库名称",
+                placeholder="知识库名称",
                 key="kb_info",
             )
 
@@ -130,36 +130,41 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
 
         if submit_create_kb:
             if not kb_name or not kb_name.strip():
-                st.error(f"知识库名称不能为空！")
-            elif kb_name in kb_list:
-                st.error(f"名为 {kb_name} 的知识库已经存在！")
+                st.error(f"知识库ID不能为空！")
+            elif kb_name in kb_dict:
+                st.error(f"ID为 {kb_name} 的知识库已经存在！")
             else:
-                ret = api.create_knowledge_base(
-                    knowledge_base_name=kb_name,
-                    vector_store_type=vs_type,
-                    embed_model=embed_model,
-                    search_enhance=search_enhance,
-                )
-                st.toast(ret.get("msg", " "))
-                st.session_state["selected_kb_name"] = kb_name
-                st.session_state["selected_kb_info"] = kb_info
-                st.rerun()
+                if not kb_info or not kb_info.strip():
+                    st.error(f"知识库名称不能为空！")
+                else:
+                    ret = api.create_knowledge_base(
+                        knowledge_base_name=kb_name,
+                        knowledge_base_info=kb_info,
+                        vector_store_type=vs_type,
+                        embed_model=embed_model,
+                        search_enhance=search_enhance,
+                    )
+                    st.toast(ret.get("msg", " "))
+                    st.session_state["selected_kb_name"] = kb_name
+                    # st.session_state["selected_kb_info"] = kb_info
+                    st.rerun()
 
     elif selected_kb:
         kb = selected_kb
-        st.session_state["selected_kb_info"] = kb_list[kb]['kb_info']
+        # st.session_state["selected_kb_info"] = kb_dict[kb]['kb_info']
         # 上传文件
+        kb_info = st.text_area("知识库名称", value=kb_dict[kb]['kb_info'], max_chars=None,
+                               key=None, help=None, on_change=None, args=None, kwargs=None, disabled=True)
         files = st.file_uploader("上传知识文件：",
                                  [i for ls in LOADER_DICT.values() for i in ls],
                                  accept_multiple_files=True,
                                  )
-        kb_info = st.text_area("请输入知识库介绍:", value=st.session_state["selected_kb_info"], max_chars=None,
-                               key=None, help=None, on_change=None, args=None, kwargs=None)
+        # kb_info = st.text_area("请输入知识库介绍:", value=st.session_state["selected_kb_info"], max_chars=None,
+        #                        key=None, help=None, on_change=None, args=None, kwargs=None)
 
-        if kb_info != st.session_state["selected_kb_info"]:
-            st.session_state["selected_kb_info"] = kb_info
-            api.update_kb_info(kb, kb_info)
-
+        # if kb_info != st.session_state["selected_kb_info"]:
+        #     st.session_state["selected_kb_info"] = kb_info
+        #     api.update_kb_info(kb, kb_info)
         # with st.sidebar:
         with st.expander(
                 "文件处理配置",
@@ -194,9 +199,9 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
         # st.info("请选择文件，点击按钮进行操作。")
         doc_details = pd.DataFrame(get_kb_file_details(kb))
         if not len(doc_details):
-            st.info(f"知识库 `{kb}` 中暂无文件")
+            st.info(f"知识库【`{kb_info}`】 中暂无文件")
         else:
-            st.write(f"知识库 `{kb}` 中已有文件:")
+            st.write(f"知识库【`{kb_info}`】中已有文件:")
             st.info("知识库中包含源文件与向量库，请从下表中选择文件后操作")
             doc_details.drop(columns=["kb_name"], inplace=True)
             doc_details = doc_details[[

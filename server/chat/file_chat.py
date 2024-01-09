@@ -1,20 +1,22 @@
-from fastapi import Body, File, Form, UploadFile
-from fastapi.responses import StreamingResponse
-from configs import (LLM_MODELS, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, TEMPERATURE,
-                     CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE)
-from server.utils import (wrap_done, BaseResponse, get_prompt_template, get_temp_dir, run_in_thread_pool)
-from server.knowledge_base.kb_cache.faiss_cache import memo_faiss_pool
-from langchain.chains import LLMChain
-from langchain.callbacks import AsyncIteratorCallbackHandler
-from typing import AsyncIterable, List, Optional
-import asyncio
-from langchain.prompts.chat import ChatPromptTemplate
-from server.chat.utils import History
-from server.knowledge_base.kb_service.base import EmbeddingsFunAdapter
-from server.knowledge_base.utils import KnowledgeFile
 import json
 import os
-from pathlib import Path
+import asyncio
+from typing import AsyncIterable, List, Optional
+
+from fastapi import Body, File, Form, UploadFile
+from fastapi.responses import StreamingResponse
+from langchain.prompts.chat import ChatPromptTemplate
+from langchain.chains import LLMChain
+from langchain.callbacks import AsyncIteratorCallbackHandler
+
+from configs import (LLM_MODELS, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, TEMPERATURE,
+                     CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE)
+from server.utils import (wrap_done, BaseResponse, get_prompt_template, get_temp_dir, run_in_thread_pool,
+                          get_ChatOpenAI)
+from server.chat.utils import History
+from server.knowledge_base.kb_cache.faiss_cache import memo_faiss_pool
+from server.knowledge_base.kb_service.base import EmbeddingsFunAdapter
+from server.knowledge_base.utils import KnowledgeFile
 
 
 def _parse_files_in_thread(
@@ -33,8 +35,8 @@ def _parse_files_in_thread(
         '''
         保存单个文件。
         '''
+        filename = file.filename
         try:
-            filename = file.filename
             file_path = os.path.join(dir, filename)
             file_content = file.file.read()  # 读取上传文件的内容
 
@@ -121,18 +123,31 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
         if isinstance(max_tokens, int) and max_tokens <= 0:
             max_tokens = None
 
-        # TODO
-        model = None
+        model = get_ChatOpenAI(
+            model_name=model_name,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            callbacks=[callback],
+        )
 
         embed_func = EmbeddingsFunAdapter()
         embeddings = embed_func.embed_query(query)
         with memo_faiss_pool.acquire(knowledge_id) as vs:
-            docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=score_threshold)
+            docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=1 - score_threshold)
             docs = [x[0] for x in docs]
 
-        context = "\n".join([doc.page_content for doc in docs])
+        # context = "\n".join([doc.page_content for doc in docs])
+        header = "已知信息"
+        if prompt_name == "faq":
+            header = "常见问答"
+        context = ""
+        index = 1
+        for doc in docs:
+            context += f"\n##{header}{index}##\n{doc.page_content}\n"
+            index += 1
+
         if len(docs) == 0:  ## 如果没有找到相关文档，使用Empty模板
-            prompt_template = get_prompt_template("knowledge_base_chat", "Empty")
+            prompt_template = get_prompt_template("knowledge_base_chat", "empty")
         else:
             prompt_template = get_prompt_template("knowledge_base_chat", prompt_name)
         input_msg = History(role="user", content=prompt_template).to_msg_template(False)
@@ -150,7 +165,10 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
         source_documents = []
         for inum, doc in enumerate(docs):
             filename = doc.metadata.get("source")
-            text = f"""出处 [{inum + 1}] [{filename}] \n\n{doc.page_content}\n\n"""
+            text = ""
+            if inum > 0:
+                text = "--------\n"
+            text += f"""出处 [{inum + 1}] [{filename}] \n\n{doc.page_content}\n\n"""
             source_documents.append(text)
 
         if len(source_documents) == 0:  # 没有找到相关文档

@@ -1,16 +1,18 @@
+import os
+import logging
+import asyncio
+from typing import Literal, Optional, Callable, Generator, Dict, Any, Awaitable, Union, Tuple, List
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+
+import httpx
 import pydantic
 from pydantic import BaseModel
-from typing import List
 from fastapi import FastAPI
-from pathlib import Path
-import asyncio
+from langchain.chat_models import ChatOpenAI
+
 from configs import (LLM_DEVICE, EMBEDDING_DEVICE, MODEL_PATH, MODEL_ROOT_PATH, logger, log_verbose,
                      HTTPX_DEFAULT_TIMEOUT)
-import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import httpx
-from typing import Literal, Optional, Callable, Generator, Dict, Any, Awaitable, Union, Tuple
-import logging
 
 
 async def wrap_done(fn: Awaitable, event: asyncio.Event):
@@ -26,6 +28,33 @@ async def wrap_done(fn: Awaitable, event: asyncio.Event):
     finally:
         # Signal the aiter to stop.
         event.set()
+
+
+def get_ChatOpenAI(
+        model_name: str,
+        temperature: float,
+        max_tokens: int = None,
+        streaming: bool = True,
+        callbacks: List[Callable] = [],
+        verbose: bool = True,
+        **kwargs: Any,
+) -> ChatOpenAI:
+    # config = get_model_worker_config(model_name)
+    # if model_name == "openai-api":
+    #     model_name = config.get("model_name")
+    model = ChatOpenAI(
+        streaming=streaming,
+        verbose=verbose,
+        callbacks=callbacks,
+        openai_api_key="EMPTY",
+        openai_api_base=fschat_openai_api_address(),
+        model_name=model_name,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        openai_proxy="",
+        **kwargs
+    )
+    return model
 
 
 class BaseResponse(BaseModel):
@@ -51,6 +80,19 @@ class ListResponse(BaseResponse):
                 "code": 200,
                 "msg": "success",
                 "data": ["doc1.docx", "doc2.pdf", "doc3.txt"],
+            }
+        }
+
+
+class ListListResponse(BaseResponse):
+    data: List[List[str]] = pydantic.Field(..., description="List of lists")
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "code": 200,
+                "msg": "success",
+                "data": [["doc1.docx", "doc1.docx"]],
             }
         }
 
@@ -234,19 +276,19 @@ def list_embed_models() -> List[str]:
     return list(MODEL_PATH["embed_model"])
 
 
-def list_config_llm_models() -> Dict[str, Dict]:
-    '''
-    get configured llm models with different types.
-    return {config_type: {model_name: config}, ...}
-    '''
-    # workers = FSCHAT_MODEL_WORKERS.copy()
-    # workers.pop("default", None)
-
-    return {
-        "local": MODEL_PATH["llm_model"].copy(),
-        # "online": ONLINE_LLM_MODEL.copy(),
-        # "worker": workers,
-    }
+# def list_config_llm_models() -> Dict[str, Dict]:
+#     '''
+#     get configured llm models with different types.
+#     return {config_type: {model_name: config}, ...}
+#     '''
+#     # workers = FSCHAT_MODEL_WORKERS.copy()
+#     # workers.pop("default", None)
+#
+#     return {
+#         "local": MODEL_PATH["llm_model"].copy(),
+#         # "online": ONLINE_LLM_MODEL.copy(),
+#         # "worker": workers,
+#     }
 
 
 def get_model_path(model_name: str, type: str = None) -> Optional[str]:
@@ -278,22 +320,25 @@ def get_model_path(model_name: str, type: str = None) -> Optional[str]:
 
 # 从server_config中获取服务信息
 
-def get_model_worker_config(model_name: str = None) -> dict:
-    '''
-    加载model worker的配置项。
-    优先级:FSCHAT_MODEL_WORKERS[model_name] > ONLINE_LLM_MODEL[model_name] > FSCHAT_MODEL_WORKERS["default"]
-    '''
-    from configs.model_config import MODEL_PATH
 
-    config = {}
-    # 本地模型
-    if model_name in MODEL_PATH["llm_model"]:
-        path = get_model_path(model_name)
-        config["model_path"] = path
-        if path and os.path.isdir(path):
-            config["model_path_exists"] = True
-        config["device"] = llm_device(config.get("device"))
-    return config
+def fschat_controller_address() -> str:
+    from configs.server_config import FSCHAT_CONTROLLER
+
+    host = FSCHAT_CONTROLLER["host"]
+    if host == "0.0.0.0":
+        host = "127.0.0.1"
+    port = FSCHAT_CONTROLLER["port"]
+    return f"http://{host}:{port}"
+
+
+def fschat_openai_api_address() -> str:
+    from configs.server_config import FSCHAT_OPENAI_API
+
+    host = FSCHAT_OPENAI_API["host"]
+    if host == "0.0.0.0":
+        host = "127.0.0.1"
+    port = FSCHAT_OPENAI_API["port"]
+    return f"http://{host}:{port}/v1"
 
 
 def api_address() -> str:
@@ -514,15 +559,15 @@ def get_server_configs() -> Dict:
     from configs.prompt_config import PROMPT_TEMPLATES
 
     _custom = {
-        # "controller_address": fschat_controller_address(),
-        # "openai_api_address": fschat_openai_api_address(),
+        "controller_address": fschat_controller_address(),
+        "openai_api_address": fschat_openai_api_address(),
         "api_address": api_address(),
     }
 
     return {**{k: v for k, v in locals().items() if k[0] != "_"}, **_custom}
 
 
-def load_local_embeddings(model: str = None, device: str = embedding_device()):
+def load_local_embeddings(model: str = None, normalize_embeddings: bool = False, device: str = embedding_device()):
     '''
     从缓存中加载embeddings，可以避免多线程时竞争加载。
     '''
@@ -530,7 +575,7 @@ def load_local_embeddings(model: str = None, device: str = embedding_device()):
     from configs import EMBEDDING_MODEL
 
     model = model or EMBEDDING_MODEL
-    return embeddings_pool.load_embeddings(model=model, device=device)
+    return embeddings_pool.load_embeddings(model=model, device=device, normalize_embeddings=normalize_embeddings)
 
 
 def get_temp_dir(id: str = None) -> Tuple[str, str]:

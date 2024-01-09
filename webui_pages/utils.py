@@ -450,6 +450,7 @@ class ApiRequest:
     def create_knowledge_base(
             self,
             knowledge_base_name: str,
+            knowledge_base_info: str,
             vector_store_type: str = DEFAULT_VS_TYPE,
             embed_model: str = EMBEDDING_MODEL,
             search_enhance: bool = SEARCH_ENHANCE,
@@ -459,6 +460,7 @@ class ApiRequest:
         '''
         data = {
             "knowledge_base_name": knowledge_base_name,
+            "kb_info": knowledge_base_info,
             "vector_store_type": vector_store_type,
             "embed_model": embed_model,
             "search_enhance": search_enhance,
@@ -643,24 +645,28 @@ class ApiRequest:
     def recreate_vector_store(
             self,
             knowledge_base_name: str,
+            knowledge_base_info: str,
             allow_empty_kb: bool = True,
             vs_type: str = DEFAULT_VS_TYPE,
             embed_model: str = EMBEDDING_MODEL,
             chunk_size=CHUNK_SIZE,
             chunk_overlap=OVERLAP_SIZE,
             zh_title_enhance=ZH_TITLE_ENHANCE,
+            search_enhance=SEARCH_ENHANCE,
     ):
         '''
         对应api.py/knowledge_base/recreate_vector_store接口
         '''
         data = {
             "knowledge_base_name": knowledge_base_name,
+            "kb_info": knowledge_base_info,
             "allow_empty_kb": allow_empty_kb,
             "vs_type": vs_type,
             "embed_model": embed_model,
             "chunk_size": chunk_size,
             "chunk_overlap": chunk_overlap,
             "zh_title_enhance": zh_title_enhance,
+            "search_enhance": search_enhance,
         }
 
         response = self.post(

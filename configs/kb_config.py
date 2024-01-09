@@ -13,7 +13,7 @@ CACHED_VS_NUM = 1
 CACHED_MEMO_VS_NUM = 10
 
 # 知识库中单段文本长度(不适用MarkdownHeaderTextSplitter)
-CHUNK_SIZE = 250
+CHUNK_SIZE = 400
 
 # 知识库中相邻文本重合长度(不适用MarkdownHeaderTextSplitter)
 OVERLAP_SIZE = 50
@@ -22,7 +22,7 @@ OVERLAP_SIZE = 50
 VECTOR_SEARCH_TOP_K = 3
 
 # 知识库匹配相关度阈值，取值范围在0-1之间，SCORE越小，相关度越高，取到1相当于不筛选，建议设置在0.5左右
-SCORE_THRESHOLD = 1
+SCORE_THRESHOLD = 0.3
 
 
 # 是否开启中文标题加强，以及标题增强的相关配置
@@ -58,13 +58,6 @@ kbs_config = {
         "password": "",
         "secure": False,
     },
-    "zilliz": {
-        "host": "in01-a7ce524e41e3935.ali-cn-hangzhou.vectordb.zilliz.com.cn",
-        "port": "19530",
-        "user": "",
-        "password": "",
-        "secure": True,
-    },
     "pg": {
         "connection_uri": "postgresql://postgres:postgres@127.0.0.1:5432/langchain_chatchat",
     },
@@ -81,7 +74,7 @@ kbs_config = {
 text_splitter_dict = {
     "ChineseRecursiveTextSplitter": {
         "source": "huggingface",  # 选择tiktoken则使用openai的方法
-        "tokenizer_name_or_path": "",
+        "tokenizer_name_or_path": "/opt/projects/hf_models/qwen-14b-chat-int4",
     },
     "SpacyTextSplitter": {
         "source": "huggingface",
@@ -108,4 +101,4 @@ TEXT_SPLITTER_NAME = "ChineseRecursiveTextSplitter"
 # Embedding模型定制词语的词表文件
 EMBEDDING_KEYWORD_FILE = "embedding_keywords.txt"
 
-SEARCH_ENHANCE = False
+SEARCH_ENHANCE = True

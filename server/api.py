@@ -17,9 +17,9 @@ from configs.model_config import NLTK_DATA_PATH
 from configs.server_config import OPEN_CROSS_DOMAIN
 from server.chat.chat import chat
 from server.chat.feedback import chat_feedback
-from server.embeddings_api import embed_texts_endpoint
-from server.llm_api import (list_running_models, list_config_models, get_model_config)
-from server.utils import (BaseResponse, ListResponse, FastAPI, MakeFastAPIOffline,
+from server.embeddings_api import embed_texts_endpoint, embed_texts_simi_endpoint
+from server.llm_api import list_running_models
+from server.utils import (BaseResponse, ListResponse, ListListResponse, FastAPI, MakeFastAPIOffline,
                           get_server_configs, get_prompt_template)
 
 nltk.data.path = [NLTK_DATA_PATH] + nltk.data.path
@@ -66,11 +66,6 @@ def mount_app_routes(app: FastAPI, run_mode: str = None):
              summary="与llm模型对话",
              )(chat)
 
-    # app.post("/chat/search_engine_chat",
-    #          tags=["Chat"],
-    #          summary="与搜索引擎对话",
-    #          )(search_engine_chat)
-
     app.post("/chat/feedback",
              tags=["Chat"],
              summary="返回llm模型对话评分",
@@ -79,7 +74,7 @@ def mount_app_routes(app: FastAPI, run_mode: str = None):
     # 知识库相关接口
     mount_knowledge_routes(app)
     # 摘要相关接口
-    mount_filename_summary_routes(app)
+    # mount_filename_summary_routes(app)
 
     # LLM模型相关接口
     app.post("/llm_model/list_running_models",
@@ -87,15 +82,15 @@ def mount_app_routes(app: FastAPI, run_mode: str = None):
              summary="列出当前已加载的模型",
              )(list_running_models)
 
-    app.post("/llm_model/list_config_models",
-             tags=["LLM Model Management"],
-             summary="列出configs已配置的模型",
-             )(list_config_models)
-
-    app.post("/llm_model/get_model_config",
-             tags=["LLM Model Management"],
-             summary="获取模型配置（合并后）",
-             )(get_model_config)
+    # app.post("/llm_model/list_config_models",
+    #          tags=["LLM Model Management"],
+    #          summary="列出configs已配置的模型",
+    #          )(list_config_models)
+    #
+    # app.post("/llm_model/get_model_config",
+    #          tags=["LLM Model Management"],
+    #          summary="获取模型配置（合并后）",
+    #          )(get_model_config)
 
     # app.post("/llm_model/stop",
     #          tags=["LLM Model Management"],
@@ -112,11 +107,6 @@ def mount_app_routes(app: FastAPI, run_mode: str = None):
              tags=["Server State"],
              summary="获取服务器原始配置信息",
              )(get_server_configs)
-
-    # app.post("/server/list_search_engines",
-    #          tags=["Server State"],
-    #          summary="获取服务器支持的搜索引擎",
-    #          )(list_search_engines)
 
     @app.post("/server/get_prompt_template",
               tags=["Server State"],
@@ -136,8 +126,13 @@ def mount_app_routes(app: FastAPI, run_mode: str = None):
 
     app.post("/other/embed_texts",
              tags=["Other"],
-             summary="将文本向量化，支持本地模型和在线模型",
+             summary="将文本向量化，支持本地模型",
              )(embed_texts_endpoint)
+
+    app.post("/other/texts_simi",
+             tags=["Other"],
+             summary="比较任意两个文本的相似度，支持本地模型",
+             )(embed_texts_simi_endpoint)
 
 
 def mount_knowledge_routes(app: FastAPI):
@@ -165,7 +160,7 @@ def mount_knowledge_routes(app: FastAPI):
     # Tag: Knowledge Base Management
     app.get("/knowledge_base/list_knowledge_bases",
             tags=["Knowledge Base Management"],
-            response_model=ListResponse,
+            response_model=ListListResponse,
             summary="获取知识库列表")(list_kbs)
 
     app.post("/knowledge_base/create_knowledge_base",
@@ -234,23 +229,23 @@ def mount_knowledge_routes(app: FastAPI):
              )(upload_temp_docs)
 
 
-def mount_filename_summary_routes(app: FastAPI):
-    from server.knowledge_base.kb_summary_api import (summary_file_to_vector_store, recreate_summary_vector_store,
-                                                      summary_doc_ids_to_vector_store)
-
-    app.post("/knowledge_base/kb_summary_api/summary_file_to_vector_store",
-             tags=["Knowledge kb_summary_api Management"],
-             summary="单个知识库根据文件名称摘要"
-             )(summary_file_to_vector_store)
-    app.post("/knowledge_base/kb_summary_api/summary_doc_ids_to_vector_store",
-             tags=["Knowledge kb_summary_api Management"],
-             summary="单个知识库根据doc_ids摘要",
-             response_model=BaseResponse,
-             )(summary_doc_ids_to_vector_store)
-    app.post("/knowledge_base/kb_summary_api/recreate_summary_vector_store",
-             tags=["Knowledge kb_summary_api Management"],
-             summary="重建单个知识库文件摘要"
-             )(recreate_summary_vector_store)
+# def mount_filename_summary_routes(app: FastAPI):
+#     from server.knowledge_base.kb_summary_api import (summary_file_to_vector_store, recreate_summary_vector_store,
+#                                                       summary_doc_ids_to_vector_store)
+#
+#     app.post("/knowledge_base/kb_summary_api/summary_file_to_vector_store",
+#              tags=["Knowledge kb_summary_api Management"],
+#              summary="单个知识库根据文件名称摘要"
+#              )(summary_file_to_vector_store)
+#     app.post("/knowledge_base/kb_summary_api/summary_doc_ids_to_vector_store",
+#              tags=["Knowledge kb_summary_api Management"],
+#              summary="单个知识库根据doc_ids摘要",
+#              response_model=BaseResponse,
+#              )(summary_doc_ids_to_vector_store)
+#     app.post("/knowledge_base/kb_summary_api/recreate_summary_vector_store",
+#              tags=["Knowledge kb_summary_api Management"],
+#              summary="重建单个知识库文件摘要"
+#              )(recreate_summary_vector_store)
 
 
 def run_api(host, port, **kwargs):
@@ -270,7 +265,7 @@ if __name__ == "__main__":
                                      description='About langchain-ChatGLM, local knowledge based ChatGLM with langchain'
                                                  ' ｜ 基于本地知识库的 ChatGLM 问答')
     parser.add_argument("--host", type=str, default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=30001)
+    parser.add_argument("--port", type=int, default=6006)
     parser.add_argument("--ssl_keyfile", type=str)
     parser.add_argument("--ssl_certfile", type=str)
     # 初始化消息

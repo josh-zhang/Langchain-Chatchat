@@ -22,15 +22,14 @@ from server.db.repository.knowledge_file_repository import (
     get_answer_doc_id_by_answer_id_from_db
 )
 
-from configs import (kbs_config, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD,
-                     EMBEDDING_MODEL, KB_INFO, SEARCH_ENHANCE)
+from configs import (kbs_config, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, EMBEDDING_MODEL, SEARCH_ENHANCE)
 from server.knowledge_base.utils import (
     get_kb_path, get_doc_path, KnowledgeFile,
     list_kbs_from_folder, list_files_from_folder, DocumentWithScores
 )
 from server.knowledge_base.faq_utils import load_faq
 
-from typing import List, Union, Dict
+from typing import List, Union, Dict, Optional
 
 from server.embeddings_api import embed_texts
 from server.embeddings_api import embed_documents
@@ -71,16 +70,18 @@ class KBService(ABC):
 
     def __init__(self,
                  knowledge_base_name: str,
+                 kb_info: str,
                  search_enhance: bool = SEARCH_ENHANCE,
                  embed_model: str = EMBEDDING_MODEL,
                  ):
         self.kb_name = knowledge_base_name
-        self.kb_info = KB_INFO.get(knowledge_base_name, f"关于{knowledge_base_name}的知识库")
+        self.kb_info = kb_info
         self.embed_model = embed_model
         self.search_enhance = search_enhance
         self.kb_path = get_kb_path(self.kb_name)
         self.doc_path = get_doc_path(self.kb_name)
         self.do_init()
+        self.kb_summary = kb_info
 
     def __repr__(self) -> str:
         return f"{self.kb_name} @ {self.embed_model}"
@@ -103,7 +104,8 @@ class KBService(ABC):
         self.do_create_kb("answer")
         self.do_create_kb("query")
 
-        status = add_kb_to_db(self.kb_name, self.kb_info, self.vs_type(), self.embed_model, self.search_enhance)
+        status = add_kb_to_db(self.kb_name, self.kb_info, self.kb_summary, self.vs_type(), self.embed_model,
+                              self.search_enhance)
 
         return status
 
@@ -152,7 +154,7 @@ class KBService(ABC):
                 try:
                     source = doc.metadata.get("source", "")
                     rel_path = Path(source).relative_to(self.doc_path)
-                    print(str(rel_path.as_posix().strip("/")))
+                    # print(str(rel_path.as_posix().strip("/")))
                     doc.metadata["source"] = str(rel_path.as_posix().strip("/"))
                 except Exception as e:
                     print(f"cannot convert absolute path ({source}) to relative path. error is : {e}")
@@ -261,7 +263,8 @@ class KBService(ABC):
         更新知识库介绍
         """
         self.kb_info = kb_info
-        status = add_kb_to_db(self.kb_name, self.kb_info, self.vs_type(), self.embed_model, self.search_enhance)
+        status = add_kb_to_db(self.kb_name, self.kb_info, self.kb_summary, self.vs_type(), self.embed_model,
+                              self.search_enhance)
         return status
 
     def update_faq(self, kb_file: KnowledgeFile, is_generated, **kwargs):
@@ -371,7 +374,8 @@ class KBService(ABC):
 
         answers = list(zip(self.get_answer_by_ids(doc_ids), scores_list))
 
-        return [DocumentWithScores(**{"page_content": d.page_content, "metadata": d.metadata}, scores=s) for d, s in answers]
+        return [DocumentWithScores(**{"page_content": d.page_content, "metadata": d.metadata}, scores=s) for d, s in
+                answers]
 
     def search_allinone(self,
                         query: str,
@@ -721,6 +725,7 @@ class KBServiceFactory:
 
     @staticmethod
     def get_service(kb_name: str,
+                    kb_info: str,
                     vector_store_type: Union[str, SupportedVSType],
                     embed_model: str = EMBEDDING_MODEL,
                     search_enhance: bool = SEARCH_ENHANCE,
@@ -729,7 +734,7 @@ class KBServiceFactory:
             vector_store_type = getattr(SupportedVSType, vector_store_type.upper())
         if SupportedVSType.FAISS == vector_store_type:
             from server.knowledge_base.kb_service.faiss_kb_service import FaissKBService
-            return FaissKBService(kb_name, search_enhance, embed_model=embed_model)
+            return FaissKBService(kb_name, kb_info, search_enhance, embed_model=embed_model)
         # elif SupportedVSType.PG == vector_store_type:
         #     from server.knowledge_base.kb_service.pg_kb_service import PGKBService
         #     return PGKBService(kb_name, embed_model=embed_model)
@@ -750,15 +755,15 @@ class KBServiceFactory:
         #     return DefaultKBService(kb_name)
 
     @staticmethod
-    def get_service_by_name(kb_name: str) -> KBService:
-        _, vs_type, embed_model, search_enhance = load_kb_from_db(kb_name)
-        if _ is None:  # kb not in db, just return None
+    def get_service_by_name(kb_name: str) -> Optional[KBService]:
+        kb_name, kb_info, _, vs_type, embed_model, search_enhance = load_kb_from_db(kb_name)
+        if kb_name is None:  # kb not in db, just return None
             return None
-        return KBServiceFactory.get_service(kb_name, vs_type, embed_model, search_enhance)
+        return KBServiceFactory.get_service(kb_name, kb_info, vs_type, embed_model, search_enhance)
 
-    @staticmethod
-    def get_default():
-        return KBServiceFactory.get_service("default", SupportedVSType.DEFAULT)
+    # @staticmethod
+    # def get_default():
+    #     return KBServiceFactory.get_service("default", SupportedVSType.DEFAULT)
 
 
 def get_kb_details() -> List[Dict]:
@@ -771,6 +776,7 @@ def get_kb_details() -> List[Dict]:
             "kb_name": kb,
             "vs_type": "",
             "kb_info": "",
+            "kb_summary": "",
             "embed_model": "",
             "file_count": 0,
             "create_time": None,
@@ -779,14 +785,15 @@ def get_kb_details() -> List[Dict]:
         }
 
     for kb in kbs_in_db:
-        kb_detail = get_kb_detail(kb)
+        kb_name = kb[0]
+        kb_detail = get_kb_detail(kb_name)
         if kb_detail:
             kb_detail["in_db"] = True
-            if kb in result:
-                result[kb].update(kb_detail)
+            if kb_name in result:
+                result[kb_name].update(kb_detail)
             else:
                 kb_detail["in_folder"] = False
-                result[kb] = kb_detail
+                result[kb_name] = kb_detail
 
     data = []
     for i, v in enumerate(result.values()):

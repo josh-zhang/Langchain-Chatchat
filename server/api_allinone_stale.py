@@ -18,7 +18,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from llm_api_stale import parser, controller_args, worker_args, server_args
 
 parser.add_argument("--api-host", type=str, default="0.0.0.0")
-parser.add_argument("--api-port", type=int, default=30001)
+parser.add_argument("--api-port", type=int, default=6006)
 parser.add_argument("--ssl_keyfile", type=str)
 parser.add_argument("--ssl_certfile", type=str)
 

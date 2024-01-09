@@ -1,4 +1,15 @@
 import os
+import json
+import importlib
+from typing import List, Union, Dict, Tuple, Generator
+
+import chardet
+import langchain.document_loaders
+from unstructured.documents.elements import Element, Text, ElementMetadata, Title
+from unstructured.partition.common import get_last_modified_date
+from langchain.docstore.document import Document
+from langchain.text_splitter import TextSplitter
+
 from configs import (
     KB_ROOT_PATH,
     CHUNK_SIZE,
@@ -10,18 +21,9 @@ from configs import (
     LLM_MODELS,
     TEXT_SPLITTER_NAME,
 )
-import importlib
 from text_splitter import zh_title_enhance as func_zh_title_enhance
-import langchain.document_loaders
-from langchain.docstore.document import Document
-from langchain.text_splitter import TextSplitter
-from server.utils import run_in_thread_pool, get_model_worker_config
+from server.utils import run_in_thread_pool, get_model_path, llm_device
 from server.knowledge_base.faq_utils import load_gen_file
-import json
-from typing import List, Union, Dict, Tuple, Generator
-import chardet
-from unstructured.documents.elements import Element, Text, ElementMetadata, Title
-from unstructured.partition.common import get_last_modified_date
 
 
 class DocumentWithScores(Document):
@@ -93,28 +95,29 @@ def list_files_from_folder(kb_name: str):
 
 LOADER_DICT = {"CustomHTMLLoader": ['.html'],
                # "UnstructuredHTMLLoader": ['.html'],
-               "UnstructuredMarkdownLoader": ['.md'],
-               "JSONLoader": [".json"],
-               "JSONLinesLoader": [".jsonl"],
-               "CSVLoader": [".csv"],
+               # "UnstructuredMarkdownLoader": ['.md'],
+               # "JSONLoader": [".json"],
+               # "JSONLinesLoader": [".jsonl"],
+               # "CSVLoader": [".csv"],
                # "FilteredCSVLoader": [".csv"], # 需要自己指定，目前还没有支持
-               "RapidOCRPDFLoader": [".pdf"],
-               "RapidOCRLoader": ['.png', '.jpg', '.jpeg', '.bmp'],
-               "UnstructuredEmailLoader": ['.eml', '.msg'],
-               "UnstructuredEPubLoader": ['.epub'],
-               "UnstructuredExcelLoader": ['.xlsx', '.xlsd'],
-               "NotebookLoader": ['.ipynb'],
-               "UnstructuredODTLoader": ['.odt'],
-               "PythonLoader": ['.py'],
-               "UnstructuredRSTLoader": ['.rst'],
-               "UnstructuredRTFLoader": ['.rtf'],
-               "SRTLoader": ['.srt'],
-               "TomlLoader": ['.toml'],
-               "UnstructuredTSVLoader": ['.tsv'],
-               "UnstructuredWordDocumentLoader": ['.docx', 'doc'],
-               "UnstructuredXMLLoader": ['.xml'],
-               "UnstructuredPowerPointLoader": ['.ppt', '.pptx'],
-               "UnstructuredFileLoader": ['.txt'],
+               # "RapidOCRPDFLoader": [".pdf"],
+               # "RapidOCRLoader": ['.png', '.jpg', '.jpeg', '.bmp'],
+               # "UnstructuredEmailLoader": ['.eml', '.msg'],
+               # "UnstructuredEPubLoader": ['.epub'],
+               # "UnstructuredExcelLoader": ['.xlsx', '.xlsd'],
+               # "NotebookLoader": ['.ipynb'],
+               # "UnstructuredODTLoader": ['.odt'],
+               # "PythonLoader": ['.py'],
+               # "UnstructuredRSTLoader": ['.rst'],
+               # "UnstructuredRTFLoader": ['.rtf'],
+               # "SRTLoader": ['.srt'],
+               # "TomlLoader": ['.toml'],
+               # "UnstructuredTSVLoader": ['.tsv'],
+               # "UnstructuredWordDocumentLoader": ['.docx', 'doc'],
+               # "UnstructuredXMLLoader": ['.xml'],
+               # "UnstructuredPowerPointLoader": ['.ppt', '.pptx'],
+               # "UnstructuredFileLoader": ['.txt'],
+               "TextLoader": ['.txt'],
                }
 SUPPORTED_EXTS = [ext for sublist in LOADER_DICT.values() for ext in sublist]
 
@@ -146,7 +149,8 @@ class CustomHTMLLoader(langchain.document_loaders.unstructured.UnstructuredFileL
 
             paragraphs = chapter_tuple[1]
             for iii, paragraph_tuple in enumerate(paragraphs):
-                paragraph_title = chapter_tuple[0] + self.delimiter + paragraph_tuple[0]
+                # paragraph_title = chapter_tuple[0] + self.delimiter + paragraph_tuple[0]
+                paragraph_title = file_name + self.delimiter + paragraph_tuple[0]
                 paragraph_text = paragraph_tuple[1]
                 sub_paragraphs = paragraph_tuple[2]
 
@@ -161,7 +165,12 @@ class CustomHTMLLoader(langchain.document_loaders.unstructured.UnstructuredFileL
 
                 if sub_paragraphs:
                     for iii, sub_paragraph_tuple in enumerate(sub_paragraphs):
-                        sub_paragraph_title = paragraph_tuple[0] + self.delimiter + sub_paragraph_tuple[0]
+                        if sub_paragraph_tuple[0]:
+                            sub_paragraph_title = file_name + self.delimiter + paragraph_tuple[0] + self.delimiter + \
+                                                  sub_paragraph_tuple[0]
+                        else:
+                            sub_paragraph_title = file_name + self.delimiter + paragraph_tuple[0] + f" 段落{iii + 1}"
+
                         sub_paragraph_text = sub_paragraph_tuple[1]
 
                         sub_paragraph_title_ele = Title(text=sub_paragraph_title,
@@ -270,6 +279,24 @@ def get_loader(loader_name: str, file_path: str, loader_kwargs: Dict = None):
     return loader
 
 
+# def get_model_worker_config(model_name: str = None) -> dict:
+#     '''
+#     加载model worker的配置项。
+#     优先级:FSCHAT_MODEL_WORKERS[model_name] > ONLINE_LLM_MODEL[model_name] > FSCHAT_MODEL_WORKERS["default"]
+#     '''
+#     from configs.model_config import MODEL_PATH
+#
+#     config = {}
+#     # 本地模型
+#     if model_name in MODEL_PATH["llm_model"]:
+#         path = get_model_path(model_name)
+#         config["model_path"] = path
+#         if path and os.path.isdir(path):
+#             config["model_path_exists"] = True
+#         config["device"] = llm_device(config.get("device"))
+#     return config
+
+
 def make_text_splitter(
         splitter_name: str = TEXT_SPLITTER_NAME,
         chunk_size: int = CHUNK_SIZE,
@@ -310,8 +337,7 @@ def make_text_splitter(
                     )
             elif text_splitter_dict[splitter_name]["source"] == "huggingface":  ## 从huggingface加载
                 if text_splitter_dict[splitter_name]["tokenizer_name_or_path"] == "":
-                    config = get_model_worker_config(llm_model)
-                    text_splitter_dict[splitter_name]["tokenizer_name_or_path"] = config.get("model_path")
+                    assert False, f"{splitter_name} tokenizer_name_or_path is empty"
 
                 if text_splitter_dict[splitter_name]["tokenizer_name_or_path"] == "gpt2":
                     from transformers import GPT2TokenizerFast
@@ -340,10 +366,11 @@ def make_text_splitter(
                         chunk_overlap=chunk_overlap
                     )
     except Exception as e:
-        print(e)
-        text_splitter_module = importlib.import_module('langchain.text_splitter')
-        TextSplitter = getattr(text_splitter_module, "RecursiveCharacterTextSplitter")
-        text_splitter = TextSplitter(chunk_size=250, chunk_overlap=50)
+        # print(e)
+        # text_splitter_module = importlib.import_module('langchain.text_splitter')
+        # TextSplitter = getattr(text_splitter_module, "RecursiveCharacterTextSplitter")
+        # text_splitter = TextSplitter(chunk_size=250, chunk_overlap=50)
+        text_splitter = None
     return text_splitter
 
 
@@ -402,7 +429,7 @@ class KnowledgeFile:
         if not docs:
             return []
 
-        print(f"文档切分示例：{docs[0]}")
+        print(f"文档 {self.filename} 切分示例：{docs[0]}")
         if zh_title_enhance:
             docs = func_zh_title_enhance(docs)
         self.splited_docs = docs

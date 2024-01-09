@@ -126,7 +126,7 @@ class FaissKBService(KBService):
                    ) -> List[Dict]:
 
         data = self._docs_to_embeddings(docs)  # 将向量化单独出来可以减少向量库的锁定时间
-        print(f"{len(data)} docs embedded")
+        print(f"{len(docs)} docs embedded")
 
         with self.load_vector_store("docs").acquire() as vs:
             ids = vs.add_embeddings(text_embeddings=zip(data["texts"], data["embeddings"]),
@@ -137,8 +137,6 @@ class FaissKBService(KBService):
                 vs_path = self.get_vs_path("docs")
                 vs.save_local(vs_path)
                 print(f"{len(ids)} docs saved to faiss local")
-
-            logging.warning(vs.index_to_docstore_id)
 
         doc_infos = [{"id": id, "metadata": doc.metadata} for id, doc in zip(ids, docs)]
         torch_gc()
@@ -162,6 +160,7 @@ class FaissKBService(KBService):
                         **kwargs,
                         ) -> List[Dict]:
         data = self._docs_to_embeddings(docs)  # 将向量化单独出来可以减少向量库的锁定时间
+        print(f"{len(docs)} question embedded")
 
         with self.load_vector_store("question").acquire() as vs:
             ids = vs.add_embeddings(text_embeddings=zip(data["texts"], data["embeddings"]),
@@ -194,6 +193,7 @@ class FaissKBService(KBService):
                       **kwargs,
                       ) -> List[Dict]:
         data = self._docs_to_embeddings(docs)  # 将向量化单独出来可以减少向量库的锁定时间
+        print(f"{len(docs)} answer embedded")
 
         with self.load_vector_store("answer").acquire() as vs:
             ids = vs.add_embeddings(text_embeddings=zip(data["texts"], data["embeddings"]),

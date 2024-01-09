@@ -1,5 +1,5 @@
 import urllib
-from server.utils import BaseResponse, ListResponse
+from server.utils import BaseResponse, ListListResponse
 from server.knowledge_base.utils import validate_kb_name
 from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.db.repository.knowledge_base_repository import list_kbs_from_db
@@ -9,10 +9,11 @@ from fastapi import Body
 
 def list_kbs():
     # Get List of Knowledge Base
-    return ListResponse(data=list_kbs_from_db())
+    return ListListResponse(data=list_kbs_from_db())
 
 
 def create_kb(knowledge_base_name: str = Body(..., examples=["samples"]),
+            kb_info: str = Body(..., examples=["samples_introduction"]),
             vector_store_type: str = Body("faiss"),
             embed_model: str = Body(EMBEDDING_MODEL),
             search_enhance: bool = Body(SEARCH_ENHANCE),
@@ -27,7 +28,7 @@ def create_kb(knowledge_base_name: str = Body(..., examples=["samples"]),
     if kb is not None:
         return BaseResponse(code=404, msg=f"已存在同名知识库 {knowledge_base_name}")
 
-    kb = KBServiceFactory.get_service(knowledge_base_name, vector_store_type, embed_model, search_enhance)
+    kb = KBServiceFactory.get_service(knowledge_base_name, kb_info, vector_store_type, embed_model, search_enhance)
     try:
         kb.create_kb()
     except Exception as e:

@@ -6,8 +6,7 @@ from datetime import datetime
 import os
 import re
 import time
-from configs import (TEMPERATURE, HISTORY_LEN, PROMPT_TEMPLATES,
-                     DEFAULT_KNOWLEDGE_BASE, SUPPORT_AGENT_MODEL)
+from configs import TEMPERATURE, HISTORY_LEN, PROMPT_TEMPLATES, DEFAULT_KNOWLEDGE_BASE
 from server.knowledge_base.utils import LOADER_DICT
 import uuid
 from typing import List, Dict
@@ -102,8 +101,6 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
         st.info("对话系统异常，暂时无法访问问答功能")
         return
 
-    available_models = list(available_models)
-
     st.session_state.setdefault("conversation_ids", {})
     st.session_state["conversation_ids"].setdefault(chat_box.cur_chat_name, uuid.uuid4().hex)
     st.session_state.setdefault("file_chat_id", None)
@@ -144,10 +141,9 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                     text = f"{text} 当前知识库： `{cur_kb}`。"
             st.toast(text)
 
-        dialogue_modes = ["LLM 对话",
-                          "知识库问答",
-                          # "文件对话",
-                          # "搜索引擎问答",
+        dialogue_modes = ["知识库问答",
+                          "文件对话",
+                          "LLM 对话",
                           # "自定义Agent问答",
                           ]
         dialogue_mode = st.selectbox("请选择对话模式：",
@@ -165,11 +161,9 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                 st.session_state["cur_llm_model"] = st.session_state.llm_model
 
         def llm_model_format_func(x):
-            if x in running_models:
-                return f"{x} (Running)"
+            if x in available_models:
+                return f"{x} (运行中)"
             return x
-
-        running_models = available_models[0]
 
         llm_models = available_models
 
@@ -221,7 +215,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
             key="prompt_template_select",
         )
         prompt_template_name = st.session_state.prompt_template_select
-        temperature = st.slider("Temperature：", 0.0, 1.0, TEMPERATURE, 0.05)
+        temperature = st.slider("生成温度：", 0.0, 1.0, TEMPERATURE, 0.05)
         history_len = st.number_input("历史对话轮数：", 0, 20, HISTORY_LEN)
 
         def on_kb_change():
@@ -230,14 +224,21 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
         if dialogue_mode == "知识库问答":
             with st.expander("知识库配置", True):
                 kb_list = api.list_knowledge_bases()
-                index = 0
-                if DEFAULT_KNOWLEDGE_BASE in kb_list:
-                    index = kb_list.index(DEFAULT_KNOWLEDGE_BASE)
+                kb_dict = {kb[0]: kb[1] for kb in kb_list}
+                kb_name_list = [kb[0] for kb in kb_list]
+                index = len(kb_name_list) - 1
+                # if DEFAULT_KNOWLEDGE_BASE in kb_name_list:
+                #     index = kb_name_list.index(DEFAULT_KNOWLEDGE_BASE)
+
+                def format_func(option):
+                    return kb_dict[option]
+
                 selected_kb = st.selectbox(
                     "请选择知识库：",
-                    kb_list,
+                    kb_name_list,
                     index=index,
                     on_change=on_kb_change,
+                    format_func=format_func,
                     key="selected_kb",
                 )
                 kb_top_k = st.number_input("匹配知识条数：", 1, 20, VECTOR_SEARCH_TOP_K)
@@ -258,7 +259,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                     st.session_state["file_chat_id"] = upload_temp_docs(files, api)
 
     if "prompt_template_select" in st.session_state:
-        with st.expander("当前提示词", True):
+        with st.expander("当前提示词", False):
             st.text(
                 f"{PROMPT_TEMPLATES[index_prompt[dialogue_mode]][st.session_state.prompt_template_select]}")
 
@@ -312,13 +313,12 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                 metadata = {
                     "message_id": message_id,
                 }
-                chat_box.update_msg(text, streaming=False)  # 更新最终的字符串，去除光标
+                # chat_box.update_msg(text, streaming=False)  # 更新最终的字符串，去除光标
                 chat_box.update_msg(text, streaming=False, metadata=metadata)  # 更新最终的字符串，去除光标
                 chat_box.show_feedback(**feedback_kwargs,
                                        key=message_id,
                                        on_submit=on_feedback,
                                        kwargs={"message_id": message_id, "history_index": len(chat_box.history) - 1})
-
             # elif dialogue_mode == "自定义Agent问答":
             #     if not any(agent in llm_model for agent in SUPPORT_AGENT_MODEL):
             #         chat_box.ai_say([
@@ -377,7 +377,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                         st.error(error_msg)
                     elif chunk := d.get("answer"):
                         text += chunk
-                        # chat_box.update_msg(text, element_index=0)
+                        chat_box.update_msg(text, element_index=0)
                 chat_box.update_msg(text, element_index=0, streaming=False)
                 if d:
                     chat_box.update_msg("\n\n".join(d.get("docs", [])), element_index=1, streaming=False)
@@ -403,7 +403,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                         st.error(error_msg)
                     elif chunk := d.get("answer"):
                         text += chunk
-                        # chat_box.update_msg(text, element_index=0)
+                        chat_box.update_msg(text, element_index=0)
                 chat_box.update_msg(text, element_index=0, streaming=False)
                 if d:
                     chat_box.update_msg("\n\n".join(d.get("docs", [])), element_index=1, streaming=False)
