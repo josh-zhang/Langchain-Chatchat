@@ -187,6 +187,12 @@ def mount_knowledge_routes(app: FastAPI):
              summary="搜索知识库"
              )(search_docs)
 
+    # app.post("/knowledge_base/update_docs_by_id",
+    #          tags=["Knowledge Base Management"],
+    #          response_model=BaseResponse,
+    #          summary="直接更新知识库文档"
+    #          )(update_docs_by_id)
+
     app.post("/knowledge_base/upload_docs",
              tags=["Knowledge Base Management"],
              response_model=BaseResponse,
@@ -254,7 +260,7 @@ def run_api(host, port, **kwargs):
                     host=host,
                     port=port,
                     ssl_keyfile=kwargs.get("ssl_keyfile"),
-                    ssl_certfile=kwargs.get("ssl_certfile")
+                    ssl_certfile=kwargs.get("ssl_certfile"),
                     )
     else:
         uvicorn.run(app, host=host, port=port)

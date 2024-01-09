@@ -244,7 +244,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                 kb_top_k = st.number_input("匹配知识条数：", 1, 20, VECTOR_SEARCH_TOP_K)
 
                 ## Bge 模型会超过1
-                score_threshold = st.slider("知识匹配分数阈值：", 0.0, 1.0, float(SCORE_THRESHOLD), 0.01)
+                score_threshold = st.slider("知识匹配分数阈值：", 0.0, 2.0, float(SCORE_THRESHOLD), 0.01)
         elif dialogue_mode == "文件对话":
             with st.expander("文件对话配置", True):
                 files = st.file_uploader("上传知识文件：",
@@ -254,7 +254,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                 kb_top_k = st.number_input("匹配知识条数：", 1, 20, VECTOR_SEARCH_TOP_K)
 
                 ## Bge 模型会超过1
-                score_threshold = st.slider("知识匹配分数阈值：", 0.0, 1.0, float(SCORE_THRESHOLD), 0.01)
+                score_threshold = st.slider("知识匹配分数阈值：", 0.0, 2.0, float(SCORE_THRESHOLD), 0.01)
                 if st.button("开始上传", disabled=len(files) == 0):
                     st.session_state["file_chat_id"] = upload_temp_docs(files, api)
 
@@ -313,7 +313,6 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                 metadata = {
                     "message_id": message_id,
                 }
-                # chat_box.update_msg(text, streaming=False)  # 更新最终的字符串，去除光标
                 chat_box.update_msg(text, streaming=False, metadata=metadata)  # 更新最终的字符串，去除光标
                 chat_box.show_feedback(**feedback_kwargs,
                                        key=message_id,

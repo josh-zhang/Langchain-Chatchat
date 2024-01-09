@@ -23,7 +23,7 @@ class ChineseTextSplitter(CharacterTextSplitter):
                 sent_list.append(ele)
         return sent_list
 
-    def split_text(self, text: str) -> List[str]:  ##此处需要进一步优化逻辑
+    def split_text(self, text: str) -> List[str]:   ##此处需要进一步优化逻辑
         if self.pdf:
             text = re.sub(r"\n{3,}", r"\n", text)
             text = re.sub('\s', " ", text)

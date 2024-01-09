@@ -42,7 +42,7 @@ class FilteredCSVLoader(CSVLoader):
                 for encoding in detected_encodings:
                     try:
                         with open(
-                                self.file_path, newline="", encoding=encoding.encoding
+                            self.file_path, newline="", encoding=encoding.encoding
                         ) as csvfile:
                             docs = self.__read_file(csvfile)
                             break

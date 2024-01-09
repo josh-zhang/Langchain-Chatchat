@@ -411,14 +411,14 @@ def set_httpx_config(
         "http://localhost",
     ]
     # do not use proxy for user deployed fastchat servers
-    # for x in [
-    #     fschat_controller_address(),
-    #     fschat_model_worker_address(),
-    #     fschat_openai_api_address(),
-    # ]:
-    #     host = ":".join(x.split(":")[:2])
-    #     if host not in no_proxy:
-    #         no_proxy.append(host)
+    for x in [
+        fschat_controller_address(),
+        # fschat_model_worker_address(),
+        fschat_openai_api_address(),
+    ]:
+        host = ":".join(x.split(":")[:2])
+        if host not in no_proxy:
+            no_proxy.append(host)
     os.environ["NO_PROXY"] = ",".join(no_proxy)
 
     # TODO: 简单的清除系统代理不是个好的选择，影响太多。似乎修改代理服务器的bypass列表更好。
@@ -491,13 +491,13 @@ def get_httpx_client(
         "all://localhost": None,
     }
     # do not use proxy for user deployed fastchat servers
-    # for x in [
-    #     fschat_controller_address(),
-    #     fschat_model_worker_address(),
-    #     fschat_openai_api_address(),
-    # ]:
-    #     host = ":".join(x.split(":")[:2])
-    #     default_proxies.update({host: None})
+    for x in [
+        fschat_controller_address(),
+        # fschat_model_worker_address(),
+        fschat_openai_api_address(),
+    ]:
+        host = ":".join(x.split(":")[:2])
+        default_proxies.update({host: None})
 
     # get proxies from system envionrent
     # proxy not str empty string, None, False, 0, [] or {}

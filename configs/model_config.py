@@ -6,10 +6,16 @@ import os
 MODEL_ROOT_PATH = "/opt/projects/hf_models"
 
 # 选用的 Embedding 名称
-EMBEDDING_MODEL = "bge-base-zh"
+EMBEDDING_MODEL = "bge-large-zh-v1.5"
 
 # Embedding 模型运行设备。设为"auto"会自动检测，也可手动设定为"cuda","mps","cpu"其中之一。
 EMBEDDING_DEVICE = "auto"
+
+# 选用的reranker模型
+RERANKER_MODEL = "bge-reranker-large"
+# 是否启用reranker模型
+USE_RERANKER = False
+RERANKER_MAX_LENGTH = 1024
 
 # 如果需要在 EMBEDDING_MODEL 中增加自定义的关键字时配置
 EMBEDDING_KEYWORD_FILE = "keywords.txt"
@@ -19,6 +25,9 @@ EMBEDDING_MODEL_OUTPUT_PATH = "output"
 # 列表中第一个模型将作为 API 和 WEBUI 的默认模型。
 # 在这里，我们使用目前主流的两个离线模型，其中，chatglm3-6b 为默认加载模型。
 # 如果你的显存不足，可使用 Qwen-1_8B-Chat, 该模型 FP16 仅需 3.8G显存。
+
+# chatglm3-6b输出角色标签<|user|>及自问自答的问题详见项目wiki->常见问题->Q20.
+
 LLM_MODELS = ["qwen-14b-chat-int4"]  # "Qwen-1_8B-Chat",
 
 # AgentLM模型的名称 (可以不指定，指定之后就锁定进入Agent之后的Chain的模型，不指定就是LLM_MODELS[0])
@@ -52,6 +61,11 @@ MODEL_PATH = {
         "bge-large-zh": "/opt/projects/hf_models/bge-large-zh",
         "bge-large-zh-v1.5": "/opt/projects/hf_models/bge-large-zh-v1.5",
     },
+    "reranker": {
+        "bge-reranker-large": "/opt/projects/hf_models/bge-reranker-large",
+        "bge-reranker-base": "/opt/projects/hf_models/bge-reranker-base",
+        # TODO 增加在线reranker，如cohere
+    }
 }
 
 # 通常情况下不需要更改以下内容

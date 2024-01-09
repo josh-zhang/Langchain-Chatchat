@@ -3,8 +3,21 @@ from server.knowledge_base.kb_cache.base import *
 from server.knowledge_base.kb_service.base import EmbeddingsFunAdapter
 from server.knowledge_base.utils import get_vs_path
 from langchain.vectorstores.faiss import FAISS
-from langchain.schema import Document
+from langchain.docstore.in_memory import InMemoryDocstore
 import os
+from langchain.schema import Document
+
+
+# patch FAISS to include doc id in Document.metadata
+def _new_ds_search(self, search: str) -> Union[str, Document]:
+    if search not in self._dict:
+        return f"ID {search} not found."
+    else:
+        doc = self._dict[search]
+        if isinstance(doc, Document):
+            doc.metadata["id"] = search
+        return doc
+InMemoryDocstore.search = _new_ds_search
 
 
 class ThreadSafeFaiss(ThreadSafeObject):
@@ -44,20 +57,19 @@ class _FaissPool(CachePool):
         # create an empty vector store
         embeddings = EmbeddingsFunAdapter(embed_model)
         doc = Document(page_content="init", metadata={})
-        vector_store = FAISS.from_documents([doc], embeddings, normalize_L2=True)
+        vector_store = FAISS.from_documents([doc], embeddings, normalize_L2=True,distance_strategy="METRIC_INNER_PRODUCT")
         ids = list(vector_store.docstore._dict.keys())
         vector_store.delete(ids)
         return vector_store
 
-    # def save_vector_store(self, kb_name: str, path: str=None):
-    #     print(f"save_vector_store {kb_name} {path}")
-    #     if cache := self.get(kb_name):
-    #         return cache.save(path)
-    #
-    # def unload_vector_store(self, kb_name: str):
-    #     if cache := self.get(kb_name):
-    #         self.pop(kb_name)
-    #         logger.info(f"成功释放向量库：{kb_name}")
+    def save_vector_store(self, kb_name: str, path: str=None):
+        if cache := self.get(kb_name):
+            return cache.save(path)
+
+    def unload_vector_store(self, kb_name: str):
+        if cache := self.get(kb_name):
+            self.pop(kb_name)
+            logger.info(f"成功释放向量库：{kb_name}")
 
 
 class KBFaissPool(_FaissPool):
@@ -83,7 +95,7 @@ class KBFaissPool(_FaissPool):
                 if os.path.isfile(os.path.join(vs_path, "index.faiss")):
                     embeddings = self.load_kb_embeddings(kb_name=kb_name, embed_device=embed_device,
                                                          default_embed_model=embed_model)
-                    vector_store = FAISS.load_local(vs_path, embeddings, normalize_L2=True)
+                    vector_store = FAISS.load_local(vs_path, embeddings, normalize_L2=True,distance_strategy="METRIC_INNER_PRODUCT")
                 elif create:
                     # create an empty vector store
                     if not os.path.exists(vs_path):

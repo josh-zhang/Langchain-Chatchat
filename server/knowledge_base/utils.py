@@ -2,6 +2,7 @@ import os
 import json
 import importlib
 from typing import List, Union, Dict, Tuple, Generator
+from pathlib import Path
 
 import chardet
 import langchain.document_loaders
@@ -79,8 +80,8 @@ def list_files_from_folder(kb_name: str):
                 for target_entry in target_it:
                     process_entry(target_entry)
         elif entry.is_file():
-            # result.append(entry.path)
-            result.append(entry.name)
+            file_path = (Path(os.path.relpath(entry.path, doc_path)).as_posix()) # 路径统一为 posix 格式
+            result.append(file_path)
         elif entry.is_dir():
             with os.scandir(entry.path) as it:
                 for sub_entry in it:
@@ -104,7 +105,7 @@ LOADER_DICT = {"CustomHTMLLoader": ['.html'],
                # "RapidOCRLoader": ['.png', '.jpg', '.jpeg', '.bmp'],
                # "UnstructuredEmailLoader": ['.eml', '.msg'],
                # "UnstructuredEPubLoader": ['.epub'],
-               # "UnstructuredExcelLoader": ['.xlsx', '.xlsd'],
+               "UnstructuredExcelLoader": ['.xlsx', '.xls', '.xlsd'],
                # "NotebookLoader": ['.ipynb'],
                # "UnstructuredODTLoader": ['.odt'],
                # "PythonLoader": ['.py'],
@@ -279,24 +280,6 @@ def get_loader(loader_name: str, file_path: str, loader_kwargs: Dict = None):
     return loader
 
 
-# def get_model_worker_config(model_name: str = None) -> dict:
-#     '''
-#     加载model worker的配置项。
-#     优先级:FSCHAT_MODEL_WORKERS[model_name] > ONLINE_LLM_MODEL[model_name] > FSCHAT_MODEL_WORKERS["default"]
-#     '''
-#     from configs.model_config import MODEL_PATH
-#
-#     config = {}
-#     # 本地模型
-#     if model_name in MODEL_PATH["llm_model"]:
-#         path = get_model_path(model_name)
-#         config["model_path"] = path
-#         if path and os.path.isdir(path):
-#             config["model_path_exists"] = True
-#         config["device"] = llm_device(config.get("device"))
-#     return config
-
-
 def make_text_splitter(
         splitter_name: str = TEXT_SPLITTER_NAME,
         chunk_size: int = CHUNK_SIZE,
@@ -370,7 +353,7 @@ def make_text_splitter(
         # text_splitter_module = importlib.import_module('langchain.text_splitter')
         # TextSplitter = getattr(text_splitter_module, "RecursiveCharacterTextSplitter")
         # text_splitter = TextSplitter(chunk_size=250, chunk_overlap=50)
-        text_splitter = None
+        assert False, f"{splitter_name} load failed"
     return text_splitter
 
 
@@ -385,7 +368,7 @@ class KnowledgeFile:
         对应知识库目录中的文件，必须是磁盘上存在的才能进行向量化等操作。
         '''
         self.kb_name = knowledge_base_name
-        self.filename = filename
+        self.filename = str(Path(filename).as_posix())
         self.ext = os.path.splitext(filename)[-1].lower()
         if self.ext not in SUPPORTED_EXTS:
             raise ValueError(f"暂未支持的文件格式 {self.filename}")

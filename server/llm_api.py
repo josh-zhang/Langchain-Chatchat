@@ -25,29 +25,6 @@ def list_running_models(
             data={},
             msg=f"failed to get available models from controller: {controller_address}。错误信息是： {e}")
 
-# def list_running_models_v1(
-#         controller_address: str = Body(None, description="Fastchat controller服务器地址"),
-#         placeholder: str = Body(None, description="该参数未使用，占位用"),
-# ) -> BaseResponse:
-#     '''
-#     从fastchat controller获取已加载模型列表及其配置项
-#     '''
-#     try:
-#         host = LLM_SERVER["host"]
-#         port = LLM_SERVER["port"]
-#         controller_address = f"http://{host}:{port}"
-#         with get_httpx_client() as client:
-#             r = client.post(controller_address + "/v1/models")
-#             data = r.json()['data']
-#             return BaseResponse(data=data)
-#     except Exception as e:
-#         logger.error(f'{e.__class__.__name__}: {e}',
-#                      exc_info=e if log_verbose else None)
-#         return BaseResponse(
-#             code=500,
-#             data={},
-#             msg=f"failed to get available models from controller: {controller_address}。错误信息是： {e}")
-
 
 # def list_config_models(
 #         types: List[str] = Body(["local", "online"], description="模型配置项类别，如local, online, worker"),
@@ -128,3 +105,26 @@ def list_running_models(
 #         return BaseResponse(
 #             code=500,
 #             msg=f"failed to switch LLM model from controller: {controller_address}。错误信息是： {e}")
+
+# def list_running_models_v1(
+#         controller_address: str = Body(None, description="Fastchat controller服务器地址"),
+#         placeholder: str = Body(None, description="该参数未使用，占位用"),
+# ) -> BaseResponse:
+#     '''
+#     从fastchat controller获取已加载模型列表及其配置项
+#     '''
+#     try:
+#         host = LLM_SERVER["host"]
+#         port = LLM_SERVER["port"]
+#         controller_address = f"http://{host}:{port}"
+#         with get_httpx_client() as client:
+#             r = client.post(controller_address + "/v1/models")
+#             data = r.json()['data']
+#             return BaseResponse(data=data)
+#     except Exception as e:
+#         logger.error(f'{e.__class__.__name__}: {e}',
+#                      exc_info=e if log_verbose else None)
+#         return BaseResponse(
+#             code=500,
+#             data={},
+#             msg=f"failed to get available models from controller: {controller_address}。错误信息是： {e}")

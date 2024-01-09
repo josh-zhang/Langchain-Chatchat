@@ -27,6 +27,24 @@ def embed_texts(
         return BaseResponse(code=500, msg=f"文本向量化过程中出现错误：{e}")
 
 
+async def aembed_texts(
+        texts: List[str],
+        embed_model: str = EMBEDDING_MODEL,
+        to_query: bool = False,
+) -> BaseResponse:
+    '''
+    对文本进行向量化。返回数据格式：BaseResponse(data=List[List[float]])
+    '''
+    try:
+        from server.utils import load_local_embeddings
+
+        embeddings = load_local_embeddings(model=embed_model)
+        return BaseResponse(data=await embeddings.aembed_documents(texts))
+    except Exception as e:
+        logger.error(e)
+        return BaseResponse(code=500, msg=f"文本向量化过程中出现错误：{e}")
+
+
 def embed_texts_endpoint(
         texts: List[str] = Body(..., description="要嵌入的文本列表", examples=[["hello", "world"]]),
         embed_model: str = Body(EMBEDDING_MODEL, description=f"使用的嵌入模型，除了本地部署的Embedding模型。"),
