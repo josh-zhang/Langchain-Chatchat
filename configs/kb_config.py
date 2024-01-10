@@ -24,7 +24,7 @@ VECTOR_SEARCH_TOP_K = 3
 # 知识库匹配的距离阈值，取值范围在0-1之间，SCORE越小，距离越小从而相关度越高，
 # 取到1相当于不筛选，实测bge-large的距离得分大部分在0.01-0.7之间，
 # 相似文本的得分最高在0.55左右，因此建议针对bge设置得分为0.6
-SCORE_THRESHOLD = 0.6
+SCORE_THRESHOLD = 0.3
 
 # 是否开启中文标题加强，以及标题增强的相关配置
 # 通过增加标题判断，判断哪些文本为标题，并在metadata中进行标记；
@@ -107,3 +107,5 @@ TEXT_SPLITTER_NAME = "ChineseRecursiveTextSplitter"
 EMBEDDING_KEYWORD_FILE = "embedding_keywords.txt"
 
 SEARCH_ENHANCE = True
+
+BM_25_FACTOR = 0.4

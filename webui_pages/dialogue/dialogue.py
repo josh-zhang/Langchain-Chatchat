@@ -42,7 +42,7 @@ def get_messages_history(history_len: int, content_in_expander: bool = False) ->
 @st.cache_data
 def upload_temp_docs(files, _api: ApiRequest) -> str:
     '''
-    将文件上传到临时目录，用于文件对话
+    将文件上传到临时目录，用于文件问答
     返回临时向量库ID
     '''
     return _api.upload_temp_docs(files).get("data", {}).get("id")
@@ -105,6 +105,9 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
     st.session_state["conversation_ids"].setdefault(chat_box.cur_chat_name, uuid.uuid4().hex)
     st.session_state.setdefault("file_chat_id", None)
 
+    if "cur_source_docs" not in st.session_state:
+        st.session_state["cur_source_docs"] = []
+
     default_model = api.get_default_llm_model()[0]
 
     if not chat_box.chat_inited:
@@ -127,7 +130,8 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
         index = 0
         if st.session_state.get("cur_conv_name") in conv_names:
             index = conv_names.index(st.session_state.get("cur_conv_name"))
-        conversation_name = st.selectbox("当前会话：", conv_names, index=index)
+        # conversation_name = st.selectbox("当前会话：", conv_names, index=index)
+        conversation_name = conv_names[index]
         chat_box.use_chat_name(conversation_name)
         conversation_id = st.session_state["conversation_ids"][conversation_name]
 
@@ -142,9 +146,8 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
             st.toast(text)
 
         dialogue_modes = ["知识库问答",
-                          "文件对话",
-                          "LLM 对话",
-                          # "自定义Agent问答",
+                          "文件问答",
+                          "闲聊",
                           ]
         dialogue_mode = st.selectbox("请选择对话模式：",
                                      dialogue_modes,
@@ -152,6 +155,56 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                                      on_change=on_mode_change,
                                      key="dialogue_mode",
                                      )
+
+        def on_kb_change():
+            st.toast(f"已加载知识库： {st.session_state.selected_kb}")
+
+        kb_search_type = "重新搜索"
+        if dialogue_mode == "知识库问答":
+            with st.expander("知识库配置", True):
+                kb_list = api.list_knowledge_bases()
+                if kb_list is None:
+                    kb_list = []
+                kb_dict = {kb[0]: kb[1] for kb in kb_list}
+                kb_name_list = [kb[0] for kb in kb_list]
+                index = len(kb_name_list) - 1
+
+                # if DEFAULT_KNOWLEDGE_BASE in kb_name_list:
+                #     index = kb_name_list.index(DEFAULT_KNOWLEDGE_BASE)
+
+                def format_func(option):
+                    return kb_dict[option]
+
+                selected_kb = st.selectbox(
+                    "请选择知识库：",
+                    kb_name_list,
+                    index=index,
+                    on_change=on_kb_change,
+                    format_func=format_func,
+                    key="selected_kb",
+                )
+                kb_top_k = st.number_input("搜索知识条数：", 1, 20, VECTOR_SEARCH_TOP_K)
+
+                ## Bge 模型会超过1
+                score_threshold = st.slider("搜索门槛 (门槛越高相似度要求越高)：", 0.0, 1.0, float(SCORE_THRESHOLD),
+                                            0.01)
+
+                kb_search_type = st.radio('问答搜索方式', ['重新搜索', '继续问答'],
+                                          captions=["AI根据新的输入重新搜索知识库进行问答",
+                                                    "AI根据当前搜索结果进行问答"])
+        elif dialogue_mode == "文件问答":
+            with st.expander("文件问答配置", True):
+                files = st.file_uploader("上传知识文件：",
+                                         [i for ls in LOADER_DICT.values() for i in ls],
+                                         accept_multiple_files=True,
+                                         )
+                kb_top_k = st.number_input("搜索知识条数：", 1, 20, VECTOR_SEARCH_TOP_K)
+
+                ## Bge 模型会超过1
+                score_threshold = st.slider("搜索门槛 (门槛越高相似度要求越高)：", 0.0, 1.0, float(SCORE_THRESHOLD),
+                                            0.01)
+                if st.button("开始上传", disabled=len(files) == 0):
+                    st.session_state["file_chat_id"] = upload_temp_docs(files, api)
 
         def on_llm_change():
             if llm_model:
@@ -172,6 +225,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
             index = llm_models.index(cur_llm_model)
         else:
             index = 0
+
         llm_model = st.selectbox("选择LLM模型：",
                                  llm_models,
                                  index,
@@ -179,24 +233,16 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                                  on_change=on_llm_change,
                                  key="llm_model",
                                  )
-        # if (st.session_state.get("prev_llm_model") != llm_model
-        #         and not is_lite
-        #         and llm_model not in running_models):
-        #     with st.spinner(f"正在加载模型： {llm_model}，请勿进行操作或刷新页面"):
-        #         prev_model = st.session_state.get("prev_llm_model")
-        #         r = api.change_llm_model(prev_model, llm_model)
-        #         if msg := check_error_msg(r):
-        #             st.error(msg)
-        #         elif msg := check_success_msg(r):
-        #             st.success(msg)
-        #             st.session_state["prev_llm_model"] = llm_model
+
+        temperature = st.slider("生成温度：", 0.0, 1.0, TEMPERATURE, 0.05)
+        history_len = st.number_input("历史对话轮数：", 0, 20, HISTORY_LEN)
 
         index_prompt = {
-            "LLM 对话": "llm_chat",
+            "闲聊": "llm_chat",
             "自定义Agent问答": "agent_chat",
             "搜索引擎问答": "search_engine_chat",
             "知识库问答": "knowledge_base_chat",
-            "文件对话": "knowledge_base_chat",
+            "文件问答": "knowledge_base_chat",
         }
         prompt_templates_kb_list = list(PROMPT_TEMPLATES[index_prompt[dialogue_mode]].keys())
         prompt_template_name = prompt_templates_kb_list[0]
@@ -215,48 +261,6 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
             key="prompt_template_select",
         )
         prompt_template_name = st.session_state.prompt_template_select
-        temperature = st.slider("生成温度：", 0.0, 1.0, TEMPERATURE, 0.05)
-        history_len = st.number_input("历史对话轮数：", 0, 20, HISTORY_LEN)
-
-        def on_kb_change():
-            st.toast(f"已加载知识库： {st.session_state.selected_kb}")
-
-        if dialogue_mode == "知识库问答":
-            with st.expander("知识库配置", True):
-                kb_list = api.list_knowledge_bases()
-                kb_dict = {kb[0]: kb[1] for kb in kb_list}
-                kb_name_list = [kb[0] for kb in kb_list]
-                index = len(kb_name_list) - 1
-                # if DEFAULT_KNOWLEDGE_BASE in kb_name_list:
-                #     index = kb_name_list.index(DEFAULT_KNOWLEDGE_BASE)
-
-                def format_func(option):
-                    return kb_dict[option]
-
-                selected_kb = st.selectbox(
-                    "请选择知识库：",
-                    kb_name_list,
-                    index=index,
-                    on_change=on_kb_change,
-                    format_func=format_func,
-                    key="selected_kb",
-                )
-                kb_top_k = st.number_input("匹配知识条数：", 1, 20, VECTOR_SEARCH_TOP_K)
-
-                ## Bge 模型会超过1
-                score_threshold = st.slider("知识匹配分数阈值：", 0.0, 2.0, float(SCORE_THRESHOLD), 0.01)
-        elif dialogue_mode == "文件对话":
-            with st.expander("文件对话配置", True):
-                files = st.file_uploader("上传知识文件：",
-                                         [i for ls in LOADER_DICT.values() for i in ls],
-                                         accept_multiple_files=True,
-                                         )
-                kb_top_k = st.number_input("匹配知识条数：", 1, 20, VECTOR_SEARCH_TOP_K)
-
-                ## Bge 模型会超过1
-                score_threshold = st.slider("知识匹配分数阈值：", 0.0, 2.0, float(SCORE_THRESHOLD), 0.01)
-                if st.button("开始上传", disabled=len(files) == 0):
-                    st.session_state["file_chat_id"] = upload_temp_docs(files, api)
 
     if "prompt_template_select" in st.session_state:
         with st.expander("当前提示词", False):
@@ -291,7 +295,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
         else:
             history = get_messages_history(history_len)
             chat_box.user_say(prompt)
-            if dialogue_mode == "LLM 对话":
+            if dialogue_mode == "闲聊":
                 chat_box.ai_say("正在思考...")
                 text = ""
                 message_id = ""
@@ -318,56 +322,21 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                                        key=message_id,
                                        on_submit=on_feedback,
                                        kwargs={"message_id": message_id, "history_index": len(chat_box.history) - 1})
-            # elif dialogue_mode == "自定义Agent问答":
-            #     if not any(agent in llm_model for agent in SUPPORT_AGENT_MODEL):
-            #         chat_box.ai_say([
-            #             f"正在思考... \n\n <span style='color:red'>该模型并没有进行Agent对齐，请更换支持Agent的模型获得更好的体验！</span>\n\n\n",
-            #             Markdown("...", in_expander=True, title="思考过程", state="complete"),
-            #
-            #         ])
-            #     else:
-            #         chat_box.ai_say([
-            #             f"正在思考...",
-            #             Markdown("...", in_expander=True, title="思考过程", state="complete"),
-            #
-            #         ])
-            #     text = ""
-            #     ans = ""
-            #     for d in api.agent_chat(prompt,
-            #                             history=history,
-            #                             model=llm_model,
-            #                             prompt_name=prompt_template_name,
-            #                             temperature=temperature,
-            #                             ):
-            #         try:
-            #             d = json.loads(d)
-            #         except:
-            #             pass
-            #         if error_msg := check_error_msg(d):  # check whether error occured
-            #             st.error(error_msg)
-            #         if chunk := d.get("answer"):
-            #             text += chunk
-            #             chat_box.update_msg(text, element_index=1)
-            #         if chunk := d.get("final_answer"):
-            #             ans += chunk
-            #             chat_box.update_msg(ans, element_index=0)
-            #         if chunk := d.get("tools"):
-            #             text += "\n\n".join(d.get("tools", []))
-            #             chat_box.update_msg(text, element_index=1)
-            #     chat_box.update_msg(ans, element_index=0, streaming=False)
-            #     chat_box.update_msg(text, element_index=1, streaming=False)
             elif dialogue_mode == "知识库问答":
                 chat_box.ai_say([
                     f"正在查询知识库 `{selected_kb}` ...",
-                    Markdown("...", in_expander=True, title="知识库匹配结果", state="complete"),
+                    Markdown("...", in_expander=True, title="知识库搜索结果", state="complete"),
                 ])
                 text = ""
                 d = None
                 for d in api.knowledge_base_chat(prompt,
                                                  knowledge_base_name=selected_kb,
+                                                 search_type=kb_search_type,
                                                  top_k=kb_top_k,
                                                  score_threshold=score_threshold,
                                                  history=history,
+                                                 source=st.session_state[
+                                                     "cur_source_docs"] if kb_search_type == '继续问答' else [],
                                                  model=llm_model,
                                                  prompt_name=prompt_template_name,
                                                  temperature=temperature,
@@ -379,14 +348,32 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                         chat_box.update_msg(text, element_index=0)
                 chat_box.update_msg(text, element_index=0, streaming=False)
                 if d:
-                    chat_box.update_msg("\n\n".join(d.get("docs", [])), element_index=1, streaming=False)
-            elif dialogue_mode == "文件对话":
+                    this_search_type = d.get("search_type", "重新搜索")
+
+                    if this_search_type == "重新搜索":
+                        source_documents = d.get("docs", [])
+                        source_documents_content = d.get("docs_content", [])
+
+                        if source_documents:
+                            source = ""
+                            for i, j in zip(source_documents, source_documents_content):
+                                source += i + j + "\n\n"
+
+                            st.session_state["cur_source_docs"] = source_documents_content
+                        else:
+                            source = f"<span style='color:red'>未找到相关文档,该回答为大模型自身能力解答！</span>"
+
+                        chat_box.update_msg(source, element_index=1, streaming=False)
+                    else:
+                        chat_box.update_msg(f"<span style='color:red'>继续利用上方搜索结果进行问答</span>", element_index=1, streaming=False)
+
+            elif dialogue_mode == "文件问答":
                 if st.session_state["file_chat_id"] is None:
                     st.error("请先上传文件再进行对话")
                     st.stop()
                 chat_box.ai_say([
                     f"正在查询文件 `{st.session_state['file_chat_id']}` ...",
-                    Markdown("...", in_expander=True, title="文件匹配结果", state="complete"),
+                    Markdown("...", in_expander=True, title="文件搜索结果", state="complete"),
                 ])
                 text = ""
                 d = None

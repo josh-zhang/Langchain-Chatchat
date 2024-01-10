@@ -2,7 +2,7 @@ import os
 import urllib
 from typing import List, Dict
 from fastapi import File, Form, Body, Query, UploadFile
-from configs import (DEFAULT_VS_TYPE, EMBEDDING_MODEL, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD,
+from configs import (DEFAULT_VS_TYPE, EMBEDDING_MODEL, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, BM_25_FACTOR,
                      CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE, SEARCH_ENHANCE, logger, log_verbose)
 from server.utils import BaseResponse, ListResponse, run_in_thread_pool
 from server.knowledge_base.utils import (validate_kb_name, list_files_from_folder, get_file_path,
@@ -54,7 +54,7 @@ def search_docs(
     ks_docs_data, ks_qa_data = kb.search_allinone(query, top_k * 2, 0.0)
 
     if kb.search_enhance:
-        bm25_docs_data, bm25_qa_data = kb.enhance_search_allinone(query, 2, 0.4)
+        bm25_docs_data, bm25_qa_data = kb.enhance_search_allinone(query, 2, BM_25_FACTOR)
         docs_data = kb.merge_docs(ks_docs_data, bm25_docs_data, is_max=True)
         qa_data = kb.merge_answers(ks_qa_data, bm25_qa_data, is_max=True)
     else:

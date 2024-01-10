@@ -331,9 +331,11 @@ class ApiRequest:
             self,
             query: str,
             knowledge_base_name: str,
+            search_type: str,
             top_k: int = VECTOR_SEARCH_TOP_K,
             score_threshold: float = SCORE_THRESHOLD,
             history: List[Dict] = [],
+            source: List = [],
             stream: bool = True,
             model: str = LLM_MODELS[0],
             temperature: float = TEMPERATURE,
@@ -346,6 +348,7 @@ class ApiRequest:
         data = {
             "query": query,
             "knowledge_base_name": knowledge_base_name,
+            "search_type": search_type,
             "top_k": top_k,
             "score_threshold": score_threshold,
             "history": history,
@@ -354,6 +357,7 @@ class ApiRequest:
             "temperature": temperature,
             "max_tokens": max_tokens,
             "prompt_name": prompt_name,
+            "source": source,
         }
 
         # print(f"received input message:")

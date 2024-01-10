@@ -14,7 +14,7 @@ EMBEDDING_DEVICE = "auto"
 # 选用的reranker模型
 RERANKER_MODEL = "bge-reranker-large"
 # 是否启用reranker模型
-USE_RERANKER = False
+USE_RERANKER = True
 RERANKER_MAX_LENGTH = 1024
 
 # 如果需要在 EMBEDDING_MODEL 中增加自定义的关键字时配置
