@@ -124,8 +124,29 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
                                                    model_name_or_path=reranker_model_path
                                                    )
                 # print(docs)
-                docs = reranker_model.compress_documents(documents=docs,
-                                                         query=query)
+                # docs = reranker_model.compress_documents(documents=docs, query=query)
+
+                doc_list = list(docs)
+                _docs = [d.page_content[:512] for d in doc_list]
+                sentence_pairs = [[query, _doc] for _doc in _docs]
+                results = reranker_model._model.predict(sentences=sentence_pairs,
+                                              batch_size=reranker_model.batch_size,
+                                              #  show_progress_bar=self.show_progress_bar,
+                                              num_workers=reranker_model.num_workers,
+                                              #  activation_fct=self.activation_fct,
+                                              #  apply_softmax=self.apply_softmax,
+                                              convert_to_tensor=True
+                                              )
+                top_k = reranker_model.top_n if reranker_model.top_n < len(results) else len(results)
+
+                values, indices = results.topk(top_k)
+                final_results = []
+                for value, index in zip(values, indices):
+                    doc = doc_list[index]
+                    doc.metadata["relevance_score"] = value
+                    final_results.append(doc)
+                docs = final_results
+
                 print("---------after rerank------------------")
                 print(docs)
         else:

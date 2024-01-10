@@ -175,7 +175,8 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
             chunk_overlap = cols[1].number_input("相邻文本重合长度：", 0, chunk_size, OVERLAP_SIZE)
             cols[2].write("")
             cols[2].write("")
-            zh_title_enhance = cols[2].checkbox("开启中文标题加强", ZH_TITLE_ENHANCE)
+            # zh_title_enhance = cols[2].checkbox("开启中文标题加强", ZH_TITLE_ENHANCE)
+            zh_title_enhance = False
 
         if st.button(
                 "添加文件到知识库",
@@ -334,11 +335,12 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
         if selected_rows:
             file_name = selected_rows[0]["file_name"]
             docs = api.search_kb_docs(knowledge_base_name=selected_kb, file_name=file_name)
-            data = [{"seq": i+1, "id": x["id"], "page_content": x["page_content"], "source": x["metadata"].get("source"),
-                    "type": x["type"],
-                    "metadata": json.dumps(x["metadata"], ensure_ascii=False),
-                    "to_del": "",
-                    } for i, x in enumerate(docs)]
+            data = [
+                {"seq": i + 1, "id": x["id"], "page_content": x["page_content"], "source": x["metadata"].get("source"),
+                 "type": x["type"],
+                 "metadata": json.dumps(x["metadata"], ensure_ascii=False),
+                 "to_del": "",
+                 } for i, x in enumerate(docs)]
             df = pd.DataFrame(data)
 
             gb = GridOptionsBuilder.from_dataframe(df)
@@ -366,8 +368,8 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
 
                 if changed_docs:
                     if api.update_kb_docs(knowledge_base_name=selected_kb,
-                                        file_names=[file_name],
-                                        docs={file_name: changed_docs}):
+                                          file_names=[file_name],
+                                          docs={file_name: changed_docs}):
                         st.toast("更新文档成功")
                     else:
                         st.toast("更新文档失败")
