@@ -17,6 +17,8 @@ def _new_ds_search(self, search: str) -> Union[str, Document]:
         if isinstance(doc, Document):
             doc.metadata["id"] = search
         return doc
+
+
 InMemoryDocstore.search = _new_ds_search
 
 
@@ -57,12 +59,13 @@ class _FaissPool(CachePool):
         # create an empty vector store
         embeddings = EmbeddingsFunAdapter(embed_model)
         doc = Document(page_content="init", metadata={})
-        vector_store = FAISS.from_documents([doc], embeddings, normalize_L2=True,distance_strategy="METRIC_INNER_PRODUCT")
+        vector_store = FAISS.from_documents([doc], embeddings, normalize_L2=True,
+                                            distance_strategy="METRIC_INNER_PRODUCT")
         ids = list(vector_store.docstore._dict.keys())
         vector_store.delete(ids)
         return vector_store
 
-    def save_vector_store(self, kb_name: str, path: str=None):
+    def save_vector_store(self, kb_name: str, path: str = None):
         if cache := self.get(kb_name):
             return cache.save(path)
 
@@ -84,10 +87,11 @@ class KBFaissPool(_FaissPool):
     ) -> ThreadSafeFaiss:
         self.atomic.acquire()
         # vector_name = vector_name or embed_model
-        cache = self.get((kb_name, vector_name))  # 用元组比拼接字符串好一些
+        key = (kb_name, vector_name)
+        cache = self.get(key)  # 用元组比拼接字符串好一些
         if cache is None:
-            item = ThreadSafeFaiss((kb_name, vector_name), pool=self)
-            self.set((kb_name, vector_name), item)
+            item = ThreadSafeFaiss(key, pool=self)
+            self.set(key, item)
             with item.acquire(msg="初始化"):
                 self.atomic.release()
                 logger.info(f"loading vector store in '{kb_name}/vector_store/{vector_name}' from disk.")
@@ -95,7 +99,8 @@ class KBFaissPool(_FaissPool):
                 if os.path.isfile(os.path.join(vs_path, "index.faiss")):
                     embeddings = self.load_kb_embeddings(kb_name=kb_name, embed_device=embed_device,
                                                          default_embed_model=embed_model)
-                    vector_store = FAISS.load_local(vs_path, embeddings, normalize_L2=True,distance_strategy="METRIC_INNER_PRODUCT")
+                    vector_store = FAISS.load_local(vs_path, embeddings, normalize_L2=True,
+                                                    distance_strategy="METRIC_INNER_PRODUCT")
                 elif create:
                     # create an empty vector store
                     if not os.path.exists(vs_path):
@@ -106,9 +111,10 @@ class KBFaissPool(_FaissPool):
                     raise RuntimeError(f"knowledge base {kb_name} not exist.")
                 item.obj = vector_store
                 item.finish_loading()
+            return item
         else:
             self.atomic.release()
-        return self.get((kb_name, vector_name))
+            return cache
 
 
 class MemoFaissPool(_FaissPool):
@@ -131,9 +137,10 @@ class MemoFaissPool(_FaissPool):
                 vector_store = self.new_vector_store(embed_model=embed_model, embed_device=embed_device)
                 item.obj = vector_store
                 item.finish_loading()
+            return item
         else:
             self.atomic.release()
-        return self.get(kb_name)
+            return cache
 
 
 kb_faiss_pool = KBFaissPool(cache_num=CACHED_VS_NUM)

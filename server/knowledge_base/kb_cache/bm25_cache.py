@@ -6,7 +6,7 @@ from langchain.retrievers import BM25Retriever
 from langchain.schema import Document
 from server.knowledge_base.kb_cache.base import *
 from server.knowledge_base.faq_utils import lac, stopwords
-from configs import CACHED_VS_NUM
+from configs import CACHED_BM25_VS_NUM
 
 
 @functools.lru_cache()
@@ -83,27 +83,24 @@ class KBBM25Pool(CachePool):
             file_md5_sum,
             docs_text_list,
             metadata_list,
-            # top_k: int,
     ) -> ThreadSafeBM25:
         self.atomic.acquire()
-
-        print(f"load_retriever {kb_name} {retriever_name} {file_md5_sum}")
-
-        cache = self.get((kb_name, retriever_name, file_md5_sum))
+        key = (kb_name, retriever_name, file_md5_sum)
+        cache = self.get(key)
         if cache is None:
             item = ThreadSafeBM25((kb_name, retriever_name, file_md5_sum), pool=self)
-            self.set((kb_name, retriever_name, file_md5_sum), item)
+            self.set(key, item)
             with item.acquire(msg="初始化"):
                 self.atomic.release()
                 logger.info(f"loading retriever in '{kb_name} {retriever_name}' to memory.")
                 bm25_retriever = BM25Retriever.from_texts(docs_text_list, metadata_list,
                                                           preprocess_func=preprocess_func)
-                # bm25_retriever.k = top_k
                 item.obj = bm25_retriever
                 item.finish_loading()
+            return item
         else:
             self.atomic.release()
-        return self.get((kb_name, retriever_name, file_md5_sum))
+            return cache
 
 
-kb_bm25_pool = KBBM25Pool(cache_num=CACHED_VS_NUM)
+kb_bm25_pool = KBBM25Pool(cache_num=CACHED_BM25_VS_NUM)

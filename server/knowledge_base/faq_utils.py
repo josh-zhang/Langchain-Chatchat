@@ -317,8 +317,8 @@ def load_df_raw(faq_full_file):
     query_list = list()
 
     this_df = pandas.read_excel(faq_full_file)
-    this_df.fillna("", inplace=True)
     this_df = this_df.astype(str)
+    this_df.fillna("", inplace=True)
     logger.info(f"df_raw {this_df.shape}")
 
     l_cls_2 = ""
@@ -344,7 +344,7 @@ def load_df_raw(faq_full_file):
         attri = row["属性"]
         sample = row["测试样例"]
         channel = row["维度"]
-        end_dt = row["有效时间止"]
+        # end_dt = row["有效时间止"]
 
         if cls_2:
             l_cls_2 = cls_2
@@ -361,9 +361,9 @@ def load_df_raw(faq_full_file):
             l_query.attri = l_attri
             l_query.ref = faq_full_file
 
-            if end_dt:
-                end_dt = str(int(float(end_dt)))
-                l_query.end_dt = end_dt
+            # if end_dt:
+            #     end_dt = str(int(float(end_dt)))
+            #     l_query.end_dt = end_dt
 
             if l_cls_2:
                 l_query.cls_list.append(l_cls_2)

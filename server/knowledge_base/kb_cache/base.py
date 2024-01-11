@@ -1,12 +1,12 @@
 import threading
-from typing import List, Any, Union, Tuple
+from typing import List, Any, Union, Tuple, Optional
 from collections import OrderedDict
 from contextlib import contextmanager
 
 from langchain.embeddings.base import Embeddings
 from langchain.vectorstores.faiss import FAISS
 
-from configs import (EMBEDDING_MODEL, CHUNK_SIZE, logger, log_verbose)
+from configs import (EMBEDDING_MODEL, CHUNK_SIZE, logger, log_verbose, CACHED_EMBED_NUM)
 from server.utils import embedding_device, get_model_path
 
 
@@ -73,10 +73,12 @@ class CachePool:
             while len(self._cache) > self._cache_num:
                 self._cache.popitem(last=False)
 
-    def get(self, key: str) -> ThreadSafeObject:
+    def get(self, key: str) -> Optional[ThreadSafeObject]:
         if cache := self._cache.get(key):
             cache.wait_for_loading()
             return cache
+        else:
+            return None
 
     def set(self, key: str, obj: ThreadSafeObject) -> ThreadSafeObject:
         self._cache[key] = obj
@@ -120,7 +122,8 @@ class EmbeddingsPool(CachePool):
         model = model or EMBEDDING_MODEL
         device = embedding_device()
         key = (model, device, normalize_embeddings)
-        if not self.get(key):
+        cache = self.get(key)
+        if cache is None:
             item = ThreadSafeObject(key, pool=self)
             self.set(key, item)
             with item.acquire(msg="初始化"):
@@ -153,9 +156,10 @@ class EmbeddingsPool(CachePool):
                                                        model_kwargs={'device': device})
                 item.obj = embeddings
                 item.finish_loading()
+            return embeddings
         else:
             self.atomic.release()
-        return self.get(key).obj
+            return cache.obj
 
 
-embeddings_pool = EmbeddingsPool(cache_num=2)
+embeddings_pool = EmbeddingsPool(cache_num=CACHED_EMBED_NUM)
