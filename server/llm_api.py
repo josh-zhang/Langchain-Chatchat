@@ -1,6 +1,8 @@
+from typing import List
+
 from fastapi import Body
 from configs import logger, log_verbose
-from server.utils import BaseResponse, get_httpx_client, fschat_controller_address
+from server.utils import BaseResponse, get_httpx_client, fschat_controller_address, list_config_llm_models
 
 
 def list_running_models(
@@ -26,18 +28,18 @@ def list_running_models(
             msg=f"failed to get available models from controller: {controller_address}。错误信息是： {e}")
 
 
-# def list_config_models(
-#         types: List[str] = Body(["local", "online"], description="模型配置项类别，如local, online, worker"),
-#         placeholder: str = Body(None, description="占位用，无实际效果")
-# ) -> BaseResponse:
-#     '''
-#     从本地获取configs中配置的模型列表
-#     '''
-#     data = {}
-#     for type, models in list_config_llm_models().items():
-#         if type in types:
-#             data[type] = {m: get_model_config(m).data for m in models}
-#     return BaseResponse(data=data)
+def list_config_models(
+        types: List[str] = Body(["local", "online"], description="模型配置项类别，如local, online, worker"),
+        placeholder: str = Body(None, description="占位用，无实际效果")
+) -> BaseResponse:
+    '''
+    从本地获取configs中配置的模型列表
+    '''
+    data = {}
+    for type, models in list_config_llm_models().items():
+        if type in types:
+            data[type] = models
+    return BaseResponse(data=data)
 
 
 # def get_model_config(

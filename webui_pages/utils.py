@@ -780,7 +780,7 @@ class ApiRequest:
 
     def list_config_models(
             self,
-            types: List[str] = ["local", "online"],
+            types: List[str] = ["online"],
     ) -> Dict[str, Dict]:
         '''
         获取服务器configs中配置的模型列表，返回形式为{"type": {model_name: config}, ...}。

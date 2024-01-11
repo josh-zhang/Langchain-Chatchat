@@ -47,6 +47,24 @@ TEMPERATURE = 0.7
 TOP_P = 0.95  # ChatOpenAI暂不支持该参数
 
 
+ONLINE_LLM_MODEL = {
+    # 线上模型。请在server_config中为每个在线API设置不同的端口
+
+    "online-center-qwen14b-1": {
+        "model_name": "Ywen-core",
+        "api_base_url": "https://40.46.62.31:30151/v1",
+        "api_key": "",
+        "openai_proxy": "",
+    },
+
+    "online-center-qwen14b-2": {
+        "model_name": "Ywen-core",
+        "api_base_url": "https://40.46.62.31:30142/v1",
+        "api_key": "",
+        "openai_proxy": "",
+    },
+}
+
 # 在以下字典中修改属性值，以指定本地embedding模型存储位置。支持3种设置方法：
 # 1、将对应的值修改为模型绝对路径
 # 2、不修改此处的值（以 text2vec 为例）：
