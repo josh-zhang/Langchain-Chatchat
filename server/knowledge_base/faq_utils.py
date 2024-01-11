@@ -316,8 +316,7 @@ def process_sys_reg(raw_text):
 def load_df_raw(faq_full_file):
     query_list = list()
 
-    this_df = pandas.read_excel(faq_full_file)
-    this_df = this_df.astype(str)
+    this_df = pandas.read_excel(faq_full_file, dtype=str)
     this_df.fillna("", inplace=True)
     logger.info(f"df_raw {this_df.shape}")
 
@@ -399,10 +398,9 @@ def load_df_raw(faq_full_file):
 
 def load_df_processed(faq_file):
     query_list = list()
-    this_df = pandas.read_excel(faq_file)
+    this_df = pandas.read_excel(faq_file, dtype=str)
     this_df.set_index('生成序号')
     this_df.fillna("", inplace=True)
-    this_df = this_df.astype(str)
     logger.info(f"this_df {this_df.shape}")
     for idx, row in this_df.iterrows():
         raw_q = row["生成问题"]

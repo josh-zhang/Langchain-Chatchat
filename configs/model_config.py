@@ -52,14 +52,14 @@ ONLINE_LLM_MODEL = {
 
     "online-center-qwen14b-1": {
         "model_name": "Ywen-core",
-        "api_base_url": "https://40.46.62.31:30151/v1",
+        "api_base_url": "http://40.46.62.31:30151/v1",
         "api_key": "",
         "openai_proxy": "",
     },
 
     "online-center-qwen14b-2": {
         "model_name": "Ywen-core",
-        "api_base_url": "https://40.46.62.31:30142/v1",
+        "api_base_url": "http://40.46.62.31:30142/v1",
         "api_key": "",
         "openai_proxy": "",
     },

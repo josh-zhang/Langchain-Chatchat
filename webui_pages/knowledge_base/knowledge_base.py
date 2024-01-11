@@ -167,7 +167,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
         #     api.update_kb_info(kb, kb_info)
         # with st.sidebar:
         with st.expander(
-                "文件处理配置",
+                "html和txt类文件处理配置",
                 expanded=True,
         ):
             cols = st.columns(3)

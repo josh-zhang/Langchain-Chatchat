@@ -46,7 +46,7 @@ def get_ChatOpenAI(
             streaming=streaming,
             verbose=verbose,
             callbacks=callbacks,
-            openai_api_key=config.get("api_key", "EMPTY"),
+            openai_api_key="EMPTY",
             openai_api_base=config["api_base_url"],
             model_name=model_name,
             temperature=temperature,
