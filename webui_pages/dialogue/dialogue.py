@@ -1,15 +1,19 @@
-import streamlit as st
-from webui_pages.utils import *
-from streamlit_chatbox import *
-from streamlit_modal import Modal
-from datetime import datetime
 import os
 import re
 import time
-from configs import TEMPERATURE, HISTORY_LEN, PROMPT_TEMPLATES, DEFAULT_KNOWLEDGE_BASE
-from server.knowledge_base.utils import LOADER_DICT
 import uuid
+from datetime import datetime
 from typing import List, Dict
+
+import streamlit as st
+from streamlit_chatbox import *
+from streamlit_modal import Modal
+
+from configs import TEMPERATURE, HISTORY_LEN
+from server.knowledge_base.utils import LOADER_DICT
+from server.utils import get_prompts
+from webui_pages.utils import *
+
 
 chat_box = ChatBox(
     assistant_avatar=os.path.join(
@@ -219,10 +223,10 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                 #     st.session_state["prev_llm_model"] = llm_model
                 st.session_state["cur_llm_model"] = st.session_state.llm_model
 
-        def llm_model_format_func(x):
-            if x in available_models:
-                return f"{x} (运行中)"
-            return x
+        # def llm_model_format_func(x):
+        #     if x in available_models:
+        #         return f"{x} (运行中)"
+        #     return x
 
         llm_models = available_models
 
@@ -235,7 +239,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
         llm_model = st.selectbox("选择LLM模型：",
                                  llm_models,
                                  index,
-                                 format_func=llm_model_format_func,
+                                 # format_func=llm_model_format_func,
                                  on_change=on_llm_change,
                                  key="llm_model",
                                  )
@@ -250,28 +254,33 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
             "知识库问答": "knowledge_base_chat",
             "文件问答": "knowledge_base_chat",
         }
-        prompt_templates_kb_list = list(PROMPT_TEMPLATES[index_prompt[dialogue_mode]].keys())
-        prompt_template_name = prompt_templates_kb_list[0]
+        dialogue_type = index_prompt[dialogue_mode]
+        prompt_dict = get_prompts(dialogue_type)
+        prompt_templates_kb_list = list(prompt_dict.keys())
+
         if "prompt_template_select" not in st.session_state:
             st.session_state.prompt_template_select = prompt_templates_kb_list[0]
 
         def prompt_change():
-            text = f"已切换为 {prompt_template_name} 模板。"
+            text = f"已切换为 {prompt_dict[st.session_state.prompt_template_select][0]} 模板。"
             st.toast(text)
 
-        prompt_template_select = st.selectbox(
+        def prompt_format_func(key):
+            return prompt_dict[key][0]
+
+        st.selectbox(
             "请选择Prompt模板：",
             prompt_templates_kb_list,
             index=0,
             on_change=prompt_change,
+            format_func=prompt_format_func,
             key="prompt_template_select",
         )
         prompt_template_name = st.session_state.prompt_template_select
 
-    if "prompt_template_select" in st.session_state:
         with st.expander("当前提示词", False):
             st.text(
-                f"{PROMPT_TEMPLATES[index_prompt[dialogue_mode]][st.session_state.prompt_template_select]}")
+                f"{prompt_dict[prompt_template_name][1]}")
 
     # Display chat messages from history on app rerun
     chat_box.output_messages()

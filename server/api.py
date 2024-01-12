@@ -116,7 +116,11 @@ def mount_app_routes(app: FastAPI, run_mode: str = None):
                                                                                                         description="模板类型，可选值：llm_chat，knowledge_base_chat，search_engine_chat，agent_chat"),
             name: str = Body("default", description="模板名称"),
     ) -> str:
-        return get_prompt_template(type=type, name=name)
+        prompt = get_prompt_template(type=type, name=name)
+        if prompt:
+            return prompt[1]
+        else:
+            return ""
 
     # 其它接口
     # app.post("/other/completion",
@@ -142,7 +146,8 @@ def mount_knowledge_routes(app: FastAPI):
     from server.knowledge_base.kb_api import list_kbs, create_kb, delete_kb
     from server.knowledge_base.kb_doc_api import (list_files, upload_docs, delete_docs,
                                                   update_docs, download_doc, recreate_vector_store,
-                                                  search_docs, DocumentWithScores, update_info, download_faq)
+                                                  search_docs, DocumentWithScores, update_info, download_faq,
+                                                  gen_qa_for_kb)
 
     app.post("/chat/knowledge_base_chat",
              tags=["Chat"],
@@ -174,6 +179,12 @@ def mount_knowledge_routes(app: FastAPI):
              response_model=BaseResponse,
              summary="删除知识库"
              )(delete_kb)
+
+    app.post("/knowledge_base/gen_qa_for_knowledge_base",
+             tags=["Knowledge Base QA Creation"],
+             response_model=BaseResponse,
+             summary="生成问答和对应知识库"
+             )(gen_qa_for_kb)
 
     app.get("/knowledge_base/list_files",
             tags=["Knowledge Base Management"],

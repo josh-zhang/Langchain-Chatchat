@@ -8,11 +8,13 @@ from collections import Counter
 import pandas
 from LAC import LAC
 
+from configs import COMMON_PATH
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 lac = LAC(mode='seg')
-term_dict_file = "/opt/projects/zhimakaimen/data/kbqa/custom_20230720.txt"
+term_dict_file = f"{COMMON_PATH}/custom_20230720.txt"
 if not os.path.exists(term_dict_file):
     term_dict_file = ""
 term_dictionary = list()
@@ -22,7 +24,7 @@ if term_dict_file:
     logger.info(f"term_dictionary len {len(term_dictionary)}")
     lac.load_customization(term_dict_file, sep=None)
 
-stopwords_file = "/opt/projects/zhimakaimen/data/kbqa/stopwords.txt"
+stopwords_file = f"{COMMON_PATH}/stopwords.txt"
 if not os.path.exists(stopwords_file):
     stopwords_file = ""
 stopwords = list()

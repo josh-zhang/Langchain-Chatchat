@@ -147,9 +147,9 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
             index += 1
 
         if len(docs) == 0:  ## 如果没有找到相关文档，使用Empty模板
-            prompt_template = get_prompt_template("knowledge_base_chat", "empty")
+            prompt_template = get_prompt_template("knowledge_base_chat", "empty")[1]
         else:
-            prompt_template = get_prompt_template("knowledge_base_chat", prompt_name)
+            prompt_template = get_prompt_template("knowledge_base_chat", prompt_name)[1]
         input_msg = History(role="user", content=prompt_template).to_msg_template(False)
         chat_prompt = ChatPromptTemplate.from_messages(
             [i.to_msg_template() for i in history] + [input_msg])

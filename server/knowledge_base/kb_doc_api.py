@@ -1,19 +1,25 @@
 import os
 import urllib
-from typing import List, Dict
-from fastapi import File, Form, Body, Query, UploadFile
-from configs import (DEFAULT_VS_TYPE, EMBEDDING_MODEL, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, BM_25_FACTOR,
-                     CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE, SEARCH_ENHANCE, logger, log_verbose)
-from server.utils import BaseResponse, ListResponse, run_in_thread_pool
-from server.knowledge_base.utils import (validate_kb_name, list_files_from_folder, get_file_path,
-                                         files2docs_in_thread, KnowledgeFile, DocumentWithScores)
+import json
+import datetime
+import shutil
+import threading
+from typing import List
+
 from fastapi.responses import FileResponse
+from fastapi import File, Form, Body, Query, UploadFile
+from langchain.docstore.document import Document
 from sse_starlette import EventSourceResponse
 from pydantic import Json
-import json
+
 from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.db.repository.knowledge_file_repository import get_file_detail
-from langchain.docstore.document import Document
+from server.utils import BaseResponse, ListResponse, run_in_thread_pool
+from server.knowledge_base.utils import (validate_kb_name, list_files_from_folder, get_file_path, list_files_from_path,
+                                         files2docs_in_thread, KnowledgeFile, DocumentWithScores, PythonScriptExecutor)
+from configs import (DEFAULT_VS_TYPE, EMBEDDING_MODEL, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, BM_25_FACTOR,
+                     CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE, SEARCH_ENHANCE, logger, log_verbose,
+                     QA_JOB_SCRIPT_PATH, BASE_TEMP_DIR)
 
 
 def get_total_score_sorted(docs_data: List[DocumentWithScores], score_threshold) -> List[DocumentWithScores]:
@@ -500,3 +506,93 @@ def recreate_vector_store(
                 kb.save_vector_store("query")
 
     return EventSourceResponse(output())
+
+
+def gen_qa_for_kb_job(knowledge_base_name, kb_info):
+    filepaths = list_files_from_folder(knowledge_base_name)
+
+    now = datetime.datetime.now()
+    timestamp = f"{knowledge_base_name}_{now.year}_{now.month}_{now.day}_{now.hour}_{now.minute}_{now.second}"
+
+    output_path = os.path.join(BASE_TEMP_DIR, timestamp)
+
+    failed_files = []
+
+    total_count = 0
+    for filepath in filepaths:
+        filename = os.path.basename(filepath)
+        if filename.endswith(".html"):
+            total_count += 1
+            title = filename[:-5]
+            executor = PythonScriptExecutor()
+            script_command = f"{QA_JOB_SCRIPT_PATH} -f {filepath} -t {title} -o {output_path}"
+            results = executor.execute_script(script_command)
+            return_code = results['return_code']
+            if return_code != 0:
+                failed_files.append(filepath)
+
+    failed_count = len(failed_files)
+    if failed_count >= total_count:
+        # msg = f"{failed_count}个问答文件生成任务全部出错"
+        # return BaseResponse(code=500, msg=msg)
+        return
+
+    qa_filepath_list = list_files_from_path(output_path)
+
+    new_kb_name = f"faq_{knowledge_base_name}"
+    new_kb_info = f"{kb_info} 生成问答"
+
+    kb = KBServiceFactory.get_service_by_name(new_kb_name)
+    if kb is not None:
+        status = kb.clear_vs()
+        if not status:
+            # msg = f"创建知识库出错，知识库已存在并且清楚出错"
+            # return BaseResponse(code=500, msg=msg)
+            return
+
+        status = kb.drop_kb()
+        if not status:
+            # msg = f"创建知识库出错，知识库已存在并且删除出错"
+            # return BaseResponse(code=500, msg=msg)
+            return
+
+    kb = KBServiceFactory.get_service(new_kb_name, new_kb_info, "faiss", EMBEDDING_MODEL, SEARCH_ENHANCE)
+    status = kb.create_kb()
+    if not status:
+        # msg = f"创建知识库出错"
+        # return BaseResponse(code=500, msg=msg)
+        return
+
+    count = 0
+    for qa_filepath in qa_filepath_list:
+        if qa_filepath.endswith(".xlsx"):
+            qa_filepath = os.path.join(output_path, qa_filepath)
+            file_name = os.path.basename(qa_filepath)
+            new_file_path = get_file_path(knowledge_base_name=new_kb_name, doc_name=file_name)
+
+            if not os.path.isdir(os.path.dirname(new_file_path)):
+                os.makedirs(os.path.dirname(new_file_path))
+
+            shutil.move(qa_filepath, new_file_path)
+
+            kb_file = KnowledgeFile(filename=file_name, knowledge_base_name=new_kb_name)
+            status = kb.update_faq(kb_file, True, not_refresh_vs_cache=False)
+
+            if status:
+                count += 1
+
+    # return BaseResponse(code=200, msg=f"已新增知识库 {new_kb_name}, 其中包含 {count}篇文档生成的问答")
+
+
+def gen_qa_for_kb(
+        knowledge_base_name: str = Body(..., examples=["samples"]),
+):
+    kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
+    if not kb.exists():
+        return BaseResponse(code=404, msg=f"未找到知识库 ‘{knowledge_base_name}’")
+    else:
+        kb_info = kb.kb_info
+
+        threading.Thread(target=gen_qa_for_kb_job, args=(knowledge_base_name, kb_info)).start()
+
+        return BaseResponse(code=200, msg=f"文档问答生成任务提交成功")

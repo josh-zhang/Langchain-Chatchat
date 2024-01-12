@@ -33,7 +33,6 @@ class KBSummaryService(ABC):
         if not os.path.exists(self.vs_path):
             os.makedirs(self.vs_path)
 
-
     def get_vs_path(self):
         return os.path.join(self.get_kb_path(), "summary_vector_store")
 

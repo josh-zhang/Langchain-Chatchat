@@ -134,7 +134,7 @@ class ApiRequest:
                             try:
                                 if chunk.startswith("data: "):
                                     data = json.loads(chunk[6:-2])
-                                elif chunk.startswith(":"): # skip sse comment line
+                                elif chunk.startswith(":"):  # skip sse comment line
                                     continue
                                 else:
                                     data = json.loads(chunk)
@@ -170,7 +170,7 @@ class ApiRequest:
                             try:
                                 if chunk.startswith("data: "):
                                     data = json.loads(chunk[6:-2])
-                                elif chunk.startswith(":"): # skip sse comment line
+                                elif chunk.startswith(":"):  # skip sse comment line
                                     continue
                                 else:
                                     data = json.loads(chunk)
@@ -672,6 +672,22 @@ class ApiRequest:
 
         response = self.post(
             "/knowledge_base/update_docs",
+            json=data,
+        )
+        return self._get_response_value(response, as_json=True)
+
+    def gen_qa_for_knowledge_base(
+            self,
+            knowledge_base_name: str,
+    ):
+        '''
+        对应api.py/knowledge_base/gen_qa_for_knowledge_base接口
+        '''
+        data = {
+            "knowledge_base_name": knowledge_base_name,
+        }
+        response = self.post(
+            "/knowledge_base/gen_qa_for_knowledge_base",
             json=data,
         )
         return self._get_response_value(response, as_json=True)

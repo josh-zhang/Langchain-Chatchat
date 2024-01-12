@@ -21,6 +21,10 @@ LOG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs")
 if not os.path.exists(LOG_PATH):
     os.mkdir(LOG_PATH)
 
+COMMON_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "common")
+
+KNOWLEDGE_BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "knowledge_base")
+
 # 临时文件目录，主要用于文件对话
 BASE_TEMP_DIR = os.path.join(tempfile.gettempdir(), "chatchat")
 try:

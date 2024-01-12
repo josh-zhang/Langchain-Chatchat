@@ -13,7 +13,7 @@ CACHED_VS_NUM = 6
 CACHED_BM25_VS_NUM = 6
 
 # 缓存向量库数量（针对BM25）
-CACHED_EMBED_NUM = 1
+CACHED_EMBED_NUM = 2
 
 # 缓存临时向量库数量（针对FAISS），用于文件对话
 CACHED_MEMO_VS_NUM = 10

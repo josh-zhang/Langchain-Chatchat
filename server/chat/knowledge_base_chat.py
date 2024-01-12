@@ -153,9 +153,9 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
             docs = source
 
         if len(docs) == 0:  # 如果没有找到相关文档，使用empty模板
-            prompt_template = get_prompt_template("knowledge_base_chat", "empty")
+            prompt_template = get_prompt_template("knowledge_base_chat", "empty")[1]
         else:
-            prompt_template = get_prompt_template("knowledge_base_chat", prompt_name)
+            prompt_template = get_prompt_template("knowledge_base_chat", prompt_name)[1]
 
         input_msg = History(role="user", content=prompt_template).to_msg_template(False)
         chat_prompt = ChatPromptTemplate.from_messages(
@@ -163,11 +163,10 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
         chain = LLMChain(prompt=chat_prompt, llm=model)
 
         header = "已知信息"
-        if prompt_name == "faq":
+        if "faq" in prompt_name:
             header = "常见问答"
         context = ""
         index = 1
-
         if final_search_type == "重新搜索":
             for doc in docs:
                 context += f"\n##{header}{index}##\n{doc.page_content}\n"

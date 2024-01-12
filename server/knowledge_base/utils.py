@@ -1,6 +1,9 @@
 import os
 import json
 import importlib
+import subprocess
+import time
+import logging
 from typing import List, Union, Dict, Tuple, Generator
 from pathlib import Path
 
@@ -80,7 +83,7 @@ def list_files_from_folder(kb_name: str):
                 for target_entry in target_it:
                     process_entry(target_entry)
         elif entry.is_file():
-            file_path = (Path(os.path.relpath(entry.path, doc_path)).as_posix()) # 路径统一为 posix 格式
+            file_path = (Path(os.path.relpath(entry.path, doc_path)).as_posix())  # 路径统一为 posix 格式
             result.append(file_path)
         elif entry.is_dir():
             with os.scandir(entry.path) as it:
@@ -94,18 +97,54 @@ def list_files_from_folder(kb_name: str):
     return result
 
 
+def list_files_from_path(folder_path):
+    result = []
+
+    def is_skiped_path(path: str):
+        tail = os.path.basename(path).lower()
+        for x in ["temp", "tmp", ".", "~$"]:
+            if tail.startswith(x):
+                return True
+        return False
+
+    def process_entry(entry):
+        if is_skiped_path(entry.path):
+            return
+
+        if entry.is_symlink():
+            target_path = os.path.realpath(entry.path)
+            with os.scandir(target_path) as target_it:
+                for target_entry in target_it:
+                    process_entry(target_entry)
+        elif entry.is_file():
+            file_path = (Path(os.path.relpath(entry.path, folder_path)).as_posix())  # 路径统一为 posix 格式
+            result.append(file_path)
+        elif entry.is_dir():
+            with os.scandir(entry.path) as it:
+                for sub_entry in it:
+                    process_entry(sub_entry)
+
+    with os.scandir(folder_path) as it:
+        for entry in it:
+            process_entry(entry)
+
+    return result
+
+
+
 LOADER_DICT = {"CustomHTMLLoader": ['.html'],
                # "UnstructuredHTMLLoader": ['.html'],
                # "UnstructuredMarkdownLoader": ['.md'],
-               # "JSONLoader": [".json"],
-               # "JSONLinesLoader": [".jsonl"],
+               "JSONLoader": [".json"],
+               "JSONLinesLoader": [".jsonl"],
                # "CSVLoader": [".csv"],
                # "FilteredCSVLoader": [".csv"], # 需要自己指定，目前还没有支持
                # "RapidOCRPDFLoader": [".pdf"],
                # "RapidOCRLoader": ['.png', '.jpg', '.jpeg', '.bmp'],
                # "UnstructuredEmailLoader": ['.eml', '.msg'],
                # "UnstructuredEPubLoader": ['.epub'],
-               "UnstructuredExcelLoader": ['.xlsx', '.xls', '.xlsd'],
+               # "UnstructuredExcelLoader": ['.xlsx', '.xls', '.xlsd'],
+               "CustomExcelLoader": ['.xlsx'],
                # "NotebookLoader": ['.ipynb'],
                # "UnstructuredODTLoader": ['.odt'],
                # "PythonLoader": ['.py'],
@@ -114,7 +153,7 @@ LOADER_DICT = {"CustomHTMLLoader": ['.html'],
                # "SRTLoader": ['.srt'],
                # "TomlLoader": ['.toml'],
                # "UnstructuredTSVLoader": ['.tsv'],
-               # "UnstructuredWordDocumentLoader": ['.docx', 'doc'],
+               "UnstructuredWordDocumentLoader": ['.docx', 'doc'],
                # "UnstructuredXMLLoader": ['.xml'],
                # "UnstructuredPowerPointLoader": ['.ppt', '.pptx'],
                # "UnstructuredFileLoader": ['.txt'],
@@ -206,6 +245,16 @@ class CustomHTMLLoader(langchain.document_loaders.unstructured.UnstructuredFileL
 
 
 langchain.document_loaders.CustomHTMLLoader = CustomHTMLLoader
+
+
+class CustomExcelLoader(langchain.document_loaders.unstructured.UnstructuredFileLoader):
+
+    def _get_elements(self) -> List:
+        """Convert given content to documents."""
+        return []
+
+
+langchain.document_loaders.CustomExcelLoader = CustomExcelLoader
 
 
 # patch json.dumps to disable ensure_ascii
@@ -492,12 +541,50 @@ def files2docs_in_thread(
         yield result
 
 
+class PythonScriptExecutor:
+    def __init__(self):
+        # Constructor for any initialization if needed
+        pass
+
+    def execute_script(self, script_path):
+        """
+        Executes a Python script and captures its output, error, and execution time.
+        """
+        start_time = time.time()
+
+        # Execute the script using subprocess
+        process = subprocess.Popen(['python', script_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = process.communicate()
+
+        end_time = time.time()
+        duration = end_time - start_time
+
+        # Logging the outcome
+        if process.returncode == 0:
+            logging.info(f"Script {script_path} executed successfully in {duration:.2f} seconds.")
+        else:
+            logging.error(f"Script {script_path} failed with error: {stderr.decode()}")
+
+        # Returning the results in a structured format
+        return {
+            'return_code': process.returncode,
+            'stdout': stdout.decode(),
+            'stderr': stderr.decode(),
+            'execution_time': duration
+        }
+
+
 if __name__ == "__main__":
     from pprint import pprint
+    #
+    # kb_file = KnowledgeFile(
+    #     filename="/home/congyin/Code/Project_Langchain_0814/Langchain-Chatchat/knowledge_base/csv1/content/gm.csv",
+    #     knowledge_base_name="samples")
+    # # kb_file.text_splitter_name = "RecursiveCharacterTextSplitter"
+    # docs = kb_file.file2docs()
+    # # pprint(docs[-1])
 
-    kb_file = KnowledgeFile(
-        filename="/home/congyin/Code/Project_Langchain_0814/Langchain-Chatchat/knowledge_base/csv1/content/gm.csv",
-        knowledge_base_name="samples")
-    # kb_file.text_splitter_name = "RecursiveCharacterTextSplitter"
-    docs = kb_file.file2docs()
-    # pprint(docs[-1])
+    result = list_files_from_path("/Users/josh/projects/Langchain-Chatchat/server/db")
+
+    for r in result:
+        print(r)

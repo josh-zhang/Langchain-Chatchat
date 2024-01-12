@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from langchain.chat_models import ChatOpenAI
 
 from configs import (LLM_DEVICE, EMBEDDING_DEVICE, MODEL_PATH, MODEL_ROOT_PATH, logger, log_verbose,
-                     HTTPX_DEFAULT_TIMEOUT, ONLINE_LLM_MODEL)
+                     HTTPX_DEFAULT_TIMEOUT, ONLINE_LLM_MODEL, prompt_config)
 
 
 async def wrap_done(fn: Awaitable, event: asyncio.Event):
@@ -386,7 +386,7 @@ def webui_address() -> str:
     return f"http://{host}:{port}"
 
 
-def get_prompt_template(type: str, name: str) -> Optional[str]:
+def get_prompt_template(type: str, name: str) -> Optional[Tuple]:
     '''
     从prompt_config中加载模板内容
     type: "llm_chat","agent_chat","knowledge_base_chat","search_engine_chat"的其中一种，如果有新功能，应该进行加入。
@@ -394,8 +394,16 @@ def get_prompt_template(type: str, name: str) -> Optional[str]:
 
     from configs import prompt_config
     import importlib
-    importlib.reload(prompt_config)  # TODO: 检查configs/prompt_config.py文件有修改再重新加载
+    importlib.reload(prompt_config)
     return prompt_config.PROMPT_TEMPLATES[type].get(name)
+
+
+def get_prompts(type: str) -> Optional[Dict]:
+    '''
+    从prompt_config中加载模板内容
+    type: "llm_chat","agent_chat","knowledge_base_chat","search_engine_chat"的其中一种，如果有新功能，应该进行加入。
+    '''
+    return prompt_config.PROMPT_TEMPLATES.get(type)
 
 
 def set_httpx_config(
@@ -567,30 +575,11 @@ def get_server_configs() -> Dict:
     '''
     获取configs中的原始配置项，供前端使用
     '''
-    from configs.kb_config import (
-        DEFAULT_KNOWLEDGE_BASE,
-        DEFAULT_VS_TYPE,
-        CHUNK_SIZE,
-        OVERLAP_SIZE,
-        SCORE_THRESHOLD,
-        VECTOR_SEARCH_TOP_K,
-        ZH_TITLE_ENHANCE,
-        text_splitter_dict,
-        TEXT_SPLITTER_NAME,
-    )
-    from configs.model_config import (
-        LLM_MODELS,
-        HISTORY_LEN,
-        TEMPERATURE,
-    )
-    from configs.prompt_config import PROMPT_TEMPLATES
-
     _custom = {
         "controller_address": fschat_controller_address(),
         "openai_api_address": fschat_openai_api_address(),
         "api_address": api_address(),
     }
-
     return {**{k: v for k, v in locals().items() if k[0] != "_"}, **_custom}
 
 

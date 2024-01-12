@@ -274,6 +274,8 @@ class KBService(ABC):
         if os.path.exists(kb_file.filepath):
             self.delete_faq(kb_file, **kwargs)
             return self.add_faq(kb_file, is_generated, **kwargs)
+        else:
+            return False
 
     def update_doc(self, kb_file: KnowledgeFile, docs: List[Document] = [], **kwargs):
         """
@@ -283,6 +285,8 @@ class KBService(ABC):
         if os.path.exists(kb_file.filepath):
             self.delete_doc(kb_file, **kwargs)
             return self.add_doc(kb_file, docs=docs, **kwargs)
+        else:
+            return False
 
     def exist_doc(self, file_name: str):
         return file_exists_in_db(KnowledgeFile(knowledge_base_name=self.kb_name,
