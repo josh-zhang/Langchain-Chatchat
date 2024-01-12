@@ -16,7 +16,8 @@ from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.db.repository.knowledge_file_repository import get_file_detail
 from server.utils import BaseResponse, ListResponse, run_in_thread_pool
 from server.knowledge_base.utils import (validate_kb_name, list_files_from_folder, get_file_path, list_files_from_path,
-                                         files2docs_in_thread, KnowledgeFile, DocumentWithScores, PythonScriptExecutor)
+                                         files2docs_in_thread, KnowledgeFile, DocumentWithScores, PythonScriptExecutor,
+                                         get_doc_path)
 from configs import (DEFAULT_VS_TYPE, EMBEDDING_MODEL, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, BM_25_FACTOR,
                      CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE, SEARCH_ENHANCE, logger, log_verbose,
                      QA_JOB_SCRIPT_PATH, BASE_TEMP_DIR)
@@ -510,11 +511,14 @@ def recreate_vector_store(
 
 def gen_qa_for_kb_job(knowledge_base_name, kb_info):
     filepaths = list_files_from_folder(knowledge_base_name)
+    doc_path = get_doc_path(knowledge_base_name)
+    filepaths = [os.path.join(doc_path, filepath) for filepath in filepaths]
 
     now = datetime.datetime.now()
     timestamp = f"{knowledge_base_name}_{now.year}_{now.month}_{now.day}_{now.hour}_{now.minute}_{now.second}"
 
     output_path = os.path.join(BASE_TEMP_DIR, timestamp)
+    os.makedirs(output_path)
 
     failed_files = []
 
@@ -525,7 +529,7 @@ def gen_qa_for_kb_job(knowledge_base_name, kb_info):
             total_count += 1
             title = filename[:-5]
             executor = PythonScriptExecutor()
-            script_command = f"{QA_JOB_SCRIPT_PATH} -f {filepath} -t {title} -o {output_path}"
+            script_command = f"{QA_JOB_SCRIPT_PATH} -f {filepath} -t {title} -o {output_path} --usetitle"
             results = executor.execute_script(script_command)
             return_code = results['return_code']
             if return_code != 0:

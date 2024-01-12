@@ -683,12 +683,9 @@ class ApiRequest:
         '''
         对应api.py/knowledge_base/gen_qa_for_knowledge_base接口
         '''
-        data = {
-            "knowledge_base_name": knowledge_base_name,
-        }
         response = self.post(
             "/knowledge_base/gen_qa_for_knowledge_base",
-            json=data,
+            json=knowledge_base_name,
         )
         return self._get_response_value(response, as_json=True)
 

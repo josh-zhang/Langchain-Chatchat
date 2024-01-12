@@ -103,9 +103,11 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
     available_models = api.list_running_models()
 
     config_models = api.list_config_models(["online"])
-    for k, _ in config_models.get("online", {}).items():  # 列出ONLINE_MODELS中直接访问的模型
-        if k not in available_models:
-            available_models.append(k)
+    if config_models:
+        online_config_models = config_models.get("online", {})
+        for k, _ in online_config_models.items():  # 列出ONLINE_MODELS中直接访问的模型
+            if k not in available_models:
+                available_models.append(k)
 
     if not available_models:
         st.info("对话系统异常，暂时无法访问问答功能")

@@ -37,6 +37,7 @@ pandas~=2.0.3
 einops>=0.7.0
 transformers_stream_generator==0.0.4
 vllm==0.2.2; sys_platform == "linux"
+jq
 
 
 # Online api libs dependencies

@@ -301,6 +301,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 use_container_width=True,
                 type="primary",
         ):
+            st.toast(f"生成QA {this_kb_name}")
             ret = api.gen_qa_for_knowledge_base(this_kb_name)
             st.toast(ret.get("msg", " "))
             time.sleep(1)

@@ -131,7 +131,6 @@ def list_files_from_path(folder_path):
     return result
 
 
-
 LOADER_DICT = {"CustomHTMLLoader": ['.html'],
                # "UnstructuredHTMLLoader": ['.html'],
                # "UnstructuredMarkdownLoader": ['.md'],
@@ -553,7 +552,7 @@ class PythonScriptExecutor:
         start_time = time.time()
 
         # Execute the script using subprocess
-        process = subprocess.Popen(['python', script_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process = subprocess.Popen(f"python {script_path}", stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         stdout, stderr = process.communicate()
 
         end_time = time.time()
@@ -576,6 +575,7 @@ class PythonScriptExecutor:
 
 if __name__ == "__main__":
     from pprint import pprint
+
     #
     # kb_file = KnowledgeFile(
     #     filename="/home/congyin/Code/Project_Langchain_0814/Langchain-Chatchat/knowledge_base/csv1/content/gm.csv",
