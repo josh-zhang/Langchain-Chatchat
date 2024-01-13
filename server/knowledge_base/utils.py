@@ -26,7 +26,7 @@ from configs import (
     TEXT_SPLITTER_NAME,
 )
 from text_splitter import zh_title_enhance as func_zh_title_enhance
-from server.utils import run_in_thread_pool, get_model_path, llm_device
+from server.utils import run_in_thread_pool
 from server.knowledge_base.faq_utils import load_gen_file
 
 
@@ -538,39 +538,6 @@ def files2docs_in_thread(
 
     for result in run_in_thread_pool(func=file2docs, params=kwargs_list):
         yield result
-
-
-class PythonScriptExecutor:
-    def __init__(self):
-        # Constructor for any initialization if needed
-        pass
-
-    def execute_script(self, script_path):
-        """
-        Executes a Python script and captures its output, error, and execution time.
-        """
-        start_time = time.time()
-
-        # Execute the script using subprocess
-        process = subprocess.Popen(f"python {script_path}", stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-        stdout, stderr = process.communicate()
-
-        end_time = time.time()
-        duration = end_time - start_time
-
-        # Logging the outcome
-        if process.returncode == 0:
-            logging.info(f"Script {script_path} executed successfully in {duration:.2f} seconds.")
-        else:
-            logging.error(f"Script {script_path} failed with error: {stderr.decode()}")
-
-        # Returning the results in a structured format
-        return {
-            'return_code': process.returncode,
-            'stdout': stdout.decode(),
-            'stderr': stderr.decode(),
-            'execution_time': duration
-        }
 
 
 if __name__ == "__main__":

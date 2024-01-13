@@ -1,4 +1,3 @@
-import logging
 import itertools
 import os
 import re
@@ -8,10 +7,8 @@ from collections import Counter
 import pandas
 from LAC import LAC
 
-from configs import COMMON_PATH
+from configs import COMMON_PATH, logger
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 lac = LAC(mode='seg')
 term_dict_file = f"{COMMON_PATH}/custom_20230720.txt"

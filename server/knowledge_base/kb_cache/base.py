@@ -108,12 +108,11 @@ class CachePool:
             default_embed_model: str = EMBEDDING_MODEL,
     ) -> Embeddings:
         from server.db.repository.knowledge_base_repository import get_kb_detail
-        from server.knowledge_base.kb_service.base import EmbeddingsFunAdapter
 
         kb_detail = get_kb_detail(kb_name)
         embed_model = kb_detail.get("embed_model", default_embed_model)
-        return embeddings_pool.load_embeddings(model=embed_model, device=embed_device,
-                                               normalize_embeddings=False)
+
+        return embeddings_pool.load_embeddings(model=embed_model, device=embed_device, normalize_embeddings=False)
 
 
 class EmbeddingsPool(CachePool):
@@ -130,8 +129,7 @@ class EmbeddingsPool(CachePool):
                 self.atomic.release()
                 if model == "text-embedding-ada-002":  # openai text-embedding-ada-002
                     from langchain.embeddings.openai import OpenAIEmbeddings
-                    embeddings = OpenAIEmbeddings(model=model,
-                                                  openai_api_key=get_model_path(model),
+                    embeddings = OpenAIEmbeddings(model=model, openai_api_key=get_model_path(model),
                                                   chunk_size=CHUNK_SIZE)
                 elif 'bge-' in model:
                     from langchain.embeddings import HuggingFaceBgeEmbeddings
