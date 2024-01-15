@@ -1,15 +1,17 @@
-import streamlit as st
-from webui_pages.utils import *
-from st_aggrid import AgGrid, JsCode
-from st_aggrid.grid_options_builder import GridOptionsBuilder
-import pandas as pd
-from server.knowledge_base.utils import get_file_path, LOADER_DICT
-from server.knowledge_base.kb_service.base import get_kb_details, get_kb_file_details
-from typing import Literal, Dict, Tuple
-from configs import kbs_config, EMBEDDING_MODEL, DEFAULT_VS_TYPE, CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE
-from server.utils import list_embed_models
 import os
 import time
+import datetime
+
+import pandas as pd
+import streamlit as st
+from st_aggrid import AgGrid, JsCode
+from st_aggrid.grid_options_builder import GridOptionsBuilder
+
+from server.utils import list_embed_models
+from server.knowledge_base.utils import get_file_path, LOADER_DICT
+from server.knowledge_base.kb_service.base import get_kb_details, get_kb_file_details
+from configs import kbs_config
+from webui_pages.utils import *
 
 # SENTENCE_SIZE = 100
 
@@ -86,15 +88,22 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
     if selected_kb == "新建知识库":
         with st.form("新建知识库"):
 
+            now = datetime.datetime.now()
+            now_str = now.strftime("%Y%m%d")
+            suggested_id = f"{now_str}_html"
+            suggested_name = f"{now_str}业务源文件"
+
             new_kb_name = st.text_input(
                 "新建知识库ID",
                 placeholder="新知识库ID，不支持中文命名",
                 key="kb_name",
+                value=suggested_id,
             )
             new_kb_info = st.text_input(
                 "知识库名称",
                 placeholder="知识库名称",
                 key="kb_info",
+                value=suggested_name,
             )
 
             cols = st.columns(2)
@@ -132,7 +141,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
             if not new_kb_name or not new_kb_name.strip():
                 st.error(f"知识库ID不能为空！")
             elif new_kb_name in kb_dict:
-                st.error(f"ID为 {new_kb_name} 的知识库已经存在！")
+                st.error(f"ID为 {new_kb_name} 的知识库已经存在，请直接使用。如需重新创建，请先删除现有同ID知识库！")
             else:
                 if not new_kb_info or not new_kb_info.strip():
                     st.error(f"知识库名称不能为空！")
@@ -330,7 +339,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 "为知识库中文档生成问答",
                 use_container_width=True,
         ):
-            st.toast(f"为知识库{this_kb_name}生成问答")
+            # st.toast(f"为知识库{this_kb_name}生成问答")
             ret = api.gen_qa_for_knowledge_base(this_kb_name)
             st.toast(ret.get("msg", " "))
             time.sleep(1)

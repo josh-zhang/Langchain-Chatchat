@@ -561,7 +561,7 @@ def gen_qa_for_kb(
             return BaseResponse(code=200, msg=f"文档问答生成任务提交成功")
         else:
             FuturesAtomic.release()
-            return BaseResponse(code=404, msg=f"上次任务仍在运行中")
+            return BaseResponse(code=404, msg=f"上次任务仍在运行中，请等待任务完成后再提交新任务")
 
 
 def get_gen_qa_result(

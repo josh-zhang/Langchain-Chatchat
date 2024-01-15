@@ -51,7 +51,8 @@ class PythonScriptExecutor:
 
 def gen_qa_task(knowledge_base_name, kb_info):
     now = datetime.datetime.now()
-    task_id = f"{knowledge_base_name}_{now.year}_{now.month}_{now.day}_{now.hour}_{now.minute}_{now.second}"
+    now_str = now.strftime("%Y%m%d_%H%M%S")
+    task_id = f"{knowledge_base_name}_{now_str}"
 
     logging.info(f"task started {task_id}")
 
@@ -73,7 +74,7 @@ def gen_qa_task(knowledge_base_name, kb_info):
             total_count += 1
             title = filename[:-5]
             executor = PythonScriptExecutor()
-            script_command = f"{QA_JOB_SCRIPT_PATH} -f {filepath} -t {title} -o {output_path} --usetitle"
+            script_command = f'{QA_JOB_SCRIPT_PATH} -f "{filepath}" -t {title} -o "{output_path}" --usetitle'
             results = executor.execute_script(script_command)
             return_code = results['return_code']
             if return_code != 0:
@@ -96,8 +97,8 @@ def gen_qa_task(knowledge_base_name, kb_info):
 
     logging.info("create_kb")
 
-    new_kb_name = f"faq_{knowledge_base_name}"
-    new_kb_info = f"{kb_info} 生成问答"
+    new_kb_name = f"{knowledge_base_name}_faq"
+    new_kb_info = f"{kb_info}-生成问答"
 
     kb = KBServiceFactory.get_service_by_name(new_kb_name)
     if kb is not None:

@@ -1,15 +1,13 @@
-import os
 import re
 import time
 import uuid
 from datetime import datetime
-from typing import List, Dict
 
 import streamlit as st
 from streamlit_chatbox import *
 from streamlit_modal import Modal
 
-from configs import TEMPERATURE, HISTORY_LEN
+from configs import HISTORY_LEN
 from server.knowledge_base.utils import LOADER_DICT
 from server.utils import get_prompts
 from webui_pages.utils import *
@@ -203,7 +201,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
 
                 kb_search_type = st.radio('问答搜索方式', ['重新搜索', '继续问答'],
                                           captions=["AI根据新的输入重新搜索知识库进行问答",
-                                                    "AI根据当前搜索结果进行问答"])
+                                                    "AI根据上方搜索结果进行问答"])
         elif dialogue_mode == "文件问答":
             with st.expander("文件问答配置", True):
                 files = st.file_uploader("上传知识文件：",
