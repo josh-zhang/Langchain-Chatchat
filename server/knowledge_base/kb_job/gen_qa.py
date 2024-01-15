@@ -74,7 +74,7 @@ def gen_qa_task(knowledge_base_name, kb_info):
             total_count += 1
             title = filename[:-5]
             executor = PythonScriptExecutor()
-            script_command = f'{QA_JOB_SCRIPT_PATH} -f "{filepath}" -t {title} -o "{output_path}" --usetitle'
+            script_command = f'{QA_JOB_SCRIPT_PATH} -f "{filepath}" -t "{title}" -o "{output_path}" --usetitle'
             results = executor.execute_script(script_command)
             return_code = results['return_code']
             if return_code != 0:
