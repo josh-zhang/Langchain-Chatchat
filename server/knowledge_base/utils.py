@@ -1,9 +1,7 @@
 import os
 import json
 import importlib
-import subprocess
-import time
-import logging
+import shutil
 from typing import List, Union, Dict, Tuple, Generator
 from pathlib import Path
 
@@ -538,6 +536,42 @@ def files2docs_in_thread(
 
     for result in run_in_thread_pool(func=file2docs, params=kwargs_list):
         yield result
+
+
+def create_compressed_archive(folder_path, output_path, archive_format='zip'):
+    """
+    Create a compressed archive of the specified folder and save it to a specific path.
+
+    :param folder_path: Path to the folder to be archived.
+    :param output_path: Full path (including filename) where the archive will be saved.
+    :param archive_format: Format of the archive ('zip', 'tar', etc.)
+    :return: Path to the created archive.
+    """
+    # Ensure the folder exists
+    if not os.path.exists(folder_path):
+        raise FileNotFoundError(f"The folder {folder_path} does not exist.")
+
+    # Create the archive
+    try:
+        # Extract directory and archive name from the output path
+        output_dir, archive_name = os.path.split(output_path)
+        archive_name = os.path.splitext(archive_name)[0]  # Remove extension if any
+
+        # Change the current working directory to the output directory if it exists
+        original_cwd = os.getcwd()
+        if output_dir and os.path.exists(output_dir):
+            os.chdir(output_dir)
+
+        # Create the archive
+        archive_path = shutil.make_archive(archive_name, archive_format, folder_path)
+
+        # Change back to the original directory
+        os.chdir(original_cwd)
+
+        print(f"Archive created at: {archive_path}")
+        return archive_path
+    except Exception as e:
+        raise Exception(f"An error occurred while creating the archive: {e}")
 
 
 if __name__ == "__main__":

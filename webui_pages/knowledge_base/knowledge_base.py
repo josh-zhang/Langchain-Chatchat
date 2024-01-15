@@ -294,20 +294,30 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
 
         st.divider()
 
-        cols = st.columns(3)
+        cols = st.columns(4)
 
         if cols[0].button(
-                "为知识库中文档生成问答",
+                "下载知识库中所有文档",
                 use_container_width=True,
-                type="primary",
         ):
-            st.toast(f"生成QA {this_kb_name}")
-            ret = api.gen_qa_for_knowledge_base(this_kb_name)
+            st.toast(f"下载知识库{this_kb_name}中所有文档")
+            ret = api.download_knowledge_base_files(this_kb_name)
             st.toast(ret.get("msg", " "))
             time.sleep(1)
             st.rerun()
 
         if cols[1].button(
+                "为知识库中文档生成问答",
+                use_container_width=True,
+                type="primary",
+        ):
+            st.toast(f"为知识库{this_kb_name}生成问答")
+            ret = api.gen_qa_for_knowledge_base(this_kb_name)
+            st.toast(ret.get("msg", " "))
+            time.sleep(1)
+            st.rerun()
+
+        if cols[2].button(
                 "依据源文件重建向量库",
                 use_container_width=True,
         ):
@@ -325,7 +335,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                         empty.progress(d["finished"] / d["total"], d["msg"])
                 st.rerun()
 
-        if cols[2].button(
+        if cols[3].button(
                 "删除知识库",
                 use_container_width=True,
         ):

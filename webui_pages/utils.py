@@ -689,6 +689,19 @@ class ApiRequest:
         )
         return self._get_response_value(response, as_json=True)
 
+    def download_knowledge_base_files(
+            self,
+            knowledge_base_name: str,
+    ):
+        '''
+        对应api.py/knowledge_base/download_knowledge_base_files接口
+        '''
+        response = self.post(
+            "/knowledge_base/download_knowledge_base_files",
+            json=knowledge_base_name,
+        )
+        return self._get_response_value(response, as_json=True)
+
     def recreate_vector_store(
             self,
             knowledge_base_name: str,

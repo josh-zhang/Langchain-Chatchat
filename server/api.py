@@ -144,10 +144,9 @@ def mount_knowledge_routes(app: FastAPI):
     from server.chat.file_chat import upload_temp_docs, file_chat
     # from server.chat.agent_chat import agent_chat
     from server.knowledge_base.kb_api import list_kbs, create_kb, delete_kb
-    from server.knowledge_base.kb_doc_api import (list_files, upload_docs, delete_docs,
+    from server.knowledge_base.kb_doc_api import (list_files, upload_docs, delete_docs, download_kb_files,
                                                   update_docs, download_doc, recreate_vector_store,
-                                                  search_docs, DocumentWithScores, update_info, download_faq,
-                                                  gen_qa_for_kb)
+                                                  search_docs, DocumentWithScores, update_info, gen_qa_for_kb)
 
     app.post("/chat/knowledge_base_chat",
              tags=["Chat"],
@@ -185,6 +184,12 @@ def mount_knowledge_routes(app: FastAPI):
              response_model=BaseResponse,
              summary="生成问答和对应知识库"
              )(gen_qa_for_kb)
+
+    app.post("/knowledge_base/download_knowledge_base_files",
+             tags=["Download Knowledge Base Files"],
+             response_model=BaseResponse,
+             summary="下载知识库所有文档"
+             )(download_kb_files)
 
     app.get("/knowledge_base/list_files",
             tags=["Knowledge Base Management"],
@@ -231,9 +236,9 @@ def mount_knowledge_routes(app: FastAPI):
             tags=["Knowledge Base Management"],
             summary="下载对应的知识文件")(download_doc)
 
-    app.get("/knowledge_base/download_faq",
-            tags=["Knowledge Base Management"],
-            summary="下载对应的知识文件FAQ")(download_faq)
+    # app.get("/knowledge_base/download_faq",
+    #         tags=["Knowledge Base Management"],
+    #         summary="下载对应的知识文件FAQ")(download_faq)
 
     app.post("/knowledge_base/recreate_vector_store",
              tags=["Knowledge Base Management"],

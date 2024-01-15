@@ -14,9 +14,9 @@ from server.db.repository.knowledge_file_repository import get_file_detail
 from server.utils import BaseResponse, ListResponse, run_in_thread_pool
 from server.knowledge_base.kb_job.gen_qa import gen_qa_task, JobExecutor, JobFutures, FuturesAtomic
 from server.knowledge_base.utils import (validate_kb_name, list_files_from_folder, get_file_path, files2docs_in_thread,
-                                         KnowledgeFile, DocumentWithScores)
+                                         KnowledgeFile, DocumentWithScores, get_doc_path, create_compressed_archive)
 from configs import (DEFAULT_VS_TYPE, EMBEDDING_MODEL, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, BM_25_FACTOR,
-                     CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE, SEARCH_ENHANCE, logger, log_verbose)
+                     CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE, SEARCH_ENHANCE, logger, log_verbose, BASE_TEMP_DIR)
 
 
 def get_total_score_sorted(docs_data: List[DocumentWithScores], score_threshold) -> List[DocumentWithScores]:
@@ -380,13 +380,12 @@ def download_doc(
         content_disposition_type = None
 
     try:
-        kb_file = KnowledgeFile(filename=file_name,
-                                knowledge_base_name=knowledge_base_name)
+        filepath = get_file_path(knowledge_base_name, file_name)
 
-        if os.path.exists(kb_file.filepath):
+        if os.path.exists(filepath):
             return FileResponse(
-                path=kb_file.filepath,
-                filename=kb_file.filename,
+                path=filepath,
+                filename=file_name,
                 media_type="multipart/form-data",
                 content_disposition_type=content_disposition_type,
             )
@@ -399,14 +398,11 @@ def download_doc(
     return BaseResponse(code=500, msg=f"{file_name} 读取文件失败")
 
 
-def download_faq(
+def download_kb_files(
         knowledge_base_name: str = Query(..., description="知识库名称", examples=["samples"]),
-        file_name: str = Query(..., description="文件名称", examples=["test.txt"]),
-        preview: bool = Query(False, description="是：浏览器内预览；否：下载"),
-        faq_prefix="faq_"
 ):
     """
-    下载知识库文档对应FAQ
+    下载知识库所有文档
     """
     if not validate_kb_name(knowledge_base_name):
         return BaseResponse(code=403, msg="Don't attack me")
@@ -415,30 +411,71 @@ def download_faq(
     if kb is None:
         return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}")
 
-    if preview:
-        content_disposition_type = "inline"
-    else:
-        content_disposition_type = None
+    kb_content_path = get_doc_path(knowledge_base_name)
 
-    file_name = f"{faq_prefix}{file_name}"
+    temp_path = os.path.join(BASE_TEMP_DIR, knowledge_base_name)
+
+    if os.path.exists(kb_content_path):
+        archive_path = create_compressed_archive(kb_content_path, temp_path)
+    else:
+        return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name} content文件夹")
+
+    if not os.path.exists(archive_path):
+        return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name} 下载文件 {archive_path}")
 
     try:
-        kb_file = KnowledgeFile(filename=file_name, knowledge_base_name=knowledge_base_name)
-
-        if os.path.exists(kb_file.filepath):
-            return FileResponse(
-                path=kb_file.filepath,
-                filename=kb_file.filename,
-                media_type="multipart/form-data",
-                content_disposition_type=content_disposition_type,
-            )
+        return FileResponse(
+            path=archive_path,
+            filename=os.path.basename(archive_path),
+            media_type="multipart/form-data",
+        )
     except Exception as e:
-        msg = f"{file_name} 读取文件失败，错误信息是：{e}"
+        msg = f"{archive_path} 读取文件失败，错误信息是：{e}"
         logger.error(f'{e.__class__.__name__}: {msg}',
                      exc_info=e if log_verbose else None)
         return BaseResponse(code=500, msg=msg)
 
-    return BaseResponse(code=500, msg=f"{file_name} 读取文件失败")
+
+# def download_faq(
+#         knowledge_base_name: str = Query(..., description="知识库名称", examples=["samples"]),
+#         file_name: str = Query(..., description="文件名称", examples=["test.txt"]),
+#         preview: bool = Query(False, description="是：浏览器内预览；否：下载"),
+#         faq_prefix="faq_"
+# ):
+#     """
+#     下载知识库文档对应FAQ
+#     """
+#     if not validate_kb_name(knowledge_base_name):
+#         return BaseResponse(code=403, msg="Don't attack me")
+#
+#     kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
+#     if kb is None:
+#         return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}")
+#
+#     if preview:
+#         content_disposition_type = "inline"
+#     else:
+#         content_disposition_type = None
+#
+#     file_name = f"{faq_prefix}{file_name}"
+#
+#     try:
+#         kb_file = KnowledgeFile(filename=file_name, knowledge_base_name=knowledge_base_name)
+#
+#         if os.path.exists(kb_file.filepath):
+#             return FileResponse(
+#                 path=kb_file.filepath,
+#                 filename=kb_file.filename,
+#                 media_type="multipart/form-data",
+#                 content_disposition_type=content_disposition_type,
+#             )
+#     except Exception as e:
+#         msg = f"{file_name} 读取文件失败，错误信息是：{e}"
+#         logger.error(f'{e.__class__.__name__}: {msg}',
+#                      exc_info=e if log_verbose else None)
+#         return BaseResponse(code=500, msg=msg)
+#
+#     return BaseResponse(code=500, msg=f"{file_name} 读取文件失败")
 
 
 def recreate_vector_store(

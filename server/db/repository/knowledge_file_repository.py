@@ -200,7 +200,8 @@ def get_answer_id_by_question_raw_id_from_db(session,
                                              kb_name: str,
                                              raw_id: str,
                                              ):
-    question = session.query(AnswerQuestionModel).filter(AnswerQuestionModel.kb_name.ilike(kb_name)).filter_by(question_id=raw_id).first()
+    question = session.query(AnswerQuestionModel).filter(AnswerQuestionModel.kb_name.ilike(kb_name)).filter_by(
+        question_id=raw_id).first()
 
     if question:
         return question.answer_id
@@ -213,7 +214,8 @@ def get_answer_doc_id_by_answer_id_from_db(session,
                                            kb_name: str,
                                            raw_id: str,
                                            ):
-    answer = session.query(FileAnswerModel).filter(FileAnswerModel.kb_name.ilike(kb_name)).filter_by(answer_id=raw_id).first()
+    answer = session.query(FileAnswerModel).filter(FileAnswerModel.kb_name.ilike(kb_name)).filter_by(
+        answer_id=raw_id).first()
 
     if answer:
         return answer.doc_id
@@ -279,8 +281,8 @@ def add_file_to_db(session,
 def delete_file_from_db(session, kb_file: KnowledgeFile):
     existing_file = (session.query(KnowledgeFileModel)
                      .filter(KnowledgeFileModel.file_name.ilike(kb_file.filename),
-                            KnowledgeFileModel.kb_name.ilike(kb_file.kb_name))
-                    .first())
+                             KnowledgeFileModel.kb_name.ilike(kb_file.kb_name))
+                     .first())
     if existing_file:
         session.delete(existing_file)
         delete_docs_from_db(kb_name=kb_file.kb_name, file_name=kb_file.filename)
@@ -297,8 +299,10 @@ def delete_file_from_db(session, kb_file: KnowledgeFile):
 
 @with_session
 def delete_files_from_db(session, knowledge_base_name: str):
-    session.query(KnowledgeFileModel).filter(KnowledgeFileModel.kb_name.ilike(knowledge_base_name)).delete(synchronize_session=False)
-    session.query(FileDocModel).filter(FileDocModel.kb_name.ilike(knowledge_base_name)).delete(synchronize_session=False)
+    session.query(KnowledgeFileModel).filter(KnowledgeFileModel.kb_name.ilike(knowledge_base_name)).delete(
+        synchronize_session=False)
+    session.query(FileDocModel).filter(FileDocModel.kb_name.ilike(knowledge_base_name)).delete(
+        synchronize_session=False)
     kb = session.query(KnowledgeBaseModel).filter(KnowledgeBaseModel.kb_name.ilike(knowledge_base_name)).first()
     if kb:
         kb.file_count = 0
@@ -311,8 +315,8 @@ def delete_files_from_db(session, knowledge_base_name: str):
 def file_exists_in_db(session, kb_file: KnowledgeFile):
     existing_file = (session.query(KnowledgeFileModel)
                      .filter(KnowledgeFileModel.file_name.ilike(kb_file.filename),
-                            KnowledgeFileModel.kb_name.ilike(kb_file.kb_name))
-                    .first())
+                             KnowledgeFileModel.kb_name.ilike(kb_file.kb_name))
+                     .first())
     return True if existing_file else False
 
 
