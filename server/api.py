@@ -185,12 +185,6 @@ def mount_knowledge_routes(app: FastAPI):
              summary="生成问答和对应知识库"
              )(gen_qa_for_kb)
 
-    app.post("/knowledge_base/download_knowledge_base_files",
-             tags=["Download Knowledge Base Files"],
-             response_model=BaseResponse,
-             summary="下载知识库所有文档"
-             )(download_kb_files)
-
     app.get("/knowledge_base/list_files",
             tags=["Knowledge Base Management"],
             response_model=ListResponse,
@@ -235,6 +229,11 @@ def mount_knowledge_routes(app: FastAPI):
     app.get("/knowledge_base/download_doc",
             tags=["Knowledge Base Management"],
             summary="下载对应的知识文件")(download_doc)
+
+    app.get("/knowledge_base/download_knowledge_base_files",
+             tags=["Download Knowledge Base Files"],
+             summary="下载知识库所有文档"
+             )(download_kb_files)
 
     # app.get("/knowledge_base/download_faq",
     #         tags=["Knowledge Base Management"],

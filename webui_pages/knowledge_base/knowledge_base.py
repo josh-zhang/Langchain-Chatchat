@@ -242,36 +242,59 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
             selected_rows = doc_grid.get("selected_rows", [])
 
             cols = st.columns(4)
-            file_name, file_path = file_exists(this_kb_name, selected_rows)
-            if file_path:
-                with open(file_path, "rb") as fp:
-                    cols[0].download_button(
-                        "下载选中文档",
-                        fp,
-                        file_name=file_name,
-                        use_container_width=True, )
-            else:
-                cols[0].download_button(
+
+            # file_name, file_path = file_exists(this_kb_name, selected_rows)
+            # if file_path:
+            #     with open(file_path, "rb") as fp:
+            #         cols[0].download_button(
+            #             "下载选中文档",
+            #             fp,
+            #             file_name=file_name,
+            #             use_container_width=True, )
+            # else:
+            #     cols[0].download_button(
+            #         "下载选中文档",
+            #         "",
+            #         disabled=True,
+            #         use_container_width=True, )
+            if not selected_rows:
+                cols[0].link_button(
                     "下载选中文档",
                     "",
-                    disabled=True,
-                    use_container_width=True, )
-
-            st.write()
-            # 将文件分词并加载到向量库中
-            if cols[1].button(
-                    "重新添加至向量库" if selected_rows and (
-                            pd.DataFrame(selected_rows)["in_db"]).any() else "添加至向量库",
-                    disabled=not file_exists(this_kb_name, selected_rows)[0],
                     use_container_width=True,
-            ):
-                file_names = [row["file_name"] for row in selected_rows]
-                api.update_kb_docs(this_kb_name,
-                                   file_names=file_names,
-                                   chunk_size=chunk_size,
-                                   chunk_overlap=chunk_overlap,
-                                   zh_title_enhance=zh_title_enhance)
-                st.rerun()
+                    disabled=True,
+                )
+
+                # 将文件分词并加载到向量库中
+                if cols[1].button(
+                        "添加至向量库",
+                        disabled=True,
+                        use_container_width=True,
+                ):
+                    pass
+            else:
+                selected_file_name = selected_rows[0]["file_name"]
+                cols[0].link_button(
+                    "下载选中文档",
+                    f"{get_api_address_from_client()}/knowledge_base/download_doc?knowledge_base_name={this_kb_name}&file_name={selected_file_name}",
+                    use_container_width=True,
+                    disabled=False,
+                )
+
+                # 将文件分词并加载到向量库中
+                if cols[1].button(
+                        "重新添加至向量库" if selected_rows and (
+                                pd.DataFrame(selected_rows)["in_db"]).any() else "添加至向量库",
+                        disabled=False,
+                        use_container_width=True,
+                ):
+                    file_names = [row["file_name"] for row in selected_rows]
+                    api.update_kb_docs(this_kb_name,
+                                       file_names=file_names,
+                                       chunk_size=chunk_size,
+                                       chunk_overlap=chunk_overlap,
+                                       zh_title_enhance=zh_title_enhance)
+                    st.rerun()
 
             # 将文件从向量库中删除，但不删除文件本身。
             if cols[2].button(
@@ -296,20 +319,16 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
 
         cols = st.columns(4)
 
-        if cols[0].button(
-                "下载知识库中所有文档",
-                use_container_width=True,
-        ):
-            st.toast(f"下载知识库{this_kb_name}中所有文档")
-            ret = api.download_knowledge_base_files(this_kb_name)
-            st.toast(ret.get("msg", " "))
-            time.sleep(1)
-            st.rerun()
+        cols[0].link_button(
+            "下载知识库中所有文档",
+            f"{get_api_address_from_client()}/knowledge_base/download_knowledge_base_files?knowledge_base_name={this_kb_name}",
+            use_container_width=True,
+            type="primary",
+        )
 
         if cols[1].button(
                 "为知识库中文档生成问答",
                 use_container_width=True,
-                type="primary",
         ):
             st.toast(f"为知识库{this_kb_name}生成问答")
             ret = api.gen_qa_for_knowledge_base(this_kb_name)

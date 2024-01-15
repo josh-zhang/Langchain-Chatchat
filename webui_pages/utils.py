@@ -17,7 +17,10 @@ from configs import (
     VECTOR_SEARCH_TOP_K,
     HTTPX_DEFAULT_TIMEOUT,
     SEARCH_ENHANCE,
-    logger, log_verbose,
+    logger,
+    log_verbose,
+    API_SERVER_HOST_MAPPING,
+    API_SERVER_PORT_MAPPING
 )
 import httpx
 import contextlib
@@ -902,6 +905,20 @@ def check_success_msg(data: Union[str, dict, list], key: str = "msg") -> str:
             and data["code"] == 200):
         return data[key]
     return ""
+
+
+def get_api_address_from_client():
+    from configs.server_config import API_SERVER
+
+    host = API_SERVER["host"]
+    if host == "0.0.0.0":
+        host = "127.0.0.1"
+    host = API_SERVER_HOST_MAPPING.get(host, host)
+
+    port = API_SERVER["port"]
+    port = API_SERVER_PORT_MAPPING.get(port, port)
+
+    return f"http://{host}:{port}"
 
 
 if __name__ == "__main__":
