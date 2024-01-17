@@ -12,7 +12,6 @@ from server.knowledge_base.utils import LOADER_DICT
 from server.utils import get_prompts
 from webui_pages.utils import *
 
-
 chat_box = ChatBox(
     assistant_avatar=os.path.join(
         "img",
@@ -159,7 +158,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                           "文件问答",
                           "闲聊",
                           ]
-        dialogue_mode = st.selectbox("请选择对话模式：",
+        dialogue_mode = st.selectbox("选择对话模式：",
                                      dialogue_modes,
                                      index=0,
                                      on_change=on_mode_change,
@@ -186,7 +185,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                     return kb_dict[option]
 
                 selected_kb = st.selectbox(
-                    "请选择知识库：",
+                    "选择知识库：",
                     kb_name_list,
                     index=index,
                     on_change=on_kb_change,
@@ -196,8 +195,8 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                 kb_top_k = st.number_input("搜索知识条数：", 1, 20, VECTOR_SEARCH_TOP_K)
 
                 ## Bge 模型会超过1
-                score_threshold = st.slider("搜索门槛 (门槛越高相似度要求越高)：", 0.0, 1.0, float(SCORE_THRESHOLD),
-                                            0.01)
+                score_threshold = st.slider("搜索门槛 (门槛越高相似度要求越高，默认为{SCORE_THRESHOLD})：", 0.0, 1.0,
+                                            float(SCORE_THRESHOLD), 0.01)
 
                 kb_search_type = st.radio('问答搜索方式', ['重新搜索', '继续问答'],
                                           captions=["AI根据新的输入重新搜索知识库进行问答",
@@ -211,8 +210,8 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                 kb_top_k = st.number_input("搜索知识条数：", 1, 20, VECTOR_SEARCH_TOP_K)
 
                 ## Bge 模型会超过1
-                score_threshold = st.slider("搜索门槛 (门槛越高相似度要求越高)：", 0.0, 1.0, float(SCORE_THRESHOLD),
-                                            0.01)
+                score_threshold = st.slider(f"搜索门槛 (门槛越高相似度要求越高，默认为{SCORE_THRESHOLD})：", 0.0, 1.0,
+                                            float(SCORE_THRESHOLD), 0.01)
                 if st.button("开始上传", disabled=len(files) == 0):
                     st.session_state["file_chat_id"] = upload_temp_docs(files, api)
 
@@ -236,7 +235,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
         else:
             index = 0
 
-        llm_model = st.selectbox("选择LLM模型：",
+        llm_model = st.selectbox("选择对话模型：",
                                  llm_models,
                                  index,
                                  # format_func=llm_model_format_func,
@@ -269,7 +268,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
             return prompt_dict[key][0]
 
         st.selectbox(
-            "请选择Prompt模板：",
+            "选择Prompt模板：",
             prompt_templates_kb_list,
             index=0,
             on_change=prompt_change,
@@ -380,7 +379,8 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
 
                         chat_box.update_msg(source, element_index=1, streaming=False)
                     else:
-                        chat_box.update_msg(f"<span style='color:red'>继续利用上方搜索结果进行问答</span>", element_index=1, streaming=False)
+                        chat_box.update_msg(f"<span style='color:red'>继续利用上方搜索结果进行问答</span>",
+                                            element_index=1, streaming=False)
 
             elif dialogue_mode == "文件问答":
                 if st.session_state["file_chat_id"] is None:

@@ -43,7 +43,7 @@ HISTORY_LEN = 3
 MAX_TOKENS = None
 
 # LLM通用对话参数
-TEMPERATURE = 0.7
+TEMPERATURE = 0.0
 TOP_P = 0.95  # ChatOpenAI暂不支持该参数
 
 
