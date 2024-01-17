@@ -1,11 +1,9 @@
-import re
-import time
 import uuid
 from datetime import datetime
 
 import streamlit as st
 from streamlit_chatbox import *
-from streamlit_modal import Modal
+# from streamlit_modal import Modal
 
 from configs import HISTORY_LEN, MAX_TOKENS
 from server.knowledge_base.utils import LOADER_DICT
@@ -49,53 +47,6 @@ def upload_temp_docs(files, _api: ApiRequest) -> str:
     return _api.upload_temp_docs(files).get("data", {}).get("id")
 
 
-def parse_command(text: str, modal: Modal) -> bool:
-    '''
-    检查用户是否输入了自定义命令，当前支持：
-    /new {session_name}。如果未提供名称，默认为“会话X”
-    /del {session_name}。如果未提供名称，在会话数量>1的情况下，删除当前会话。
-    /clear {session_name}。如果未提供名称，默认清除当前会话
-    /help。查看命令帮助
-    返回值：输入的是命令返回True，否则返回False
-    '''
-    if m := re.match(r"/([^\s]+)\s*(.*)", text):
-        cmd, name = m.groups()
-        name = name.strip()
-        conv_names = chat_box.get_chat_names()
-        if cmd == "help":
-            modal.open()
-        elif cmd == "new":
-            if not name:
-                i = 1
-                while True:
-                    name = f"会话{i}"
-                    if name not in conv_names:
-                        break
-                    i += 1
-            if name in st.session_state["conversation_ids"]:
-                st.error(f"该会话名称 “{name}” 已存在")
-                time.sleep(1)
-            else:
-                st.session_state["conversation_ids"][name] = uuid.uuid4().hex
-                st.session_state["cur_conv_name"] = name
-        elif cmd == "del":
-            name = name or st.session_state.get("cur_conv_name")
-            if len(conv_names) == 1:
-                st.error("这是最后一个会话，无法删除")
-                time.sleep(1)
-            elif not name or name not in st.session_state["conversation_ids"]:
-                st.error(f"无效的会话名称：“{name}”")
-                time.sleep(1)
-            else:
-                st.session_state["conversation_ids"].pop(name, None)
-                chat_box.del_chat_name(name)
-                st.session_state["cur_conv_name"] = ""
-        elif cmd == "clear":
-            chat_box.reset_history(name=name or None)
-        return True
-    return False
-
-
 def dialogue_page(api: ApiRequest, is_lite: bool = False):
     available_models = api.list_running_models()
 
@@ -127,11 +78,11 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
         chat_box.init_session()
 
     # 弹出自定义命令帮助信息
-    modal = Modal("自定义命令", key="cmd_help", max_width="500")
-    if modal.is_open():
-        with modal.container():
-            cmds = [x for x in parse_command.__doc__.split("\n") if x.strip().startswith("/")]
-            st.write("\n\n".join(cmds))
+    # modal = Modal("自定义命令", key="cmd_help", max_width="500")
+    # if modal.is_open():
+    #     with modal.container():
+    #         cmds = [x for x in parse_command.__doc__.split("\n") if x.strip().startswith("/")]
+    #         st.write("\n\n".join(cmds))
 
     with st.sidebar:
         # 多会话
@@ -304,111 +255,111 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
     }
 
     if prompt := st.chat_input(chat_input_placeholder, key="prompt"):
-        if parse_command(text=prompt, modal=modal):  # 用户输入自定义命令
-            st.rerun()
-        else:
-            history = get_messages_history(history_len)
-            chat_box.user_say(prompt)
-            if dialogue_mode == "闲聊":
-                chat_box.ai_say("正在思考...")
-                text = ""
-                message_id = ""
-                r = api.chat_chat(prompt,
-                                  history=history,
-                                  conversation_id=conversation_id,
-                                  model=llm_model,
-                                  prompt_name=prompt_template_name,
-                                  temperature=temperature,
-                                  max_tokens=MAX_TOKENS)
-                for t in r:
-                    if error_msg := check_error_msg(t):  # check whether error occured
-                        st.error(error_msg)
-                        break
-                    text += t.get("text", "")
-                    chat_box.update_msg(text)
-                    message_id = t.get("message_id", "")
+        # if parse_command(text=prompt, modal=modal):  # 用户输入自定义命令
+        #     st.rerun()
+        # else:
+        history = get_messages_history(history_len)
+        chat_box.user_say(prompt)
+        if dialogue_mode == "闲聊":
+            chat_box.ai_say("正在思考...")
+            text = ""
+            message_id = ""
+            r = api.chat_chat(prompt,
+                              history=history,
+                              conversation_id=conversation_id,
+                              model=llm_model,
+                              prompt_name=prompt_template_name,
+                              temperature=temperature,
+                              max_tokens=MAX_TOKENS)
+            for t in r:
+                if error_msg := check_error_msg(t):  # check whether error occured
+                    st.error(error_msg)
+                    break
+                text += t.get("text", "")
+                chat_box.update_msg(text)
+                message_id = t.get("message_id", "")
 
-                metadata = {
-                    "message_id": message_id,
-                }
-                chat_box.update_msg(text, streaming=False, metadata=metadata)  # 更新最终的字符串，去除光标
-                chat_box.show_feedback(**feedback_kwargs,
-                                       key=message_id,
-                                       on_submit=on_feedback,
-                                       kwargs={"message_id": message_id, "history_index": len(chat_box.history) - 1})
-            elif dialogue_mode == "知识库问答":
-                chat_box.ai_say([
-                    f"正在查询知识库 `{selected_kb}` ...",
-                    Markdown("...", in_expander=True, title="知识库搜索结果", state="complete"),
-                ])
-                text = ""
-                d = None
-                for d in api.knowledge_base_chat(prompt,
-                                                 knowledge_base_name=selected_kb,
-                                                 search_type=kb_search_type,
-                                                 top_k=kb_top_k,
-                                                 score_threshold=score_threshold,
-                                                 history=history,
-                                                 source=st.session_state[
-                                                     "cur_source_docs"] if kb_search_type == '继续问答' else [],
-                                                 model=llm_model,
-                                                 prompt_name=prompt_template_name,
-                                                 temperature=temperature,
-                                                 max_tokens=MAX_TOKENS):
-                    if error_msg := check_error_msg(d):  # check whether error occured
-                        st.error(error_msg)
-                    elif chunk := d.get("answer"):
-                        text += chunk
-                        chat_box.update_msg(text, element_index=0)
-                chat_box.update_msg(text, element_index=0, streaming=False)
-                if d:
-                    this_search_type = d.get("search_type", "重新搜索")
+            metadata = {
+                "message_id": message_id,
+            }
+            chat_box.update_msg(text, streaming=False, metadata=metadata)  # 更新最终的字符串，去除光标
+            chat_box.show_feedback(**feedback_kwargs,
+                                   key=message_id,
+                                   on_submit=on_feedback,
+                                   kwargs={"message_id": message_id, "history_index": len(chat_box.history) - 1})
+        elif dialogue_mode == "知识库问答":
+            chat_box.ai_say([
+                f"正在查询知识库 `{selected_kb}` ...",
+                Markdown("...", in_expander=True, title="知识库搜索结果", state="complete"),
+            ])
+            text = ""
+            d = None
+            for d in api.knowledge_base_chat(prompt,
+                                             knowledge_base_name=selected_kb,
+                                             search_type=kb_search_type,
+                                             top_k=kb_top_k,
+                                             score_threshold=score_threshold,
+                                             history=history,
+                                             source=st.session_state[
+                                                 "cur_source_docs"] if kb_search_type == '继续问答' else [],
+                                             model=llm_model,
+                                             prompt_name=prompt_template_name,
+                                             temperature=temperature,
+                                             max_tokens=MAX_TOKENS):
+                if error_msg := check_error_msg(d):  # check whether error occured
+                    st.error(error_msg)
+                elif chunk := d.get("answer"):
+                    text += chunk
+                    chat_box.update_msg(text, element_index=0)
+            chat_box.update_msg(text, element_index=0, streaming=False)
+            if d:
+                this_search_type = d.get("search_type", "重新搜索")
 
-                    if this_search_type == "重新搜索":
-                        source_documents = d.get("docs", [])
-                        source_documents_content = d.get("docs_content", [])
+                if this_search_type == "重新搜索":
+                    source_documents = d.get("docs", [])
+                    source_documents_content = d.get("docs_content", [])
 
-                        if source_documents:
-                            source = ""
-                            for i, j in zip(source_documents, source_documents_content):
-                                source += i + j + "\n\n"
+                    if source_documents:
+                        source = ""
+                        for i, j in zip(source_documents, source_documents_content):
+                            source += i + j + "\n\n"
 
-                            st.session_state["cur_source_docs"] = source_documents_content
-                        else:
-                            source = f"<span style='color:red'>未找到相关文档,该回答为大模型自身能力解答！</span>"
-
-                        chat_box.update_msg(source, element_index=1, streaming=False)
+                        st.session_state["cur_source_docs"] = source_documents_content
                     else:
-                        chat_box.update_msg(f"<span style='color:red'>继续利用上方搜索结果进行问答</span>",
-                                            element_index=1, streaming=False)
+                        source = f"<span style='color:red'>未找到相关文档,该回答为大模型自身能力解答！</span>"
 
-            elif dialogue_mode == "文件问答":
-                if st.session_state["file_chat_id"] is None:
-                    st.error("请先上传文件再进行对话")
-                    st.stop()
-                chat_box.ai_say([
-                    f"正在查询文件 `{st.session_state['file_chat_id']}` ...",
-                    Markdown("...", in_expander=True, title="文件搜索结果", state="complete"),
-                ])
-                text = ""
-                d = None
-                for d in api.file_chat(prompt,
-                                       knowledge_id=st.session_state["file_chat_id"],
-                                       top_k=kb_top_k,
-                                       score_threshold=score_threshold,
-                                       history=history,
-                                       model=llm_model,
-                                       prompt_name=prompt_template_name,
-                                       temperature=temperature,
-                                       max_tokens=MAX_TOKENS):
-                    if error_msg := check_error_msg(d):  # check whether error occured
-                        st.error(error_msg)
-                    elif chunk := d.get("answer"):
-                        text += chunk
-                        chat_box.update_msg(text, element_index=0)
-                chat_box.update_msg(text, element_index=0, streaming=False)
-                if d:
-                    chat_box.update_msg("\n\n".join(d.get("docs", [])), element_index=1, streaming=False)
+                    chat_box.update_msg(source, element_index=1, streaming=False)
+                else:
+                    chat_box.update_msg(f"<span style='color:red'>继续利用上方搜索结果进行问答</span>",
+                                        element_index=1, streaming=False)
+
+        elif dialogue_mode == "文件问答":
+            if st.session_state["file_chat_id"] is None:
+                st.error("请先上传文件再进行对话")
+                st.stop()
+            chat_box.ai_say([
+                f"正在查询文件 `{st.session_state['file_chat_id']}` ...",
+                Markdown("...", in_expander=True, title="文件搜索结果", state="complete"),
+            ])
+            text = ""
+            d = None
+            for d in api.file_chat(prompt,
+                                   knowledge_id=st.session_state["file_chat_id"],
+                                   top_k=kb_top_k,
+                                   score_threshold=score_threshold,
+                                   history=history,
+                                   model=llm_model,
+                                   prompt_name=prompt_template_name,
+                                   temperature=temperature,
+                                   max_tokens=MAX_TOKENS):
+                if error_msg := check_error_msg(d):  # check whether error occured
+                    st.error(error_msg)
+                elif chunk := d.get("answer"):
+                    text += chunk
+                    chat_box.update_msg(text, element_index=0)
+            chat_box.update_msg(text, element_index=0, streaming=False)
+            if d:
+                chat_box.update_msg("\n\n".join(d.get("docs", [])), element_index=1, streaming=False)
 
     if st.session_state.get("need_rerun"):
         st.session_state["need_rerun"] = False
@@ -433,3 +384,52 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
         mime="text/markdown",
         use_container_width=True,
     )
+
+
+
+# def parse_command(text: str, modal: Modal) -> bool:
+#     '''
+#     检查用户是否输入了自定义命令，当前支持：
+#     /new {session_name}。如果未提供名称，默认为“会话X”
+#     /del {session_name}。如果未提供名称，在会话数量>1的情况下，删除当前会话。
+#     /clear {session_name}。如果未提供名称，默认清除当前会话
+#     /help。查看命令帮助
+#     返回值：输入的是命令返回True，否则返回False
+#     '''
+#     if m := re.match(r"/([^\s]+)\s*(.*)", text):
+#         cmd, name = m.groups()
+#         name = name.strip()
+#         conv_names = chat_box.get_chat_names()
+#         if cmd == "help":
+#             modal.open()
+#         elif cmd == "new":
+#             if not name:
+#                 i = 1
+#                 while True:
+#                     name = f"会话{i}"
+#                     if name not in conv_names:
+#                         break
+#                     i += 1
+#             if name in st.session_state["conversation_ids"]:
+#                 st.error(f"该会话名称 “{name}” 已存在")
+#                 time.sleep(1)
+#             else:
+#                 st.session_state["conversation_ids"][name] = uuid.uuid4().hex
+#                 st.session_state["cur_conv_name"] = name
+#         elif cmd == "del":
+#             name = name or st.session_state.get("cur_conv_name")
+#             if len(conv_names) == 1:
+#                 st.error("这是最后一个会话，无法删除")
+#                 time.sleep(1)
+#             elif not name or name not in st.session_state["conversation_ids"]:
+#                 st.error(f"无效的会话名称：“{name}”")
+#                 time.sleep(1)
+#             else:
+#                 st.session_state["conversation_ids"].pop(name, None)
+#                 chat_box.del_chat_name(name)
+#                 st.session_state["cur_conv_name"] = ""
+#         elif cmd == "clear":
+#             chat_box.reset_history(name=name or None)
+#         return True
+#     return False
+
