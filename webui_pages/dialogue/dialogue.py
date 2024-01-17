@@ -7,7 +7,7 @@ import streamlit as st
 from streamlit_chatbox import *
 from streamlit_modal import Modal
 
-from configs import HISTORY_LEN
+from configs import HISTORY_LEN, MAX_TOKENS
 from server.knowledge_base.utils import LOADER_DICT
 from server.utils import get_prompts
 from webui_pages.utils import *
@@ -319,7 +319,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                                   model=llm_model,
                                   prompt_name=prompt_template_name,
                                   temperature=temperature,
-                                  max_tokens=4000)
+                                  max_tokens=MAX_TOKENS)
                 for t in r:
                     if error_msg := check_error_msg(t):  # check whether error occured
                         st.error(error_msg)
@@ -354,7 +354,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                                                  model=llm_model,
                                                  prompt_name=prompt_template_name,
                                                  temperature=temperature,
-                                                 max_tokens=4000):
+                                                 max_tokens=MAX_TOKENS):
                     if error_msg := check_error_msg(d):  # check whether error occured
                         st.error(error_msg)
                     elif chunk := d.get("answer"):
@@ -399,7 +399,8 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                                        history=history,
                                        model=llm_model,
                                        prompt_name=prompt_template_name,
-                                       temperature=temperature):
+                                       temperature=temperature,
+                                       max_tokens=MAX_TOKENS):
                     if error_msg := check_error_msg(d):  # check whether error occured
                         st.error(error_msg)
                     elif chunk := d.get("answer"):
