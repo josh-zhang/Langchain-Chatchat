@@ -57,12 +57,12 @@ ONLINE_LLM_MODEL = {
         "openai_proxy": "",
     },
 
-    "online-center-qwen14b-2": {
-        "model_name": "Ywen-core",
-        "api_base_url": "http://40.46.62.31:30142/v1",
-        "api_key": "",
-        "openai_proxy": "",
-    },
+    # "online-center-qwen14b-2": {
+    #     "model_name": "Ywen-core",
+    #     "api_base_url": "http://40.46.62.31:30142/v1",
+    #     "api_key": "",
+    #     "openai_proxy": "",
+    # },
 }
 
 # 在以下字典中修改属性值，以指定本地embedding模型存储位置。支持3种设置方法：
