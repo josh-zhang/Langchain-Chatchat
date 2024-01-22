@@ -2,8 +2,6 @@ import re
 import unicodedata
 from typing import List
 
-# DOC_QA_ENDPOINT = os.environ.get("DOC_QA_ENDPOINT")
-
 prompt_template = """你是AI助手。你可以根据下面给出的参考资料和聊天历史来回答用户问题。
 
 ### 参考资料 ###
@@ -84,21 +82,8 @@ def language_prompt(lan: str) -> str:
     return _ZH_LANGUAGE_MAP.get(lan.lower(), "中文")
 
 
-# def _get_chat_history(chat_history: List[History]) -> str:
-#     if not chat_history:
-#         return ""
-#     chat_history_text = ""
-#     for single_turn in chat_history:
-#         role = single_turn.role
-#         content = single_turn.content
-#         txt = f"{'{role}': '{content}'"
-#
-#         chat_history_text += "[" + ", ".join([human, ai]) + "]\n"
-#     return chat_history_text
-
-
 def document_prompt_template():
-    return """["Source_id": {doc_id},"Content": "{page_content}"]"""
+    return """["Source_id": {doc_id}, "Content": "{page_content}"]"""
 
 
 def get_prompt(question: str, fallback: str, lan='') -> str:
