@@ -15,6 +15,9 @@ CACHED_BM25_VS_NUM = 6
 # 缓存向量库数量（针对BM25）
 CACHED_EMBED_NUM = 2
 
+# 缓存向量库数量（针对Reranker）
+CACHED_RERANK_NUM = 2
+
 # 缓存临时向量库数量（针对FAISS），用于文件对话
 CACHED_MEMO_VS_NUM = 10
 
@@ -75,9 +78,9 @@ kbs_config = {
         "user": "",
         "password": ""
     },
-    "milvus_kwargs":{
-        "search_params":{"metric_type": "L2"}, #在此处增加search_params
-        "index_params":{"metric_type": "L2","index_type": "HNSW"} # 在此处增加index_params
+    "milvus_kwargs": {
+        "search_params": {"metric_type": "L2"},  # 在此处增加search_params
+        "index_params": {"metric_type": "L2", "index_type": "HNSW"}  # 在此处增加index_params
     }
 }
 

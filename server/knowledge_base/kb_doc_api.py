@@ -74,7 +74,7 @@ def search_docs(
     print(f"top_k {top_k} and {len(docs_data)} docs total searched ")
     print(docs_data)
 
-    docs_data = docs_data[:top_k]
+    # docs_data = docs_data[:top_k]
 
     return docs_data
 

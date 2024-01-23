@@ -16,8 +16,7 @@ from server.chat.utils import History
 from server.chat.prompt_generator import generate_doc_qa
 from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.knowledge_base.kb_doc_api import search_docs
-from server.reranker.reranker import LangchainReranker
-from server.utils import embedding_device
+from server.knowledge_base.kb_cache.base import reranker_pool
 from configs import (LLM_MODELS,
                      VECTOR_SEARCH_TOP_K,
                      SCORE_THRESHOLD,
@@ -25,10 +24,8 @@ from configs import (LLM_MODELS,
                      TEMPERATURE,
                      USE_RERANKER,
                      RERANKER_MODEL,
-                     RERANKER_MAX_LENGTH,
                      API_SERVER_HOST_MAPPING,
-                     API_SERVER_PORT_MAPPING,
-                     MODEL_PATH)
+                     API_SERVER_PORT_MAPPING)
 
 
 async def knowledge_base_chat(query: str = Body(..., description="用户输入", examples=["你好"]),
@@ -116,31 +113,19 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
 
             # 加入reranker
             if USE_RERANKER and len(docs) > 1:
-                reranker_model_path = MODEL_PATH["reranker"].get(RERANKER_MODEL, "BAAI/bge-reranker-large")
-                print("-----------------model path------------------")
-                print(reranker_model_path)
-                reranker_model = LangchainReranker(top_n=top_k,
-                                                   device=embedding_device(),
-                                                   max_length=RERANKER_MAX_LENGTH,
-                                                   model_name_or_path=reranker_model_path
-                                                   )
-                # print(docs)
-                # docs = reranker_model.compress_documents(documents=docs, query=query)
-
                 doc_list = list(docs)
+                doc_length = len(doc_list)
                 _docs = [d.page_content[:512] for d in doc_list]
                 sentence_pairs = [[query, _doc] for _doc in _docs]
-                results = reranker_model._model.predict(sentences=sentence_pairs,
-                                                        batch_size=reranker_model.batch_size,
-                                                        #  show_progress_bar=self.show_progress_bar,
-                                                        num_workers=reranker_model.num_workers,
-                                                        #  activation_fct=self.activation_fct,
-                                                        #  apply_softmax=self.apply_softmax,
-                                                        convert_to_tensor=True
-                                                        )
-                top_k = reranker_model.top_n if reranker_model.top_n < len(results) else len(results)
 
-                values, indices = results.topk(top_k)
+                reranker_model = reranker_pool.load_reranker(RERANKER_MODEL)
+                results = reranker_model.predict(sentences=sentence_pairs,
+                                                 batch_size=32,
+                                                 num_workers=0,
+                                                 convert_to_tensor=True)
+
+                doc_length = doc_length if doc_length < len(results) else len(results)
+                values, indices = results.topk(doc_length)
                 final_results = []
                 for value, index in zip(values, indices):
                     doc = doc_list[index]
@@ -150,6 +135,8 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
 
                 print("---------after rerank------------------")
                 print(docs)
+
+            docs = docs[:top_k]
             text_docs = [doc.page_content for doc in docs]
         else:
             docs = source
