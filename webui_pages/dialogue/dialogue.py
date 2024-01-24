@@ -146,7 +146,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                 kb_top_k = st.number_input("搜索知识条数：", 1, 20, VECTOR_SEARCH_TOP_K)
 
                 ## Bge 模型会超过1
-                score_threshold = st.slider("搜索门槛 (门槛越高相似度要求越高，默认为{SCORE_THRESHOLD})：", 0.0, 1.0,
+                score_threshold = st.slider(f"搜索门槛 (门槛越高相似度要求越高，默认为{SCORE_THRESHOLD})：", 0.0, 1.0,
                                             float(SCORE_THRESHOLD), 0.01)
 
                 kb_search_type = st.radio('问答搜索方式', ['重新搜索', '继续问答'],
@@ -219,7 +219,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
             return prompt_dict[key][0]
 
         st.selectbox(
-            "选择Prompt模板：",
+            "选择提示词模板：",
             prompt_templates_kb_list,
             index=0,
             on_change=prompt_change,

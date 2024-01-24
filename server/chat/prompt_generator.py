@@ -96,7 +96,7 @@ def get_prompt(question: str, fallback: str, lan='') -> str:
                 fallback=fallback))
         index += 1
 
-    citation_prompt = "如果你给出的答案里引用了参考资料中的内容，请在答案的结尾处添加你引用的Source_id，引用的Source_id值来自于参考资料中，并用两个方括号括起来。示例：[[1]]、[[2]]"
+    citation_prompt = "如果你给出的答案里引用了参考资料中的内容，请在答案的结尾处添加你引用的Source_id，引用的Source_id值来自于参考资料中，并用两个方括号括起来。示例：[[出处1]]、[[出处2]]"
     answer_prompts.append(str(index) + ". " + citation_prompt)
     index += 1
 
@@ -123,7 +123,7 @@ def generate_doc_qa(query: str, docs: List[str], fallback: str):
         if not doc:
             continue
         source_id = inum + 1
-        context += document_prompt_template().format(doc_id=source_id, page_content=doc) + "\n\n"
+        context += document_prompt_template().format(doc_id=f"出处{source_id}", page_content=doc) + "\n\n"
 
     prompt_template = get_prompt(query, fallback, lan='zh')
 

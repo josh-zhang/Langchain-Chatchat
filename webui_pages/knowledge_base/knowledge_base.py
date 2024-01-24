@@ -91,7 +91,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
             now = datetime.datetime.now()
             now_str = now.strftime("%Y%m%d")
             suggested_id = f"{now_str}_html"
-            suggested_name = f"{now_str}业务源文件"
+            suggested_name = f"{now_str}源文件"
 
             new_kb_name = st.text_input(
                 "新建知识库ID",
