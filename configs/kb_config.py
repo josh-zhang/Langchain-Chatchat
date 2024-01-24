@@ -7,7 +7,16 @@ DEFAULT_KNOWLEDGE_BASE = "samples"
 DEFAULT_VS_TYPE = "faiss"
 
 # 缓存向量库数量（针对FAISS）
-CACHED_VS_NUM = 1
+CACHED_VS_NUM = 6
+
+# 缓存向量库数量（针对BM25）
+CACHED_BM25_VS_NUM = 6
+
+# 缓存向量库数量（针对BM25）
+CACHED_EMBED_NUM = 2
+
+# 缓存向量库数量（针对Reranker）
+CACHED_RERANK_NUM = 2
 
 # 缓存临时向量库数量（针对FAISS），用于文件对话
 CACHED_MEMO_VS_NUM = 10
@@ -19,11 +28,12 @@ CHUNK_SIZE = 400
 OVERLAP_SIZE = 50
 
 # 知识库匹配向量数量
-VECTOR_SEARCH_TOP_K = 3
+VECTOR_SEARCH_TOP_K = 5
 
-# 知识库匹配相关度阈值，取值范围在0-1之间，SCORE越小，相关度越高，取到1相当于不筛选，建议设置在0.5左右
-SCORE_THRESHOLD = 0.3
-
+# 知识库匹配的距离阈值，取值范围在0-1之间，SCORE越小，距离越小从而相关度越高，
+# 取到1相当于不筛选，实测bge-large的距离得分大部分在0.01-0.7之间，
+# 相似文本的得分最高在0.55左右，因此建议针对bge设置得分为0.6
+SCORE_THRESHOLD = 0.2
 
 # 是否开启中文标题加强，以及标题增强的相关配置
 # 通过增加标题判断，判断哪些文本为标题，并在metadata中进行标记；
@@ -67,6 +77,10 @@ kbs_config = {
         "index_name": "test_index",
         "user": "",
         "password": ""
+    },
+    "milvus_kwargs": {
+        "search_params": {"metric_type": "L2"},  # 在此处增加search_params
+        "index_params": {"metric_type": "L2", "index_type": "HNSW"}  # 在此处增加index_params
     }
 }
 
@@ -102,3 +116,5 @@ TEXT_SPLITTER_NAME = "ChineseRecursiveTextSplitter"
 EMBEDDING_KEYWORD_FILE = "embedding_keywords.txt"
 
 SEARCH_ENHANCE = True
+
+BM_25_FACTOR = 0.4

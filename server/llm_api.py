@@ -1,6 +1,8 @@
+from typing import List
+
 from fastapi import Body
 from configs import logger, log_verbose
-from server.utils import BaseResponse, get_httpx_client, fschat_controller_address
+from server.utils import BaseResponse, get_httpx_client, fschat_controller_address, list_config_llm_models
 
 
 def list_running_models(
@@ -25,42 +27,19 @@ def list_running_models(
             data={},
             msg=f"failed to get available models from controller: {controller_address}。错误信息是： {e}")
 
-# def list_running_models_v1(
-#         controller_address: str = Body(None, description="Fastchat controller服务器地址"),
-#         placeholder: str = Body(None, description="该参数未使用，占位用"),
-# ) -> BaseResponse:
-#     '''
-#     从fastchat controller获取已加载模型列表及其配置项
-#     '''
-#     try:
-#         host = LLM_SERVER["host"]
-#         port = LLM_SERVER["port"]
-#         controller_address = f"http://{host}:{port}"
-#         with get_httpx_client() as client:
-#             r = client.post(controller_address + "/v1/models")
-#             data = r.json()['data']
-#             return BaseResponse(data=data)
-#     except Exception as e:
-#         logger.error(f'{e.__class__.__name__}: {e}',
-#                      exc_info=e if log_verbose else None)
-#         return BaseResponse(
-#             code=500,
-#             data={},
-#             msg=f"failed to get available models from controller: {controller_address}。错误信息是： {e}")
 
-
-# def list_config_models(
-#         types: List[str] = Body(["local", "online"], description="模型配置项类别，如local, online, worker"),
-#         placeholder: str = Body(None, description="占位用，无实际效果")
-# ) -> BaseResponse:
-#     '''
-#     从本地获取configs中配置的模型列表
-#     '''
-#     data = {}
-#     for type, models in list_config_llm_models().items():
-#         if type in types:
-#             data[type] = {m: get_model_config(m).data for m in models}
-#     return BaseResponse(data=data)
+def list_config_models(
+        types: List[str] = Body(["local", "online"], description="模型配置项类别，如local, online, worker"),
+        placeholder: str = Body(None, description="占位用，无实际效果")
+) -> BaseResponse:
+    '''
+    从本地获取configs中配置的模型列表
+    '''
+    data = {}
+    for type, models in list_config_llm_models().items():
+        if type in types:
+            data[type] = models
+    return BaseResponse(data=data)
 
 
 # def get_model_config(
@@ -128,3 +107,26 @@ def list_running_models(
 #         return BaseResponse(
 #             code=500,
 #             msg=f"failed to switch LLM model from controller: {controller_address}。错误信息是： {e}")
+
+# def list_running_models_v1(
+#         controller_address: str = Body(None, description="Fastchat controller服务器地址"),
+#         placeholder: str = Body(None, description="该参数未使用，占位用"),
+# ) -> BaseResponse:
+#     '''
+#     从fastchat controller获取已加载模型列表及其配置项
+#     '''
+#     try:
+#         host = LLM_SERVER["host"]
+#         port = LLM_SERVER["port"]
+#         controller_address = f"http://{host}:{port}"
+#         with get_httpx_client() as client:
+#             r = client.post(controller_address + "/v1/models")
+#             data = r.json()['data']
+#             return BaseResponse(data=data)
+#     except Exception as e:
+#         logger.error(f'{e.__class__.__name__}: {e}',
+#                      exc_info=e if log_verbose else None)
+#         return BaseResponse(
+#             code=500,
+#             data={},
+#             msg=f"failed to get available models from controller: {controller_address}。错误信息是： {e}")

@@ -31,8 +31,7 @@ from server.knowledge_base.faq_utils import load_faq
 
 from typing import List, Union, Dict, Optional
 
-from server.embeddings_api import embed_texts
-from server.embeddings_api import embed_documents
+from server.embeddings_api import embed_texts, embed_documents, aembed_texts
 from server.knowledge_base.model.kb_document_model import DocumentWithVSId
 from server.knowledge_base.kb_cache.bm25_cache import kb_bm25_pool, ThreadSafeBM25, get_score
 
@@ -151,11 +150,11 @@ class KBService(ABC):
         if docs:
             # 将 metadata["source"] 改为相对路径
             for doc in docs:
+                source = doc.metadata.get("source", "")
                 try:
-                    source = doc.metadata.get("source", "")
-                    rel_path = Path(source).relative_to(self.doc_path)
-                    # print(str(rel_path.as_posix().strip("/")))
-                    doc.metadata["source"] = str(rel_path.as_posix().strip("/"))
+                    if os.path.isabs(source):
+                        rel_path = Path(source).relative_to(self.doc_path)
+                        doc.metadata["source"] = str(rel_path.as_posix().strip("/"))
                 except Exception as e:
                     print(f"cannot convert absolute path ({source}) to relative path. error is : {e}")
             self.delete_doc(kb_file)
@@ -275,6 +274,8 @@ class KBService(ABC):
         if os.path.exists(kb_file.filepath):
             self.delete_faq(kb_file, **kwargs)
             return self.add_faq(kb_file, is_generated, **kwargs)
+        else:
+            return False
 
     def update_doc(self, kb_file: KnowledgeFile, docs: List[Document] = [], **kwargs):
         """
@@ -284,6 +285,8 @@ class KBService(ABC):
         if os.path.exists(kb_file.filepath):
             self.delete_doc(kb_file, **kwargs)
             return self.add_doc(kb_file, docs=docs, **kwargs)
+        else:
+            return False
 
     def exist_doc(self, file_name: str):
         return file_exists_in_db(KnowledgeFile(knowledge_base_name=self.kb_name,
@@ -437,8 +440,6 @@ class KBService(ABC):
                     for idx, doc in enumerate(vs.docs):
                         if idx in top_3_idx:
                             docs_data.append((doc, norm_scores[idx] * bm_factor))
-                        # else:
-                        #     docs_data.append((doc, 0.0))
 
         # print(f"1 docs_data {docs_data}")
 
@@ -460,8 +461,6 @@ class KBService(ABC):
                     for idx, doc in enumerate(vs.docs):
                         if idx in top_3_idx:
                             answer_data.append((doc, norm_scores[idx] * bm_factor))
-                        # else:
-                        #     answer_data.append((doc, 0.0))
 
         # print(f"2 answer_data {answer_data}")
 
@@ -480,8 +479,6 @@ class KBService(ABC):
                     for idx, doc in enumerate(vs.docs):
                         if idx in top_3_idx:
                             question_data.append((doc, norm_scores[idx] * bm_factor))
-                        # else:
-                        #     question_data.append((doc, 0.0))
 
         # print(f"3 question_data {question_data}")
 
@@ -665,6 +662,7 @@ class KBService(ABC):
     @abstractmethod
     def do_add_doc(self,
                    docs: List[Document],
+                   **kwargs,
                    ) -> List[Dict]:
         """
         向知识库添加文档子类实自己逻辑
@@ -682,6 +680,7 @@ class KBService(ABC):
     @abstractmethod
     def do_add_question(self,
                         docs: List[Document],
+                        **kwargs,
                         ) -> List[Dict]:
         """
         向知识库添加文档子类实自己逻辑
@@ -699,6 +698,7 @@ class KBService(ABC):
     @abstractmethod
     def do_add_answer(self,
                       docs: List[Document],
+                      **kwargs,
                       ) -> List[Dict]:
         """
         向知识库添加文档子类实自己逻辑
@@ -825,12 +825,13 @@ def get_kb_file_details(kb_name: str) -> List[Dict]:
             "in_folder": True,
             "in_db": False,
         }
+    lower_names = {x.lower(): x for x in result}
     for doc in files_in_db:
         doc_detail = get_file_detail(kb_name, doc)
         if doc_detail:
             doc_detail["in_db"] = True
-            if doc in result:
-                result[doc].update(doc_detail)
+            if doc.lower() in lower_names:
+                result[lower_names[doc.lower()]].update(doc_detail)
             else:
                 doc_detail["in_folder"] = False
                 result[doc] = doc_detail
@@ -858,12 +859,16 @@ class EmbeddingsFunAdapter(Embeddings):
         normalized_query_embed = normalize(query_embed_2d)
         return normalized_query_embed[0].tolist()  # 将结果转换为一维数组并返回
 
-    # TODO: 暂不支持异步
-    # async def aembed_documents(self, texts: List[str]) -> List[List[float]]:
-    #     return normalize(await self.embeddings.aembed_documents(texts))
+    async def aembed_documents(self, texts: List[str]) -> List[List[float]]:
+        embeddings = (await aembed_texts(texts=texts, embed_model=self.embed_model, to_query=False)).data
+        return normalize(embeddings).tolist()
 
-    # async def aembed_query(self, text: str) -> List[float]:
-    #     return normalize(await self.embeddings.aembed_query(text))
+    async def aembed_query(self, text: str) -> List[float]:
+        embeddings = (await aembed_texts(texts=[text], embed_model=self.embed_model, to_query=True)).data
+        query_embed = embeddings[0]
+        query_embed_2d = np.reshape(query_embed, (1, -1))  # 将一维数组转换为二维数组
+        normalized_query_embed = normalize(query_embed_2d)
+        return normalized_query_embed[0].tolist()  # 将结果转换为一维数组并返回
 
 
 def score_threshold_process(score_threshold, k, docs):

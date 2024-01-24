@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from langchain.chat_models import ChatOpenAI
 
 from configs import (LLM_DEVICE, EMBEDDING_DEVICE, MODEL_PATH, MODEL_ROOT_PATH, logger, log_verbose,
-                     HTTPX_DEFAULT_TIMEOUT)
+                     HTTPX_DEFAULT_TIMEOUT, ONLINE_LLM_MODEL, prompt_config)
 
 
 async def wrap_done(fn: Awaitable, event: asyncio.Event):
@@ -39,21 +39,34 @@ def get_ChatOpenAI(
         verbose: bool = True,
         **kwargs: Any,
 ) -> ChatOpenAI:
-    # config = get_model_worker_config(model_name)
-    # if model_name == "openai-api":
-    #     model_name = config.get("model_name")
-    model = ChatOpenAI(
-        streaming=streaming,
-        verbose=verbose,
-        callbacks=callbacks,
-        openai_api_key="EMPTY",
-        openai_api_base=fschat_openai_api_address(),
-        model_name=model_name,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        openai_proxy="",
-        **kwargs
-    )
+    if model_name.startswith("online-center"):
+        config = get_model_worker_config(model_name)
+        model_name = config.get("model_name")
+        model = ChatOpenAI(
+            streaming=streaming,
+            verbose=verbose,
+            callbacks=callbacks,
+            openai_api_key="EMPTY",
+            openai_api_base=config["api_base_url"],
+            model_name=model_name,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            openai_proxy=config["openai_proxy"],
+            **kwargs
+        )
+    else:
+        model = ChatOpenAI(
+            streaming=streaming,
+            verbose=verbose,
+            callbacks=callbacks,
+            openai_api_key="EMPTY",
+            openai_api_base=fschat_openai_api_address(),
+            model_name=model_name,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            openai_proxy="",
+            **kwargs
+        )
     return model
 
 
@@ -276,19 +289,19 @@ def list_embed_models() -> List[str]:
     return list(MODEL_PATH["embed_model"])
 
 
-# def list_config_llm_models() -> Dict[str, Dict]:
-#     '''
-#     get configured llm models with different types.
-#     return {config_type: {model_name: config}, ...}
-#     '''
-#     # workers = FSCHAT_MODEL_WORKERS.copy()
-#     # workers.pop("default", None)
-#
-#     return {
-#         "local": MODEL_PATH["llm_model"].copy(),
-#         # "online": ONLINE_LLM_MODEL.copy(),
-#         # "worker": workers,
-#     }
+def list_config_llm_models() -> Dict[str, Dict]:
+    '''
+    get configured llm models with different types.
+    return {config_type: {model_name: config}, ...}
+    '''
+    # workers = FSCHAT_MODEL_WORKERS.copy()
+    # workers.pop("default", None)
+
+    return {
+        # "local": MODEL_PATH["llm_model"].copy(),
+        "online": ONLINE_LLM_MODEL.copy(),
+        # "worker": workers,
+    }
 
 
 def get_model_path(model_name: str, type: str = None) -> Optional[str]:
@@ -319,6 +332,20 @@ def get_model_path(model_name: str, type: str = None) -> Optional[str]:
 
 
 # 从server_config中获取服务信息
+
+def get_model_worker_config(model_name: str = None) -> dict:
+    '''
+    加载model worker的配置项。
+    优先级:FSCHAT_MODEL_WORKERS[model_name] > ONLINE_LLM_MODEL[model_name] > FSCHAT_MODEL_WORKERS["default"]
+    '''
+    from configs.model_config import ONLINE_LLM_MODEL
+
+    config = ONLINE_LLM_MODEL.get(model_name, {}).copy()
+
+    if model_name in ONLINE_LLM_MODEL:
+        config["online_api"] = True
+
+    return config
 
 
 def fschat_controller_address() -> str:
@@ -359,7 +386,7 @@ def webui_address() -> str:
     return f"http://{host}:{port}"
 
 
-def get_prompt_template(type: str, name: str) -> Optional[str]:
+def get_prompt_template(type: str, name: str) -> Optional[Tuple]:
     '''
     从prompt_config中加载模板内容
     type: "llm_chat","agent_chat","knowledge_base_chat","search_engine_chat"的其中一种，如果有新功能，应该进行加入。
@@ -367,8 +394,16 @@ def get_prompt_template(type: str, name: str) -> Optional[str]:
 
     from configs import prompt_config
     import importlib
-    importlib.reload(prompt_config)  # TODO: 检查configs/prompt_config.py文件有修改再重新加载
+    importlib.reload(prompt_config)
     return prompt_config.PROMPT_TEMPLATES[type].get(name)
+
+
+def get_prompts(type: str) -> Optional[Dict]:
+    '''
+    从prompt_config中加载模板内容
+    type: "llm_chat","agent_chat","knowledge_base_chat","search_engine_chat"的其中一种，如果有新功能，应该进行加入。
+    '''
+    return prompt_config.PROMPT_TEMPLATES.get(type)
 
 
 def set_httpx_config(
@@ -411,14 +446,14 @@ def set_httpx_config(
         "http://localhost",
     ]
     # do not use proxy for user deployed fastchat servers
-    # for x in [
-    #     fschat_controller_address(),
-    #     fschat_model_worker_address(),
-    #     fschat_openai_api_address(),
-    # ]:
-    #     host = ":".join(x.split(":")[:2])
-    #     if host not in no_proxy:
-    #         no_proxy.append(host)
+    for x in [
+        fschat_controller_address(),
+        # fschat_model_worker_address(),
+        fschat_openai_api_address(),
+    ]:
+        host = ":".join(x.split(":")[:2])
+        if host not in no_proxy:
+            no_proxy.append(host)
     os.environ["NO_PROXY"] = ",".join(no_proxy)
 
     # TODO: 简单的清除系统代理不是个好的选择，影响太多。似乎修改代理服务器的bypass列表更好。
@@ -491,13 +526,13 @@ def get_httpx_client(
         "all://localhost": None,
     }
     # do not use proxy for user deployed fastchat servers
-    # for x in [
-    #     fschat_controller_address(),
-    #     fschat_model_worker_address(),
-    #     fschat_openai_api_address(),
-    # ]:
-    #     host = ":".join(x.split(":")[:2])
-    #     default_proxies.update({host: None})
+    for x in [
+        fschat_controller_address(),
+        # fschat_model_worker_address(),
+        fschat_openai_api_address(),
+    ]:
+        host = ":".join(x.split(":")[:2])
+        default_proxies.update({host: None})
 
     # get proxies from system envionrent
     # proxy not str empty string, None, False, 0, [] or {}
@@ -540,30 +575,11 @@ def get_server_configs() -> Dict:
     '''
     获取configs中的原始配置项，供前端使用
     '''
-    from configs.kb_config import (
-        DEFAULT_KNOWLEDGE_BASE,
-        DEFAULT_VS_TYPE,
-        CHUNK_SIZE,
-        OVERLAP_SIZE,
-        SCORE_THRESHOLD,
-        VECTOR_SEARCH_TOP_K,
-        ZH_TITLE_ENHANCE,
-        text_splitter_dict,
-        TEXT_SPLITTER_NAME,
-    )
-    from configs.model_config import (
-        LLM_MODELS,
-        HISTORY_LEN,
-        TEMPERATURE,
-    )
-    from configs.prompt_config import PROMPT_TEMPLATES
-
     _custom = {
         "controller_address": fschat_controller_address(),
         "openai_api_address": fschat_openai_api_address(),
         "api_address": api_address(),
     }
-
     return {**{k: v for k, v in locals().items() if k[0] != "_"}, **_custom}
 
 

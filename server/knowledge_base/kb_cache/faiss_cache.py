@@ -3,8 +3,23 @@ from server.knowledge_base.kb_cache.base import *
 from server.knowledge_base.kb_service.base import EmbeddingsFunAdapter
 from server.knowledge_base.utils import get_vs_path
 from langchain.vectorstores.faiss import FAISS
-from langchain.schema import Document
+from langchain.docstore.in_memory import InMemoryDocstore
 import os
+from langchain.schema import Document
+
+
+# patch FAISS to include doc id in Document.metadata
+def _new_ds_search(self, search: str) -> Union[str, Document]:
+    if search not in self._dict:
+        return f"ID {search} not found."
+    else:
+        doc = self._dict[search]
+        if isinstance(doc, Document):
+            doc.metadata["id"] = search
+        return doc
+
+
+InMemoryDocstore.search = _new_ds_search
 
 
 class ThreadSafeFaiss(ThreadSafeObject):
@@ -49,15 +64,14 @@ class _FaissPool(CachePool):
         vector_store.delete(ids)
         return vector_store
 
-    # def save_vector_store(self, kb_name: str, path: str=None):
-    #     print(f"save_vector_store {kb_name} {path}")
-    #     if cache := self.get(kb_name):
-    #         return cache.save(path)
-    #
-    # def unload_vector_store(self, kb_name: str):
-    #     if cache := self.get(kb_name):
-    #         self.pop(kb_name)
-    #         logger.info(f"成功释放向量库：{kb_name}")
+    def save_vector_store(self, kb_name: str, path: str = None):
+        if cache := self.get(kb_name):
+            return cache.save(path)
+
+    def unload_vector_store(self, kb_name: str):
+        if cache := self.get(kb_name):
+            self.pop(kb_name)
+            logger.info(f"成功释放向量库：{kb_name}")
 
 
 class KBFaissPool(_FaissPool):
@@ -72,10 +86,11 @@ class KBFaissPool(_FaissPool):
     ) -> ThreadSafeFaiss:
         self.atomic.acquire()
         # vector_name = vector_name or embed_model
-        cache = self.get((kb_name, vector_name))  # 用元组比拼接字符串好一些
+        key = (kb_name, vector_name)
+        cache = self.get(key)  # 用元组比拼接字符串好一些
         if cache is None:
-            item = ThreadSafeFaiss((kb_name, vector_name), pool=self)
-            self.set((kb_name, vector_name), item)
+            item = ThreadSafeFaiss(key, pool=self)
+            self.set(key, item)
             with item.acquire(msg="初始化"):
                 self.atomic.release()
                 logger.info(f"loading vector store in '{kb_name}/vector_store/{vector_name}' from disk.")
@@ -94,9 +109,10 @@ class KBFaissPool(_FaissPool):
                     raise RuntimeError(f"knowledge base {kb_name} not exist.")
                 item.obj = vector_store
                 item.finish_loading()
+            return item
         else:
             self.atomic.release()
-        return self.get((kb_name, vector_name))
+            return cache
 
 
 class MemoFaissPool(_FaissPool):
@@ -119,9 +135,10 @@ class MemoFaissPool(_FaissPool):
                 vector_store = self.new_vector_store(embed_model=embed_model, embed_device=embed_device)
                 item.obj = vector_store
                 item.finish_loading()
+            return item
         else:
             self.atomic.release()
-        return self.get(kb_name)
+            return cache
 
 
 kb_faiss_pool = KBFaissPool(cache_num=CACHED_VS_NUM)

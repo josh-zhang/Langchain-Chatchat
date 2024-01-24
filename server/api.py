@@ -18,7 +18,7 @@ from configs.server_config import OPEN_CROSS_DOMAIN
 from server.chat.chat import chat
 from server.chat.feedback import chat_feedback
 from server.embeddings_api import embed_texts_endpoint, embed_texts_simi_endpoint
-from server.llm_api import list_running_models
+from server.llm_api import list_running_models, list_config_models
 from server.utils import (BaseResponse, ListResponse, ListListResponse, FastAPI, MakeFastAPIOffline,
                           get_server_configs, get_prompt_template)
 
@@ -82,10 +82,10 @@ def mount_app_routes(app: FastAPI, run_mode: str = None):
              summary="列出当前已加载的模型",
              )(list_running_models)
 
-    # app.post("/llm_model/list_config_models",
-    #          tags=["LLM Model Management"],
-    #          summary="列出configs已配置的模型",
-    #          )(list_config_models)
+    app.post("/llm_model/list_config_models",
+             tags=["LLM Model Management"],
+             summary="列出configs已配置的模型",
+             )(list_config_models)
     #
     # app.post("/llm_model/get_model_config",
     #          tags=["LLM Model Management"],
@@ -116,7 +116,11 @@ def mount_app_routes(app: FastAPI, run_mode: str = None):
                                                                                                         description="模板类型，可选值：llm_chat，knowledge_base_chat，search_engine_chat，agent_chat"),
             name: str = Body("default", description="模板名称"),
     ) -> str:
-        return get_prompt_template(type=type, name=name)
+        prompt = get_prompt_template(type=type, name=name)
+        if prompt:
+            return prompt[1]
+        else:
+            return ""
 
     # 其它接口
     # app.post("/other/completion",
@@ -140,9 +144,9 @@ def mount_knowledge_routes(app: FastAPI):
     from server.chat.file_chat import upload_temp_docs, file_chat
     # from server.chat.agent_chat import agent_chat
     from server.knowledge_base.kb_api import list_kbs, create_kb, delete_kb
-    from server.knowledge_base.kb_doc_api import (list_files, upload_docs, delete_docs,
+    from server.knowledge_base.kb_doc_api import (list_files, upload_docs, delete_docs, download_kb_files,
                                                   update_docs, download_doc, recreate_vector_store,
-                                                  search_docs, DocumentWithScores, update_info, download_faq)
+                                                  search_docs, DocumentWithScores, update_info, gen_qa_for_kb)
 
     app.post("/chat/knowledge_base_chat",
              tags=["Chat"],
@@ -175,6 +179,12 @@ def mount_knowledge_routes(app: FastAPI):
              summary="删除知识库"
              )(delete_kb)
 
+    app.post("/knowledge_base/gen_qa_for_knowledge_base",
+             tags=["Knowledge Base QA Creation"],
+             response_model=BaseResponse,
+             summary="生成问答和对应知识库"
+             )(gen_qa_for_kb)
+
     app.get("/knowledge_base/list_files",
             tags=["Knowledge Base Management"],
             response_model=ListResponse,
@@ -186,6 +196,12 @@ def mount_knowledge_routes(app: FastAPI):
              response_model=List[DocumentWithScores],
              summary="搜索知识库"
              )(search_docs)
+
+    # app.post("/knowledge_base/update_docs_by_id",
+    #          tags=["Knowledge Base Management"],
+    #          response_model=BaseResponse,
+    #          summary="直接更新知识库文档"
+    #          )(update_docs_by_id)
 
     app.post("/knowledge_base/upload_docs",
              tags=["Knowledge Base Management"],
@@ -214,9 +230,14 @@ def mount_knowledge_routes(app: FastAPI):
             tags=["Knowledge Base Management"],
             summary="下载对应的知识文件")(download_doc)
 
-    app.get("/knowledge_base/download_faq",
-            tags=["Knowledge Base Management"],
-            summary="下载对应的知识文件FAQ")(download_faq)
+    app.get("/knowledge_base/download_knowledge_base_files",
+             tags=["Download Knowledge Base Files"],
+             summary="下载知识库所有文档"
+             )(download_kb_files)
+
+    # app.get("/knowledge_base/download_faq",
+    #         tags=["Knowledge Base Management"],
+    #         summary="下载对应的知识文件FAQ")(download_faq)
 
     app.post("/knowledge_base/recreate_vector_store",
              tags=["Knowledge Base Management"],
@@ -254,7 +275,7 @@ def run_api(host, port, **kwargs):
                     host=host,
                     port=port,
                     ssl_keyfile=kwargs.get("ssl_keyfile"),
-                    ssl_certfile=kwargs.get("ssl_certfile")
+                    ssl_certfile=kwargs.get("ssl_certfile"),
                     )
     else:
         uvicorn.run(app, host=host, port=port)

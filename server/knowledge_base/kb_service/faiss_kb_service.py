@@ -126,13 +126,11 @@ class FaissKBService(KBService):
                    ) -> List[Dict]:
 
         data = self._docs_to_embeddings(docs)  # 将向量化单独出来可以减少向量库的锁定时间
-        print(f"{len(docs)} docs embedded")
 
         with self.load_vector_store("docs").acquire() as vs:
             ids = vs.add_embeddings(text_embeddings=zip(data["texts"], data["embeddings"]),
-                                    metadatas=data["metadatas"])
-            print(f"{len(ids)} docs added to faiss")
-
+                                    metadatas=data["metadatas"],
+                                    ids=kwargs.get("ids"))
             if not kwargs.get("not_refresh_vs_cache"):
                 vs_path = self.get_vs_path("docs")
                 vs.save_local(vs_path)
@@ -164,7 +162,8 @@ class FaissKBService(KBService):
 
         with self.load_vector_store("question").acquire() as vs:
             ids = vs.add_embeddings(text_embeddings=zip(data["texts"], data["embeddings"]),
-                                    metadatas=data["metadatas"])
+                                    metadatas=data["metadatas"],
+                                    ids=kwargs.get("ids"))
 
             print(f"add_question {len(data)}")
 
@@ -197,7 +196,8 @@ class FaissKBService(KBService):
 
         with self.load_vector_store("answer").acquire() as vs:
             ids = vs.add_embeddings(text_embeddings=zip(data["texts"], data["embeddings"]),
-                                    metadatas=data["metadatas"])
+                                    metadatas=data["metadatas"],
+                                    ids=kwargs.get("ids"))
 
             if not kwargs.get("not_refresh_vs_cache"):
                 vs_path = self.get_vs_path("answer")

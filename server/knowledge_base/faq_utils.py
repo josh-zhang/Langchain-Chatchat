@@ -1,4 +1,3 @@
-import logging
 import itertools
 import os
 import re
@@ -8,11 +7,11 @@ from collections import Counter
 import pandas
 from LAC import LAC
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+from configs import COMMON_PATH, logger
+
 
 lac = LAC(mode='seg')
-term_dict_file = "/opt/projects/zhimakaimen/data/kbqa/custom_20230720.txt"
+term_dict_file = f"{COMMON_PATH}/custom_20230720.txt"
 if not os.path.exists(term_dict_file):
     term_dict_file = ""
 term_dictionary = list()
@@ -22,7 +21,7 @@ if term_dict_file:
     logger.info(f"term_dictionary len {len(term_dictionary)}")
     lac.load_customization(term_dict_file, sep=None)
 
-stopwords_file = "/opt/projects/zhimakaimen/data/kbqa/stopwords.txt"
+stopwords_file = f"{COMMON_PATH}/stopwords.txt"
 if not os.path.exists(stopwords_file):
     stopwords_file = ""
 stopwords = list()
@@ -316,9 +315,8 @@ def process_sys_reg(raw_text):
 def load_df_raw(faq_full_file):
     query_list = list()
 
-    this_df = pandas.read_excel(faq_full_file)
+    this_df = pandas.read_excel(faq_full_file, dtype=str)
     this_df.fillna("", inplace=True)
-    this_df = this_df.astype(str)
     logger.info(f"df_raw {this_df.shape}")
 
     l_cls_2 = ""
@@ -344,7 +342,7 @@ def load_df_raw(faq_full_file):
         attri = row["属性"]
         sample = row["测试样例"]
         channel = row["维度"]
-        end_dt = row["有效时间止"]
+        # end_dt = row["有效时间止"]
 
         if cls_2:
             l_cls_2 = cls_2
@@ -361,9 +359,9 @@ def load_df_raw(faq_full_file):
             l_query.attri = l_attri
             l_query.ref = faq_full_file
 
-            if end_dt:
-                end_dt = str(int(float(end_dt)))
-                l_query.end_dt = end_dt
+            # if end_dt:
+            #     end_dt = str(int(float(end_dt)))
+            #     l_query.end_dt = end_dt
 
             if l_cls_2:
                 l_query.cls_list.append(l_cls_2)
@@ -399,10 +397,9 @@ def load_df_raw(faq_full_file):
 
 def load_df_processed(faq_file):
     query_list = list()
-    this_df = pandas.read_excel(faq_file)
+    this_df = pandas.read_excel(faq_file, dtype=str)
     this_df.set_index('生成序号')
     this_df.fillna("", inplace=True)
-    this_df = this_df.astype(str)
     logger.info(f"this_df {this_df.shape}")
     for idx, row in this_df.iterrows():
         raw_q = row["生成问题"]

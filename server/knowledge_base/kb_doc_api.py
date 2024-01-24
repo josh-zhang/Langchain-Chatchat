@@ -1,18 +1,22 @@
 import os
 import urllib
-from fastapi import File, Form, Body, Query, UploadFile
-from configs import (DEFAULT_VS_TYPE, EMBEDDING_MODEL, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD,
-                     CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE, SEARCH_ENHANCE, logger, log_verbose)
-from server.utils import BaseResponse, ListResponse, run_in_thread_pool
-from server.knowledge_base.utils import (validate_kb_name, list_files_from_folder, get_file_path,
-                                         files2docs_in_thread, KnowledgeFile, DocumentWithScores)
-from fastapi.responses import StreamingResponse, FileResponse
-from pydantic import Json
 import json
+from typing import List
+
+from fastapi.responses import FileResponse
+from fastapi import File, Form, Body, Query, UploadFile
+from langchain.docstore.document import Document
+from sse_starlette import EventSourceResponse
+from pydantic import Json
+
 from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.db.repository.knowledge_file_repository import get_file_detail
-from langchain.docstore.document import Document
-from typing import List
+from server.utils import BaseResponse, ListResponse, run_in_thread_pool
+from server.knowledge_base.kb_job.gen_qa import gen_qa_task, JobExecutor, JobFutures, FuturesAtomic
+from server.knowledge_base.utils import (validate_kb_name, list_files_from_folder, get_file_path, files2docs_in_thread,
+                                         KnowledgeFile, DocumentWithScores, get_doc_path, create_compressed_archive)
+from configs import (DEFAULT_VS_TYPE, EMBEDDING_MODEL, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, BM_25_FACTOR,
+                     CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE, SEARCH_ENHANCE, logger, log_verbose, BASE_TEMP_DIR)
 
 
 def get_total_score_sorted(docs_data: List[DocumentWithScores], score_threshold) -> List[DocumentWithScores]:
@@ -37,7 +41,7 @@ def get_total_score_sorted(docs_data: List[DocumentWithScores], score_threshold)
 
 
 def search_docs(
-        query: str = Body(..., description="用户输入", examples=["你好"]),
+        query: str = Body("", description="用户输入", examples=["你好"]),
         knowledge_base_name: str = Body(..., description="知识库名称", examples=["samples"]),
         top_k: int = Body(VECTOR_SEARCH_TOP_K, description="匹配向量数"),
         score_threshold: float = Body(SCORE_THRESHOLD,
@@ -53,7 +57,7 @@ def search_docs(
     ks_docs_data, ks_qa_data = kb.search_allinone(query, top_k * 2, 0.0)
 
     if kb.search_enhance:
-        bm25_docs_data, bm25_qa_data = kb.enhance_search_allinone(query, 2, 0.4)
+        bm25_docs_data, bm25_qa_data = kb.enhance_search_allinone(query, 2, BM_25_FACTOR)
         docs_data = kb.merge_docs(ks_docs_data, bm25_docs_data, is_max=True)
         qa_data = kb.merge_answers(ks_qa_data, bm25_qa_data, is_max=True)
     else:
@@ -70,9 +74,25 @@ def search_docs(
     print(f"top_k {top_k} and {len(docs_data)} docs total searched ")
     print(docs_data)
 
-    docs_data = docs_data[:top_k]
+    # docs_data = docs_data[:top_k]
 
     return docs_data
+
+
+# def update_docs_by_id(
+#         knowledge_base_name: str = Body(..., description="知识库名称", examples=["samples"]),
+#         docs: Dict[str, Document] = Body(..., description="要更新的文档内容，形如：{id: Document, ...}")
+# ) -> BaseResponse:
+#     '''
+#     按照文档 ID 更新文档内容
+#     '''
+#     kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
+#     if kb is None:
+#         return BaseResponse(code=500, msg=f"指定的知识库 {knowledge_base_name} 不存在")
+#     if kb.update_doc_by_ids(docs=docs):
+#         return BaseResponse(msg=f"文档更新成功")
+#     else:
+#         return BaseResponse(msg=f"文档更新失败")
 
 
 def list_files(
@@ -102,11 +122,11 @@ def _save_files_in_thread(files: List[UploadFile],
         '''
         保存单个文件。
         '''
-        try:
-            filename = file.filename
-            file_path = get_file_path(knowledge_base_name=knowledge_base_name, doc_name=filename)
-            data = {"knowledge_base_name": knowledge_base_name, "file_name": filename}
+        filename = file.filename
+        data = {"knowledge_base_name": knowledge_base_name, "file_name": filename}
 
+        try:
+            file_path = get_file_path(knowledge_base_name=knowledge_base_name, doc_name=filename)
             file_content = file.file.read()  # 读取上传文件的内容
             if (os.path.isfile(file_path)
                     and not override
@@ -131,20 +151,6 @@ def _save_files_in_thread(files: List[UploadFile],
     params = [{"file": file, "knowledge_base_name": knowledge_base_name, "override": override} for file in files]
     for result in run_in_thread_pool(save_file, params=params):
         yield result
-
-
-# 似乎没有单独增加一个文件上传API接口的必要
-# def upload_files(files: List[UploadFile] = File(..., description="上传文件，支持多文件"),
-#                 knowledge_base_name: str = Form(..., description="知识库名称", examples=["samples"]),
-#                 override: bool = Form(False, description="覆盖已有文件")):
-#     '''
-#     API接口：上传文件。流式返回保存结果：{"code":200, "msg": "xxx", "data": {"knowledge_base_name":"xxx", "file_name": "xxx"}}
-#     '''
-#     def generate(files, knowledge_base_name, override):
-#         for result in _save_files_in_thread(files, knowledge_base_name=knowledge_base_name, override=override):
-#             yield json.dumps(result, ensure_ascii=False)
-
-#     return StreamingResponse(generate(files, knowledge_base_name=knowledge_base_name, override=override), media_type="text/event-stream")
 
 
 # TODO: 等langchain.document_loaders支持内存文件的时候再开通
@@ -208,11 +214,11 @@ def upload_docs(
             not_refresh_vs_cache=not_refresh_vs_cache,
         )
         failed_files.update(result.data["failed_files"])
-        # if not not_refresh_vs_cache:
-        #     kb.save_vector_store("docs")
-        #     kb.save_vector_store("question")
-        #     kb.save_vector_store("answer")
-        #     kb.save_vector_store("query")
+        if not not_refresh_vs_cache:
+            kb.save_vector_store("docs")
+            kb.save_vector_store("question")
+            kb.save_vector_store("answer")
+            kb.save_vector_store("query")
 
     return BaseResponse(code=200, msg="文件上传与向量化完成", data={"failed_files": failed_files})
 
@@ -374,13 +380,12 @@ def download_doc(
         content_disposition_type = None
 
     try:
-        kb_file = KnowledgeFile(filename=file_name,
-                                knowledge_base_name=knowledge_base_name)
+        filepath = get_file_path(knowledge_base_name, file_name)
 
-        if os.path.exists(kb_file.filepath):
+        if os.path.exists(filepath):
             return FileResponse(
-                path=kb_file.filepath,
-                filename=kb_file.filename,
+                path=filepath,
+                filename=file_name,
                 media_type="multipart/form-data",
                 content_disposition_type=content_disposition_type,
             )
@@ -393,14 +398,11 @@ def download_doc(
     return BaseResponse(code=500, msg=f"{file_name} 读取文件失败")
 
 
-def download_faq(
+def download_kb_files(
         knowledge_base_name: str = Query(..., description="知识库名称", examples=["samples"]),
-        file_name: str = Query(..., description="文件名称", examples=["test.txt"]),
-        preview: bool = Query(False, description="是：浏览器内预览；否：下载"),
-        faq_prefix="faq_"
 ):
     """
-    下载知识库文档对应FAQ
+    下载知识库所有文档
     """
     if not validate_kb_name(knowledge_base_name):
         return BaseResponse(code=403, msg="Don't attack me")
@@ -409,30 +411,71 @@ def download_faq(
     if kb is None:
         return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}")
 
-    if preview:
-        content_disposition_type = "inline"
-    else:
-        content_disposition_type = None
+    kb_content_path = get_doc_path(knowledge_base_name)
 
-    file_name = f"{faq_prefix}{file_name}"
+    temp_path = os.path.join(BASE_TEMP_DIR, knowledge_base_name)
+
+    if os.path.exists(kb_content_path):
+        archive_path = create_compressed_archive(kb_content_path, temp_path)
+    else:
+        return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name} content文件夹")
+
+    if not os.path.exists(archive_path):
+        return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name} 下载文件 {archive_path}")
 
     try:
-        kb_file = KnowledgeFile(filename=file_name, knowledge_base_name=knowledge_base_name)
-
-        if os.path.exists(kb_file.filepath):
-            return FileResponse(
-                path=kb_file.filepath,
-                filename=kb_file.filename,
-                media_type="multipart/form-data",
-                content_disposition_type=content_disposition_type,
-            )
+        return FileResponse(
+            path=archive_path,
+            filename=os.path.basename(archive_path),
+            media_type="multipart/form-data",
+        )
     except Exception as e:
-        msg = f"{file_name} 读取文件失败，错误信息是：{e}"
+        msg = f"{archive_path} 读取文件失败，错误信息是：{e}"
         logger.error(f'{e.__class__.__name__}: {msg}',
                      exc_info=e if log_verbose else None)
         return BaseResponse(code=500, msg=msg)
 
-    return BaseResponse(code=500, msg=f"{file_name} 读取文件失败")
+
+# def download_faq(
+#         knowledge_base_name: str = Query(..., description="知识库名称", examples=["samples"]),
+#         file_name: str = Query(..., description="文件名称", examples=["test.txt"]),
+#         preview: bool = Query(False, description="是：浏览器内预览；否：下载"),
+#         faq_prefix="faq_"
+# ):
+#     """
+#     下载知识库文档对应FAQ
+#     """
+#     if not validate_kb_name(knowledge_base_name):
+#         return BaseResponse(code=403, msg="Don't attack me")
+#
+#     kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
+#     if kb is None:
+#         return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}")
+#
+#     if preview:
+#         content_disposition_type = "inline"
+#     else:
+#         content_disposition_type = None
+#
+#     file_name = f"{faq_prefix}{file_name}"
+#
+#     try:
+#         kb_file = KnowledgeFile(filename=file_name, knowledge_base_name=knowledge_base_name)
+#
+#         if os.path.exists(kb_file.filepath):
+#             return FileResponse(
+#                 path=kb_file.filepath,
+#                 filename=kb_file.filename,
+#                 media_type="multipart/form-data",
+#                 content_disposition_type=content_disposition_type,
+#             )
+#     except Exception as e:
+#         msg = f"{file_name} 读取文件失败，错误信息是：{e}"
+#         logger.error(f'{e.__class__.__name__}: {msg}',
+#                      exc_info=e if log_verbose else None)
+#         return BaseResponse(code=500, msg=msg)
+#
+#     return BaseResponse(code=500, msg=f"{file_name} 读取文件失败")
 
 
 def recreate_vector_store(
@@ -496,4 +539,44 @@ def recreate_vector_store(
                 kb.save_vector_store("answer")
                 kb.save_vector_store("query")
 
-    return StreamingResponse(output(), media_type="text/event-stream")
+    return EventSourceResponse(output())
+
+
+def gen_qa_for_kb(
+        knowledge_base_name: str = Body(..., examples=["samples"]),
+):
+    kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
+    if not kb.exists():
+        return BaseResponse(code=404, msg=f"未找到知识库 ‘{knowledge_base_name}’")
+    else:
+        kb_info = kb.kb_info
+
+        FuturesAtomic.acquire()
+        future = JobFutures.get(knowledge_base_name)
+
+        if future is None or future.done():
+            new_future = JobExecutor.submit(gen_qa_task, knowledge_base_name, kb_info)
+            JobFutures[knowledge_base_name] = new_future
+            FuturesAtomic.release()
+            return BaseResponse(code=200, msg=f"文档问答生成任务提交成功")
+        else:
+            FuturesAtomic.release()
+            return BaseResponse(code=404, msg=f"上次任务仍在运行中，请等待任务完成后再提交新任务")
+
+
+def get_gen_qa_result(
+        knowledge_base_name: str = Body(..., examples=["samples"]),
+):
+    FuturesAtomic.acquire()
+    future = JobFutures.get(knowledge_base_name)
+
+    if future is None:
+        FuturesAtomic.release()
+        return BaseResponse(code=404, msg=f"无效的任务ID")
+    elif future.done():
+        result = future.result()
+        FuturesAtomic.release()
+        return BaseResponse(code=200, msg=f"任务已结束", json={"task_result": result})
+    else:
+        FuturesAtomic.release()
+        return BaseResponse(code=202, msg=f"任务正在运行中")

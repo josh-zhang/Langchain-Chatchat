@@ -1,7 +1,9 @@
 import os
 import json
 import importlib
+import shutil
 from typing import List, Union, Dict, Tuple, Generator
+from pathlib import Path
 
 import chardet
 import langchain.document_loaders
@@ -22,7 +24,7 @@ from configs import (
     TEXT_SPLITTER_NAME,
 )
 from text_splitter import zh_title_enhance as func_zh_title_enhance
-from server.utils import run_in_thread_pool, get_model_path, llm_device
+from server.utils import run_in_thread_pool
 from server.knowledge_base.faq_utils import load_gen_file
 
 
@@ -79,8 +81,8 @@ def list_files_from_folder(kb_name: str):
                 for target_entry in target_it:
                     process_entry(target_entry)
         elif entry.is_file():
-            # result.append(entry.path)
-            result.append(entry.name)
+            file_path = (Path(os.path.relpath(entry.path, doc_path)).as_posix())  # 路径统一为 posix 格式
+            result.append(file_path)
         elif entry.is_dir():
             with os.scandir(entry.path) as it:
                 for sub_entry in it:
@@ -93,18 +95,53 @@ def list_files_from_folder(kb_name: str):
     return result
 
 
+def list_files_from_path(folder_path):
+    result = []
+
+    def is_skiped_path(path: str):
+        tail = os.path.basename(path).lower()
+        for x in ["temp", "tmp", ".", "~$"]:
+            if tail.startswith(x):
+                return True
+        return False
+
+    def process_entry(entry):
+        if is_skiped_path(entry.path):
+            return
+
+        if entry.is_symlink():
+            target_path = os.path.realpath(entry.path)
+            with os.scandir(target_path) as target_it:
+                for target_entry in target_it:
+                    process_entry(target_entry)
+        elif entry.is_file():
+            file_path = (Path(os.path.relpath(entry.path, folder_path)).as_posix())  # 路径统一为 posix 格式
+            result.append(file_path)
+        elif entry.is_dir():
+            with os.scandir(entry.path) as it:
+                for sub_entry in it:
+                    process_entry(sub_entry)
+
+    with os.scandir(folder_path) as it:
+        for entry in it:
+            process_entry(entry)
+
+    return result
+
+
 LOADER_DICT = {"CustomHTMLLoader": ['.html'],
                # "UnstructuredHTMLLoader": ['.html'],
                # "UnstructuredMarkdownLoader": ['.md'],
-               # "JSONLoader": [".json"],
-               # "JSONLinesLoader": [".jsonl"],
+               "JSONLoader": [".json"],
+               "JSONLinesLoader": [".jsonl"],
                # "CSVLoader": [".csv"],
                # "FilteredCSVLoader": [".csv"], # 需要自己指定，目前还没有支持
                # "RapidOCRPDFLoader": [".pdf"],
                # "RapidOCRLoader": ['.png', '.jpg', '.jpeg', '.bmp'],
                # "UnstructuredEmailLoader": ['.eml', '.msg'],
                # "UnstructuredEPubLoader": ['.epub'],
-               # "UnstructuredExcelLoader": ['.xlsx', '.xlsd'],
+               # "UnstructuredExcelLoader": ['.xlsx', '.xls', '.xlsd'],
+               "CustomExcelLoader": ['.xlsx'],
                # "NotebookLoader": ['.ipynb'],
                # "UnstructuredODTLoader": ['.odt'],
                # "PythonLoader": ['.py'],
@@ -113,7 +150,7 @@ LOADER_DICT = {"CustomHTMLLoader": ['.html'],
                # "SRTLoader": ['.srt'],
                # "TomlLoader": ['.toml'],
                # "UnstructuredTSVLoader": ['.tsv'],
-               # "UnstructuredWordDocumentLoader": ['.docx', 'doc'],
+               "UnstructuredWordDocumentLoader": ['.docx', 'doc'],
                # "UnstructuredXMLLoader": ['.xml'],
                # "UnstructuredPowerPointLoader": ['.ppt', '.pptx'],
                # "UnstructuredFileLoader": ['.txt'],
@@ -207,6 +244,16 @@ class CustomHTMLLoader(langchain.document_loaders.unstructured.UnstructuredFileL
 langchain.document_loaders.CustomHTMLLoader = CustomHTMLLoader
 
 
+class CustomExcelLoader(langchain.document_loaders.unstructured.UnstructuredFileLoader):
+
+    def _get_elements(self) -> List:
+        """Convert given content to documents."""
+        return []
+
+
+langchain.document_loaders.CustomExcelLoader = CustomExcelLoader
+
+
 # patch json.dumps to disable ensure_ascii
 def _new_json_dumps(obj, **kwargs):
     kwargs["ensure_ascii"] = False
@@ -277,24 +324,6 @@ def get_loader(loader_name: str, file_path: str, loader_kwargs: Dict = None):
 
     loader = DocumentLoader(file_path, **loader_kwargs)
     return loader
-
-
-# def get_model_worker_config(model_name: str = None) -> dict:
-#     '''
-#     加载model worker的配置项。
-#     优先级:FSCHAT_MODEL_WORKERS[model_name] > ONLINE_LLM_MODEL[model_name] > FSCHAT_MODEL_WORKERS["default"]
-#     '''
-#     from configs.model_config import MODEL_PATH
-#
-#     config = {}
-#     # 本地模型
-#     if model_name in MODEL_PATH["llm_model"]:
-#         path = get_model_path(model_name)
-#         config["model_path"] = path
-#         if path and os.path.isdir(path):
-#             config["model_path_exists"] = True
-#         config["device"] = llm_device(config.get("device"))
-#     return config
 
 
 def make_text_splitter(
@@ -370,7 +399,7 @@ def make_text_splitter(
         # text_splitter_module = importlib.import_module('langchain.text_splitter')
         # TextSplitter = getattr(text_splitter_module, "RecursiveCharacterTextSplitter")
         # text_splitter = TextSplitter(chunk_size=250, chunk_overlap=50)
-        text_splitter = None
+        assert False, f"{splitter_name} load failed"
     return text_splitter
 
 
@@ -385,7 +414,7 @@ class KnowledgeFile:
         对应知识库目录中的文件，必须是磁盘上存在的才能进行向量化等操作。
         '''
         self.kb_name = knowledge_base_name
-        self.filename = filename
+        self.filename = str(Path(filename).as_posix())
         self.ext = os.path.splitext(filename)[-1].lower()
         if self.ext not in SUPPORTED_EXTS:
             raise ValueError(f"暂未支持的文件格式 {self.filename}")
@@ -509,12 +538,54 @@ def files2docs_in_thread(
         yield result
 
 
+def create_compressed_archive(folder_path, output_path, archive_format='zip'):
+    """
+    Create a compressed archive of the specified folder and save it to a specific path.
+
+    :param folder_path: Path to the folder to be archived.
+    :param output_path: Full path (including filename) where the archive will be saved.
+    :param archive_format: Format of the archive ('zip', 'tar', etc.)
+    :return: Path to the created archive.
+    """
+    # Ensure the folder exists
+    if not os.path.exists(folder_path):
+        raise FileNotFoundError(f"The folder {folder_path} does not exist.")
+
+    # Create the archive
+    try:
+        # Extract directory and archive name from the output path
+        output_dir, archive_name = os.path.split(output_path)
+        archive_name = os.path.splitext(archive_name)[0]  # Remove extension if any
+
+        # Change the current working directory to the output directory if it exists
+        original_cwd = os.getcwd()
+        if output_dir and os.path.exists(output_dir):
+            os.chdir(output_dir)
+
+        # Create the archive
+        archive_path = shutil.make_archive(archive_name, archive_format, folder_path)
+
+        # Change back to the original directory
+        os.chdir(original_cwd)
+
+        print(f"Archive created at: {archive_path}")
+        return archive_path
+    except Exception as e:
+        raise Exception(f"An error occurred while creating the archive: {e}")
+
+
 if __name__ == "__main__":
     from pprint import pprint
 
-    kb_file = KnowledgeFile(
-        filename="/home/congyin/Code/Project_Langchain_0814/Langchain-Chatchat/knowledge_base/csv1/content/gm.csv",
-        knowledge_base_name="samples")
-    # kb_file.text_splitter_name = "RecursiveCharacterTextSplitter"
-    docs = kb_file.file2docs()
-    # pprint(docs[-1])
+    #
+    # kb_file = KnowledgeFile(
+    #     filename="/home/congyin/Code/Project_Langchain_0814/Langchain-Chatchat/knowledge_base/csv1/content/gm.csv",
+    #     knowledge_base_name="samples")
+    # # kb_file.text_splitter_name = "RecursiveCharacterTextSplitter"
+    # docs = kb_file.file2docs()
+    # # pprint(docs[-1])
+
+    result = list_files_from_path("/Users/josh/projects/Langchain-Chatchat/server/db")
+
+    for r in result:
+        print(r)

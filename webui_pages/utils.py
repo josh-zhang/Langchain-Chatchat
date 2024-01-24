@@ -17,7 +17,10 @@ from configs import (
     VECTOR_SEARCH_TOP_K,
     HTTPX_DEFAULT_TIMEOUT,
     SEARCH_ENHANCE,
-    logger, log_verbose,
+    logger,
+    log_verbose,
+    API_SERVER_HOST_MAPPING,
+    API_SERVER_PORT_MAPPING
 )
 import httpx
 import contextlib
@@ -132,8 +135,12 @@ class ApiRequest:
                             continue
                         if as_json:
                             try:
-                                data = json.loads(chunk)
-                                # pprint(data, depth=1)
+                                if chunk.startswith("data: "):
+                                    data = json.loads(chunk[6:-2])
+                                elif chunk.startswith(":"):  # skip sse comment line
+                                    continue
+                                else:
+                                    data = json.loads(chunk)
                                 yield data
                             except Exception as e:
                                 msg = f"接口返回json错误： ‘{chunk}’。错误信息是：{e}。"
@@ -164,8 +171,12 @@ class ApiRequest:
                             continue
                         if as_json:
                             try:
-                                data = json.loads(chunk)
-                                # pprint(data, depth=1)
+                                if chunk.startswith("data: "):
+                                    data = json.loads(chunk[6:-2])
+                                elif chunk.startswith(":"):  # skip sse comment line
+                                    continue
+                                else:
+                                    data = json.loads(chunk)
                                 yield data
                             except Exception as e:
                                 msg = f"接口返回json错误： ‘{chunk}’。错误信息是：{e}。"
@@ -317,15 +328,17 @@ class ApiRequest:
         # pprint(data)
 
         response = self.post("/chat/agent_chat", json=data, stream=True)
-        return self._httpx_stream2generator(response)
+        return self._httpx_stream2generator(response, as_json=True)
 
     def knowledge_base_chat(
             self,
             query: str,
             knowledge_base_name: str,
+            search_type: str,
             top_k: int = VECTOR_SEARCH_TOP_K,
             score_threshold: float = SCORE_THRESHOLD,
             history: List[Dict] = [],
+            source: List = [],
             stream: bool = True,
             model: str = LLM_MODELS[0],
             temperature: float = TEMPERATURE,
@@ -338,6 +351,7 @@ class ApiRequest:
         data = {
             "query": query,
             "knowledge_base_name": knowledge_base_name,
+            "search_type": search_type,
             "top_k": top_k,
             "score_threshold": score_threshold,
             "history": history,
@@ -346,6 +360,7 @@ class ApiRequest:
             "temperature": temperature,
             "max_tokens": max_tokens,
             "prompt_name": prompt_name,
+            "source": source,
         }
 
         # print(f"received input message:")
@@ -502,10 +517,12 @@ class ApiRequest:
 
     def search_kb_docs(
             self,
-            query: str,
             knowledge_base_name: str,
+            query: str = "",
             top_k: int = VECTOR_SEARCH_TOP_K,
             score_threshold: int = SCORE_THRESHOLD,
+            file_name: str = "",
+            metadata: dict = {},
     ) -> List:
         '''
         对应api.py/knowledge_base/search_docs接口
@@ -515,6 +532,8 @@ class ApiRequest:
             "knowledge_base_name": knowledge_base_name,
             "top_k": top_k,
             "score_threshold": score_threshold,
+            "file_name": file_name,
+            "metadata": metadata,
         }
 
         response = self.post(
@@ -522,6 +541,24 @@ class ApiRequest:
             json=data,
         )
         return self._get_response_value(response, as_json=True)
+
+    # def update_docs_by_id(
+    #     self,
+    #     knowledge_base_name: str,
+    #     docs: Dict[str, Dict],
+    # ) -> bool:
+    #     '''
+    #     对应api.py/knowledge_base/update_docs_by_id接口
+    #     '''
+    #     data = {
+    #         "knowledge_base_name": knowledge_base_name,
+    #         "docs": docs,
+    #     }
+    #     response = self.post(
+    #         "/knowledge_base/update_docs_by_id",
+    #         json=data
+    #     )
+    #     return self._get_response_value(response)
 
     def upload_kb_docs(
             self,
@@ -642,6 +679,32 @@ class ApiRequest:
         )
         return self._get_response_value(response, as_json=True)
 
+    def gen_qa_for_knowledge_base(
+            self,
+            knowledge_base_name: str,
+    ):
+        '''
+        对应api.py/knowledge_base/gen_qa_for_knowledge_base接口
+        '''
+        response = self.post(
+            "/knowledge_base/gen_qa_for_knowledge_base",
+            json=knowledge_base_name,
+        )
+        return self._get_response_value(response, as_json=True)
+
+    def download_knowledge_base_files(
+            self,
+            knowledge_base_name: str,
+    ):
+        '''
+        对应api.py/knowledge_base/download_knowledge_base_files接口
+        '''
+        response = self.post(
+            "/knowledge_base/download_knowledge_base_files",
+            json=knowledge_base_name,
+        )
+        return self._get_response_value(response, as_json=True)
+
     def recreate_vector_store(
             self,
             knowledge_base_name: str,
@@ -746,7 +809,7 @@ class ApiRequest:
 
     def list_config_models(
             self,
-            types: List[str] = ["local", "online"],
+            types: List[str] = ["online"],
     ) -> Dict[str, Dict]:
         '''
         获取服务器configs中配置的模型列表，返回形式为{"type": {model_name: config}, ...}。
@@ -844,13 +907,23 @@ def check_success_msg(data: Union[str, dict, list], key: str = "msg") -> str:
     return ""
 
 
+def get_api_address_from_client():
+    from configs.server_config import API_SERVER
+
+    host = API_SERVER["host"]
+    if host == "0.0.0.0":
+        host = "127.0.0.1"
+    host = API_SERVER_HOST_MAPPING.get(host, host)
+
+    port = API_SERVER["port"]
+    port = API_SERVER_PORT_MAPPING.get(port, port)
+
+    return f"http://{host}:{port}"
+
+
 if __name__ == "__main__":
     api = ApiRequest()
     aapi = AsyncApiRequest()
-
-    # print(api.chat_fastchat(
-    #     messages=[{"role": "user", "content": "hello"}]
-    # ))
 
     # with api.chat_chat("你好") as r:
     #     for t in r.iter_text(None):
