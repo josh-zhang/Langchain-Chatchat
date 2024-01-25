@@ -95,17 +95,20 @@ def evaluate(load_path, save_path, top_n):
     combined_df = pandas.concat(df_list, ignore_index=True)
 
     unique_df = combined_df.drop_duplicates(subset=['文章标题', '正文'])
+
     label_list = list(zip(unique_df['文章标题'], unique_df['正文']))
-    docs = [text_to_doc(text, file_path) for text, file_path in label_list]
+
+    docs = [text_to_doc(text, file_path) for file_path, text in label_list]
 
     data = kb._docs_to_embeddings(docs)  # 将向量化单独出来可以减少向量库的锁定时间
+
     with kb.load_vector_store("docs").acquire() as vs:
         ids = vs.add_embeddings(text_embeddings=zip(data["texts"], data["embeddings"]), metadatas=data["metadatas"])
 
         vs_path = kb.get_vs_path("docs")
         vs.save_local(vs_path)
 
-    base_list = [i[0] for i in label_list]
+    base_list = [i[1] for i in label_list]
 
     pred_binarys = list()
     gt_binarys = list()
