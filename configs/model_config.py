@@ -78,6 +78,9 @@ MODEL_PATH = {
         "bge-base-zh": "/opt/projects/hf_models/bge-base-zh",
         "bge-large-zh": "/opt/projects/hf_models/bge-large-zh",
         "bge-large-zh-v1.5": "/opt/projects/hf_models/bge-large-zh-v1.5",
+        "bce-embedding-base_v1": "/opt/projects/hf_models/bce-embedding-base_v1",
+        "m3e-base": "/opt/projects/hf_models/m3e-base",
+        "stella-large-zh-v2": "/opt/projects/hf_models/stella-large-zh-v2",
     },
     "reranker": {
         "bge-reranker-large": "/opt/projects/hf_models/bge-reranker-large",

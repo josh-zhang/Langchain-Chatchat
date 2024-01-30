@@ -155,6 +155,7 @@ class EmbeddingsPool(CachePool):
                 else:
                     from langchain.embeddings.huggingface import HuggingFaceEmbeddings
                     embeddings = HuggingFaceEmbeddings(model_name=get_model_path(model),
+                                                       encode_kwargs={'normalize_embeddings': normalize_embeddings},
                                                        model_kwargs={'device': device})
                 item.obj = embeddings
                 item.finish_loading()
