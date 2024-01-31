@@ -6,7 +6,7 @@ import os
 MODEL_ROOT_PATH = "/opt/projects/hf_models"
 
 # 选用的 Embedding 名称
-EMBEDDING_MODEL = "bge-large-zh-v1.5"
+EMBEDDING_MODEL = "bge-m3"
 
 # Embedding 模型运行设备。设为"auto"会自动检测，也可手动设定为"cuda","mps","cpu"其中之一。
 EMBEDDING_DEVICE = "auto"
@@ -81,6 +81,9 @@ MODEL_PATH = {
         "bce-embedding-base_v1": "/opt/projects/hf_models/bce-embedding-base_v1",
         "m3e-base": "/opt/projects/hf_models/m3e-base",
         "stella-large-zh-v2": "/opt/projects/hf_models/stella-large-zh-v2",
+        "jina-embeddings-v2-base-zh": "/opt/projects/hf_models/jina-embeddings-v2-base-zh",
+        "bge-m3": "/opt/projects/hf_models/bge-m3",
+        "dmeta-embedding": "/opt/projects/hf_models/Dmeta-embedding",
     },
     "reranker": {
         "bge-reranker-large": "/opt/projects/hf_models/bge-reranker-large",

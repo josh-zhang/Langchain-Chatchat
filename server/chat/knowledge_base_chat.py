@@ -115,8 +115,12 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
             if USE_RERANKER and len(docs) > 1:
                 doc_list = list(docs)
                 doc_length = len(doc_list)
-                _docs = [d.page_content[:512] for d in doc_list]
-                sentence_pairs = [[query, _doc] for _doc in _docs]
+
+                this_query = query[:200]
+                remain_length = 600 - len(this_query)
+                _docs = [d.page_content[:remain_length] for d in doc_list]
+
+                sentence_pairs = [[this_query, _doc] for _doc in _docs]
 
                 reranker_model = reranker_pool.load_reranker(RERANKER_MODEL)
                 results = reranker_model.predict(sentences=sentence_pairs,
