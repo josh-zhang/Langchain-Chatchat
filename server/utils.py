@@ -39,7 +39,7 @@ def get_ChatOpenAI(
         verbose: bool = True,
         **kwargs: Any,
 ) -> ChatOpenAI:
-    if model_name.startswith("online-center"):
+    if model_name.startswith("online-"):
         config = get_model_worker_config(model_name)
         model_name = config.get("model_name")
         model = ChatOpenAI(

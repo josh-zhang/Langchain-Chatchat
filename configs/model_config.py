@@ -28,7 +28,7 @@ EMBEDDING_MODEL_OUTPUT_PATH = "output"
 
 # chatglm3-6b输出角色标签<|user|>及自问自答的问题详见项目wiki->常见问题->Q20.
 
-LLM_MODELS = ["qwen-14b-chat-int4"]  # "Qwen-1_8B-Chat",
+LLM_MODELS = ["qwen-72b-chat-int4"]  # "Qwen-1_8B-Chat",
 
 # AgentLM模型的名称 (可以不指定，指定之后就锁定进入Agent之后的Chain的模型，不指定就是LLM_MODELS[0])
 Agent_MODEL = None
@@ -40,7 +40,7 @@ LLM_DEVICE = "auto"
 HISTORY_LEN = 3
 
 # 大模型最长支持的长度，如果不填写，则使用模型默认的最大长度，如果填写，则为用户设定的最大长度
-MAX_TOKENS = 4000
+MAX_TOKENS = 5000
 
 # LLM通用对话参数
 TEMPERATURE = 0.0
@@ -50,12 +50,12 @@ TOP_P = 0.95  # ChatOpenAI暂不支持该参数
 ONLINE_LLM_MODEL = {
     # 线上模型。请在server_config中为每个在线API设置不同的端口
 
-    "online-center-qwen14b-1": {
-        "model_name": "Ywen-core",
-        "api_base_url": "http://40.46.62.31:30151/v1",
-        "api_key": "",
-        "openai_proxy": "",
-    },
+    # "online-center-qwen14b-1": {
+    #     "model_name": "Ywen-core",
+    #     "api_base_url": "http://40.46.62.31:30151/v1",
+    #     "api_key": "",
+    #     "openai_proxy": "",
+    # },
 
     # "online-center-qwen14b-2": {
     #     "model_name": "Ywen-core",
@@ -63,6 +63,34 @@ ONLINE_LLM_MODEL = {
     #     "api_key": "",
     #     "openai_proxy": "",
     # },
+
+    "online-qwen-14b": {
+        "model_name": "Qwen-14B-Chat-Int4",
+        "api_base_url": "http://198.203.120.8:40786/v3",
+        "api_key": "",
+        "openai_proxy": "",
+    },
+
+    "online-tongyi14b": {
+        "model_name": "Tongyi-Finance-14B-Chat-Int4",
+        "api_base_url": "http://198.203.120.8:40786/v3",
+        "api_key": "",
+        "openai_proxy": "",
+    },
+
+    "online-chatglm3-6b": {
+        "model_name": "ChatGLM3-6B",
+        "api_base_url": "http://198.203.120.8:40786/v3",
+        "api_key": "",
+        "openai_proxy": "",
+    },
+
+    "online-baichuan2-13b": {
+        "model_name": "Baichuan2-13B-Chat-Int4",
+        "api_base_url": "http://198.203.120.8:40786/v3",
+        "api_key": "",
+        "openai_proxy": "",
+    }
 }
 
 # 在以下字典中修改属性值，以指定本地embedding模型存储位置。支持3种设置方法：
