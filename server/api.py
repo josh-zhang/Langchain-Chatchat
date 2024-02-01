@@ -18,7 +18,7 @@ from configs.server_config import OPEN_CROSS_DOMAIN
 from server.chat.chat import chat
 from server.chat.feedback import chat_feedback
 from server.embeddings_api import embed_texts_endpoint, embed_texts_simi_endpoint
-from server.llm_api import list_running_models, list_config_models, list_online_running_models
+from server.llm_api import list_running_models, list_config_models, list_api_running_models
 from server.utils import (BaseResponse, ListResponse, ListListResponse, FastAPI, MakeFastAPIOffline,
                           get_server_configs, get_prompt_template)
 
@@ -82,10 +82,10 @@ def mount_app_routes(app: FastAPI, run_mode: str = None):
              summary="列出当前已加载的模型",
              )(list_running_models)
 
-    app.post("/llm_model/list_online_running_models",
+    app.post("/llm_model/list_api_running_models",
              tags=["LLM Online Model Management"],
              summary="列出当前可加载的模型",
-             )(list_online_running_models)
+             )(list_api_running_models)
 
     app.post("/llm_model/list_config_models",
              tags=["LLM Model Management"],

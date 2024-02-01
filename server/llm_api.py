@@ -28,7 +28,7 @@ def list_running_models(
             msg=f"failed to get available models from controller: {controller_address}。错误信息是： {e}")
 
 
-def list_online_running_models() -> BaseResponse:
+def list_api_running_models() -> BaseResponse:
     '''
     从fastchat controller获取已加载模型列表及其配置项
     '''
