@@ -48,26 +48,36 @@ def upload_temp_docs(files, _api: ApiRequest) -> str:
 
 
 @st.cache_data(ttl=300)
-def get_running_models():
-    return api.list_running_models()
+def get_running_models(_api):
+    return _api.list_running_models()
 
 
 @st.cache_data(ttl=60)
-def get_api_running_models():
-    available_models = api.list_api_running_models()
+def get_api_running_models(_api):
+    available_models = _api.list_api_running_models()
     available_models = [i + "-api" for i in available_models]
     return available_models
 
 
+@st.cache_data(ttl=300)
+def get_config_models(_api):
+    return _api.list_config_models(["online"])
+
+
+@st.cache_data(ttl=60)
+def get_knowledge_bases(_api):
+    return _api.list_knowledge_bases()
+
+
 def dialogue_page(api: ApiRequest, is_lite: bool = False):
-    running_models = get_running_models()
-    available_models = get_api_running_models()
+    running_models = get_running_models(api)
+    available_models = get_api_running_models(api)
+    config_models = get_config_models(api)
 
     if available_models:
-        running_models = running_models + available_models[0]
+        running_models.append(available_models[0])
         available_models = available_models[1:]
 
-    config_models = api.list_config_models(["online"])
     if config_models:
         online_config_models = config_models.get("online", {})
         for k, _ in online_config_models.items():  # 列出ONLINE_MODELS中直接访问的模型
@@ -77,6 +87,8 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
     if not running_models:
         st.info("对话系统异常，暂时无法访问问答功能")
         return
+    else:
+        default_model = running_models[0]
 
     st.session_state.setdefault("conversation_ids", {})
     st.session_state["conversation_ids"].setdefault(chat_box.cur_chat_name, uuid.uuid4().hex)
@@ -85,7 +97,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
     if "cur_source_docs" not in st.session_state:
         st.session_state["cur_source_docs"] = []
 
-    default_model = api.get_default_llm_model()[0]
+    # default_model = api.get_default_llm_model()[0]
 
     if not chat_box.chat_inited:
         st.toast(
@@ -139,7 +151,7 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
         kb_search_type = "重新搜索"
         if dialogue_mode == "知识库问答":
             with st.expander("知识库配置", True):
-                kb_list = api.list_knowledge_bases()
+                kb_list = get_knowledge_bases(api)
                 if kb_list is None:
                     kb_list = []
                 kb_dict = {kb[0]: kb[1] for kb in kb_list}
