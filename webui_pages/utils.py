@@ -761,6 +761,20 @@ class ApiRequest:
         )
         return self._get_response_value(response, as_json=True, value_func=lambda r: r.get("data", []))
 
+    # LLM模型相关操作
+    def list_online_running_models(
+            self,
+            controller_address: str = None,
+    ):
+        '''
+        获取Fastchat中正运行的模型列表
+        '''
+
+        response = self.post(
+            "/llm_model/list_online_running_models",
+        )
+        return self._get_response_value(response, as_json=True, value_func=lambda r: r.get("data", []))
+
     def get_default_llm_model(self, local_first: bool = True) -> Tuple[str, bool]:
         '''
         从服务器上获取当前运行的LLM模型。

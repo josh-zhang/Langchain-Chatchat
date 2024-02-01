@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from langchain.chat_models import ChatOpenAI
 
 from configs import (LLM_DEVICE, EMBEDDING_DEVICE, MODEL_PATH, MODEL_ROOT_PATH, logger, log_verbose,
-                     HTTPX_DEFAULT_TIMEOUT, ONLINE_LLM_MODEL, prompt_config)
+                     HTTPX_DEFAULT_TIMEOUT, ONLINE_LLM_MODEL, prompt_config, LLM_SERVER)
 
 
 async def wrap_done(fn: Awaitable, event: asyncio.Event):
@@ -52,6 +52,20 @@ def get_ChatOpenAI(
             temperature=temperature,
             max_tokens=max_tokens,
             openai_proxy=config["openai_proxy"],
+            **kwargs
+        )
+    elif model_name.endswith("-api"):
+        model_name = model_name[:-4]
+        model = ChatOpenAI(
+            streaming=streaming,
+            verbose=verbose,
+            callbacks=callbacks,
+            openai_api_key="EMPTY",
+            openai_api_base=f"http://{LLM_SERVER}/v3",
+            model_name=model_name,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            openai_proxy="",
             **kwargs
         )
     else:

@@ -47,17 +47,34 @@ def upload_temp_docs(files, _api: ApiRequest) -> str:
     return _api.upload_temp_docs(files).get("data", {}).get("id")
 
 
+@st.cache_data(ttl=300)
+def get_running_models():
+    return api.list_running_models()
+
+
+@st.cache_data(ttl=60)
+def get_api_running_models():
+    available_models = api.list_api_running_models()
+    available_models = [i + "-api" for i in available_models]
+    return available_models
+
+
 def dialogue_page(api: ApiRequest, is_lite: bool = False):
-    available_models = api.list_running_models()
+    running_models = get_running_models()
+    available_models = get_api_running_models()
+
+    if available_models:
+        running_models = running_models + available_models[0]
+        available_models = available_models[1:]
 
     config_models = api.list_config_models(["online"])
     if config_models:
         online_config_models = config_models.get("online", {})
         for k, _ in online_config_models.items():  # 列出ONLINE_MODELS中直接访问的模型
-            if k not in available_models:
-                available_models.append(k)
+            if k not in running_models:
+                running_models.append(k)
 
-    if not available_models:
+    if not running_models:
         st.info("对话系统异常，暂时无法访问问答功能")
         return
 
@@ -173,12 +190,12 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                 #     st.session_state["prev_llm_model"] = llm_model
                 st.session_state["cur_llm_model"] = st.session_state.llm_model
 
-        # def llm_model_format_func(x):
-        #     if x in available_models:
-        #         return f"{x} (运行中)"
-        #     return x
+        def llm_model_format_func(x):
+            if x in running_models:
+                return f"{x} (运行中)"
+            return x
 
-        llm_models = available_models
+        llm_models = running_models + available_models
 
         cur_llm_model = st.session_state.get("cur_llm_model", default_model)
         if cur_llm_model in llm_models:
@@ -189,10 +206,9 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
         llm_model = st.selectbox("选择对话模型：",
                                  llm_models,
                                  index,
-                                 # format_func=llm_model_format_func,
+                                 format_func=llm_model_format_func,
                                  on_change=on_llm_change,
-                                 key="llm_model",
-                                 )
+                                 key="llm_model")
 
         temperature = st.slider("生成温度：", 0.0, 1.0, TEMPERATURE, 0.05)
         history_len = st.number_input("历史对话轮数：", 0, 20, HISTORY_LEN)
@@ -385,8 +401,6 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
         use_container_width=True,
     )
 
-
-
 # def parse_command(text: str, modal: Modal) -> bool:
 #     '''
 #     检查用户是否输入了自定义命令，当前支持：
@@ -432,4 +446,3 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
 #             chat_box.reset_history(name=name or None)
 #         return True
 #     return False
-

@@ -63,34 +63,6 @@ ONLINE_LLM_MODEL = {
     #     "api_key": "",
     #     "openai_proxy": "",
     # },
-
-    "online-qwen-14b": {
-        "model_name": "Qwen-14B-Chat-Int4",
-        "api_base_url": "http://198.203.120.8:40786/v3",
-        "api_key": "",
-        "openai_proxy": "",
-    },
-
-    "online-tongyi14b": {
-        "model_name": "Tongyi-Finance-14B-Chat-Int4",
-        "api_base_url": "http://198.203.120.8:40786/v3",
-        "api_key": "",
-        "openai_proxy": "",
-    },
-
-    "online-chatglm3-6b": {
-        "model_name": "ChatGLM3-6B",
-        "api_base_url": "http://198.203.120.8:40786/v3",
-        "api_key": "",
-        "openai_proxy": "",
-    },
-
-    "online-baichuan2-13b": {
-        "model_name": "Baichuan2-13B-Chat-Int4",
-        "api_base_url": "http://198.203.120.8:40786/v3",
-        "api_key": "",
-        "openai_proxy": "",
-    }
 }
 
 # 在以下字典中修改属性值，以指定本地embedding模型存储位置。支持3种设置方法：
