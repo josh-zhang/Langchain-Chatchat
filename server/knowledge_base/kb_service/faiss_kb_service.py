@@ -78,7 +78,7 @@ class FaissKBService(KBService):
             score_threshold = 1 - score_threshold
             docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=score_threshold)
             docs = [DocumentWithScores(**d.dict(), scores={"sbert_doc": 1 - s}) for d, s in docs]
-            print(f"{len(docs)} docs found from faiss")
+            # print(f"{len(docs)} docs found from faiss")
         return embeddings, docs
 
     def do_search_question(self,
@@ -97,7 +97,7 @@ class FaissKBService(KBService):
             score_threshold = 1 - score_threshold
             docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=score_threshold)
             docs = [DocumentWithScores(**d.dict(), scores={"sbert_que": 1 - s}) for d, s in docs]
-            print(f"{len(docs)} question found from faiss")
+            # print(f"{len(docs)} question found from faiss")
         return embeddings, docs
 
     def do_search_answer(self,
@@ -112,12 +112,12 @@ class FaissKBService(KBService):
 
         with self.load_vector_store("answer").acquire() as vs:
             if len(vs.docstore._dict) == 0:
-                print(f"answer vector_store is empty")
+                # print(f"answer vector_store is empty")
                 return embeddings, []
             score_threshold = 1 - score_threshold
             docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=score_threshold)
             docs = [DocumentWithScores(**d.dict(), scores={"sbert_ans": 1 - s}) for d, s in docs]
-            print(f"{len(docs)} answer found from faiss")
+            # print(f"{len(docs)} answer found from faiss")
         return embeddings, docs
 
     def do_add_doc(self,
@@ -134,7 +134,7 @@ class FaissKBService(KBService):
             if not kwargs.get("not_refresh_vs_cache"):
                 vs_path = self.get_vs_path("docs")
                 vs.save_local(vs_path)
-                print(f"{len(ids)} docs saved to faiss local")
+                # print(f"{len(ids)} docs saved to faiss local")
 
         doc_infos = [{"id": id, "metadata": doc.metadata} for id, doc in zip(ids, docs)]
         torch_gc()
@@ -148,7 +148,7 @@ class FaissKBService(KBService):
             ids = [k for k, v in vs.docstore._dict.items() if v.metadata.get("source") == kb_file.filename]
             if len(ids) > 0:
                 vs.delete(ids)
-            print(f"{len(ids)} docs deleted from faiss")
+            # print(f"{len(ids)} docs deleted from faiss")
             if not kwargs.get("not_refresh_vs_cache"):
                 vs.save_local(vs_path)
         return ids
@@ -158,14 +158,14 @@ class FaissKBService(KBService):
                         **kwargs,
                         ) -> List[Dict]:
         data = self._docs_to_embeddings(docs)  # 将向量化单独出来可以减少向量库的锁定时间
-        print(f"{len(docs)} question embedded")
+        # print(f"{len(docs)} question embedded")
 
         with self.load_vector_store("question").acquire() as vs:
             ids = vs.add_embeddings(text_embeddings=zip(data["texts"], data["embeddings"]),
                                     metadatas=data["metadatas"],
                                     ids=kwargs.get("ids"))
 
-            print(f"add_question {len(data)}")
+            # print(f"add_question {len(data)}")
 
             if not kwargs.get("not_refresh_vs_cache"):
                 vs_path = self.get_vs_path("question")
@@ -192,7 +192,7 @@ class FaissKBService(KBService):
                       **kwargs,
                       ) -> List[Dict]:
         data = self._docs_to_embeddings(docs)  # 将向量化单独出来可以减少向量库的锁定时间
-        print(f"{len(docs)} answer embedded")
+        # print(f"{len(docs)} answer embedded")
 
         with self.load_vector_store("answer").acquire() as vs:
             ids = vs.add_embeddings(text_embeddings=zip(data["texts"], data["embeddings"]),

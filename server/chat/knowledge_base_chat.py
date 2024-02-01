@@ -137,8 +137,8 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
                     final_results.append(doc)
                 docs = final_results
 
-                print("---------after rerank------------------")
-                print(docs)
+                # print("---------after rerank------------------")
+                # print(docs)
 
             docs = docs[:top_k]
             text_docs = [doc.page_content for doc in docs]

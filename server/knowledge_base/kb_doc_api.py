@@ -71,8 +71,8 @@ def search_docs(
 
     docs_data = get_total_score_sorted(docs_data, score_threshold)
 
-    print(f"top_k {top_k} and {len(docs_data)} docs total searched ")
-    print(docs_data)
+    logger.info(f"top_k {top_k} and {len(docs_data)} docs total searched ")
+    logger.debug(docs_data)
 
     # docs_data = docs_data[:top_k]
 
