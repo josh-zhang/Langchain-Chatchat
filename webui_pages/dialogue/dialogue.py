@@ -1,9 +1,10 @@
 import uuid
+import base64
 from datetime import datetime
 
 import streamlit as st
 from streamlit_chatbox import *
-# from streamlit_modal import Modal
+from streamlit_javascript import st_javascript
 
 from configs import HISTORY_LEN, MAX_TOKENS
 from server.knowledge_base.utils import LOADER_DICT
@@ -55,7 +56,8 @@ def get_running_models(_api):
 @st.cache_data(ttl=60)
 def get_api_running_models(_api):
     available_models = _api.list_api_running_models()
-    available_models = [i + "-api" for i in available_models]
+    if available_models:
+        available_models = [i + "-api" for i in available_models]
     return available_models
 
 
@@ -67,6 +69,19 @@ def get_config_models(_api):
 @st.cache_data(ttl=60)
 def get_knowledge_bases(_api):
     return _api.list_knowledge_bases()
+
+
+def get_base64_encoded(content, dtype):
+    if dtype == "pdf":
+        base64_bytes = base64.b64encode(content.encode('utf-8'))
+        base64_string = base64_bytes.decode('utf-8')
+        # Return as a data URI
+        return f"data:application/pdf;base64,{base64_string}"
+    else:
+        base64_bytes = base64.b64encode(content.encode('utf-8'))
+        base64_string = base64_bytes.decode('utf-8')
+        # Return as a data URI
+        return f"data:text/html;base64,{base64_string}"
 
 
 def dialogue_page(api: ApiRequest, is_lite: bool = False):
@@ -93,6 +108,8 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
     st.session_state.setdefault("conversation_ids", {})
     st.session_state["conversation_ids"].setdefault(chat_box.cur_chat_name, uuid.uuid4().hex)
     st.session_state.setdefault("file_chat_id", None)
+    st.session_state.setdefault("file_chat_value", None)
+    st.session_state.setdefault("file_chat_type", None)
 
     if "cur_source_docs" not in st.session_state:
         st.session_state["cur_source_docs"] = []
@@ -183,17 +200,28 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
                                                     "AI根据上方搜索结果进行问答"])
         elif dialogue_mode == "文件问答":
             with st.expander("文件问答配置", True):
-                files = st.file_uploader("上传知识文件：",
-                                         [i for ls in LOADER_DICT.values() for i in ls],
-                                         accept_multiple_files=True,
-                                         )
+                single_file = st.file_uploader("上传知识文件：",
+                                               [i for ls in LOADER_DICT.values() for i in ls],
+                                               accept_multiple_files=False,
+                                               help="将文件拖到下方区域即可")
+
+                if single_file:
+                    files = [single_file]
+                    file_type = single_file.type.lower()
+                    bytes_data = single_file.getvalue()
+                    base64_pdf = base64.b64encode(bytes_data).decode("utf-8", 'ignore')
+
+                    st.session_state["file_chat_value"] = base64_pdf
+                    st.session_state["file_chat_type"] = file_type
+
+                if st.button("开始上传", disabled=len(files) == 0):
+                    st.session_state["file_chat_id"] = upload_temp_docs(files, api)
+
                 kb_top_k = st.number_input("搜索知识条数：", 1, 20, VECTOR_SEARCH_TOP_K)
 
                 ## Bge 模型会超过1
                 score_threshold = st.slider(f"搜索门槛 (门槛越高相似度要求越高，默认为{SCORE_THRESHOLD})：", 0.0, 1.0,
                                             float(SCORE_THRESHOLD), 0.01)
-                if st.button("开始上传", disabled=len(files) == 0):
-                    st.session_state["file_chat_id"] = upload_temp_docs(files, api)
 
         def on_llm_change():
             if llm_model:
@@ -282,6 +310,27 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
         "optional_text_label": "欢迎反馈您打分的理由",
     }
 
+    if dialogue_mode == "文件问答":
+        file_type = st.session_state["file_chat_type"]
+        file_value = st.session_state["file_chat_value"]
+
+        col1, col2 = st.columns(spec=[2, 1], gap="small")
+
+        if file_type and file_value:
+            with col1:
+                ui_width = st_javascript("window.innerWidth") - 10
+
+                # Encode the HTML content
+                encoded_html = get_base64_encoded(file_value, file_type)
+
+                # html_template = f"<iframe id='myIframe' src='data:application/pdf;base64,{base64_pdf}' type='application/pdf'></iframe>"
+                html_template = f'<iframe src="{encoded_html}" width={str(ui_width)} height={str(ui_width * 4 / 3)}></iframe>'
+
+                text_area_inputs = st.text_area("请输入参考信息", height=100)
+
+                # Display the HTML in your Streamlit app
+                st.markdown(html_template, unsafe_allow_html=True)
+
     if prompt := st.chat_input(chat_input_placeholder, key="prompt"):
         # if parse_command(text=prompt, modal=modal):  # 用户输入自定义命令
         #     st.rerun()
@@ -365,29 +414,31 @@ def dialogue_page(api: ApiRequest, is_lite: bool = False):
             if st.session_state["file_chat_id"] is None:
                 st.error("请先上传文件再进行对话")
                 st.stop()
-            chat_box.ai_say([
-                f"正在查询文件 `{st.session_state['file_chat_id']}` ...",
-                Markdown("...", in_expander=True, title="文件搜索结果", state="complete"),
-            ])
-            text = ""
-            d = None
-            for d in api.file_chat(prompt,
-                                   knowledge_id=st.session_state["file_chat_id"],
-                                   top_k=kb_top_k,
-                                   score_threshold=score_threshold,
-                                   history=history,
-                                   model=llm_model,
-                                   prompt_name=prompt_template_name,
-                                   temperature=temperature,
-                                   max_tokens=MAX_TOKENS):
-                if error_msg := check_error_msg(d):  # check whether error occured
-                    st.error(error_msg)
-                elif chunk := d.get("answer"):
-                    text += chunk
-                    chat_box.update_msg(text, element_index=0)
-            chat_box.update_msg(text, element_index=0, streaming=False)
-            if d:
-                chat_box.update_msg("\n\n".join(d.get("docs", [])), element_index=1, streaming=False)
+
+            with col2:
+                chat_box.ai_say([
+                    f"正在查询文件 `{st.session_state['file_chat_id']}` ...",
+                    Markdown("...", in_expander=True, title="文件搜索结果", state="complete"),
+                ])
+                text = ""
+                d = None
+                for d in api.file_chat(prompt,
+                                       knowledge_id=st.session_state["file_chat_id"],
+                                       top_k=kb_top_k,
+                                       score_threshold=score_threshold,
+                                       history=history,
+                                       model=llm_model,
+                                       prompt_name=prompt_template_name,
+                                       temperature=temperature,
+                                       max_tokens=MAX_TOKENS):
+                    if error_msg := check_error_msg(d):  # check whether error occured
+                        st.error(error_msg)
+                    elif chunk := d.get("answer"):
+                        text += chunk
+                        chat_box.update_msg(text, element_index=0)
+                chat_box.update_msg(text, element_index=0, streaming=False)
+                if d:
+                    chat_box.update_msg("\n\n".join(d.get("docs", [])), element_index=1, streaming=False)
 
     if st.session_state.get("need_rerun"):
         st.session_state["need_rerun"] = False

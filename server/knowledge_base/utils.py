@@ -136,7 +136,7 @@ LOADER_DICT = {"CustomHTMLLoader": ['.html'],
                "JSONLinesLoader": [".jsonl"],
                # "CSVLoader": [".csv"],
                # "FilteredCSVLoader": [".csv"], # 需要自己指定，目前还没有支持
-               # "RapidOCRPDFLoader": [".pdf"],
+               "RapidOCRPDFLoader": [".pdf"],
                # "RapidOCRLoader": ['.png', '.jpg', '.jpeg', '.bmp'],
                # "UnstructuredEmailLoader": ['.eml', '.msg'],
                # "UnstructuredEPubLoader": ['.epub'],
