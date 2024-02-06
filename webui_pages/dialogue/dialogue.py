@@ -659,3 +659,4 @@ def kb_dialogue_page(api: ApiRequest, dialogue_mode="知识库问答"):
         mime="text/markdown",
         use_container_width=True,
     )
+
