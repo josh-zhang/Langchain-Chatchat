@@ -71,7 +71,7 @@ def get_knowledge_bases(_api):
     return _api.list_knowledge_bases()
 
 
-def model_setup():
+def model_setup(api):
     running_models = get_running_models(api)
     available_models = get_api_running_models(api)
     config_models = get_config_models(api)
@@ -96,11 +96,11 @@ def model_setup():
 
     # default_model = api.get_default_llm_model()[0]
 
-    return default_model
+    return default_model, running_models, llm_models
 
 
 def dialogue_page(api: ApiRequest, dialogue_mode="闲聊"):
-    default_model, running_models, llm_models = model_setup()
+    default_model, running_models, llm_models = model_setup(api)
 
     st.session_state.dialogue_mode = "闲聊"
 
@@ -254,7 +254,7 @@ def dialogue_page(api: ApiRequest, dialogue_mode="闲聊"):
 
 
 def file_dialogue_page(api: ApiRequest, dialogue_mode="文件问答"):
-    default_model, running_models, llm_models = model_setup()
+    default_model, running_models, llm_models = model_setup(api)
 
     st.session_state.dialogue_mode = "文件问答"
 
@@ -455,7 +455,7 @@ def file_dialogue_page(api: ApiRequest, dialogue_mode="文件问答"):
 
 
 def kb_dialogue_page(api: ApiRequest, dialogue_mode="知识库问答"):
-    default_model, running_models, llm_models = model_setup()
+    default_model, running_models, llm_models = model_setup(api)
 
     st.session_state.dialogue_mode = "知识库问答"
 
