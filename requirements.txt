@@ -5,7 +5,7 @@ langchain-experimental==0.0.47
 pydantic==1.10.13
 fschat==0.2.35
 openai==1.9.0
-sentence_transformers==2.2.2
+# sentence_transformers==2.2.2
 transformers==4.37.2
 torchvision==0.16.2  #on Windows system, install the cuda version manually from https://pytorch.org/
 torchaudio==2.1.2  #on Windows system, install the cuda version manually from https://pytorch.org/
@@ -18,7 +18,7 @@ unstructured[all-docs] # ==0.11.8
 python-magic-bin; sys_platform == 'win32'
 SQLAlchemy==2.0.25
 faiss-cpu==1.7.4
-accelerate==0.24.1
+# accelerate==0.24.1
 spacy==3.7.2
 PyMuPDF==1.23.16
 rapidocr_onnxruntime==1.3.8
@@ -56,7 +56,6 @@ pyjwt==2.8.0
 paddlepaddle==2.4.2
 lac
 streamlit_javascript
-sse_starlette
 rank_bm25
 jq==1.6.0
 beautifulsoup4==4.12.2
@@ -71,6 +70,7 @@ optimum
 # torch==2.1.2  ##on Windows system, install the cuda version manually from https://pytorch.org/
 # fschat==0.2.36
 # accelerate==0.26.1
+# cupy-cuda11x
 
 # Online api libs dependencies
 
@@ -88,3 +88,34 @@ optimum
 # youtube-search>=2.1.2
 # duckduckgo-search>=4.9.3
 # metaphor-python>=0.1.23
+
+
+protobuf>=4.25.2
+tokenizers>=0.15.0
+cpm_kernels>=1.0.11
+gradio>=4.16.0
+sentencepiece>=0.1.99
+sentence_transformers>=2.3.1
+loguru~=0.7.2
+mdtex2html>=1.3.0
+latex2mathml>=3.77.0
+jupyter
+jupyterlab
+jupyterlab_server
+jupyter_client
+
+# for openai demo
+# openai>=1.10.0
+# zhipuai>=2.0.1
+
+# pydantic>=2.6.0
+# sse_starlette>=2.0.0
+# uvicorn>=0.27.0
+# timm>=0.9.12
+# ttiktoken>=0.5.2
+
+# for langchain demo
+
+# langchain>=0.1.5
+# langchainhub>=0.1.14
+# arxiv>=2.1.0
