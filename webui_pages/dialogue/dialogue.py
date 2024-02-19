@@ -198,7 +198,7 @@ def dialogue_page(api: ApiRequest, dialogue_mode="闲聊"):
         "optional_text_label": "欢迎反馈您打分的理由",
     }
 
-    if prompt := st.chat_input("请输入对话内容，换行请使用Shift+Enter。输入/help查看自定义命令 ", key="prompt"):
+    if prompt := st.chat_input("请输入对话内容，换行请使用Shift+Enter。输入/help查看自定义命令 ", key="prompt", max_chars=4000):
         history = get_messages_history(history_len)
 
         chat_box.user_say(prompt)
@@ -377,7 +377,7 @@ def file_dialogue_page(api: ApiRequest, dialogue_mode="文件问答"):
             html_template = f'<iframe src="data:{file_type};base64,{file_value}" type"{file_type}" width={str(ui_width)} height={str(ui_width * 4 / 3)}></iframe>'
             st.markdown(html_template, unsafe_allow_html=True)
 
-    prompt = st.chat_input("请输入对话内容，换行请使用Shift+Enter。输入/help查看自定义命令 ", key="prompt")
+    prompt = st.chat_input("请输入对话内容，换行请使用Shift+Enter。输入/help查看自定义命令 ", key="prompt", max_chars=2000)
 
     with col2:
         if prompt:
@@ -587,7 +587,7 @@ def kb_dialogue_page(api: ApiRequest, dialogue_mode="知识库问答"):
         "optional_text_label": "欢迎反馈您打分的理由",
     }
 
-    if prompt := st.chat_input("请输入对话内容，换行请使用Shift+Enter。输入/help查看自定义命令 ", key="prompt"):
+    if prompt := st.chat_input("请输入对话内容，换行请使用Shift+Enter。输入/help查看自定义命令 ", key="prompt", max_chars=2000):
         history = get_messages_history(history_len)
 
         chat_box.user_say(prompt)

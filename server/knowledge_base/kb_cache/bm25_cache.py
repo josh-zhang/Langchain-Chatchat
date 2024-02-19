@@ -2,7 +2,7 @@ import os
 import re
 import functools
 
-from langchain.retrievers import BM25Retriever
+from langchain_community.retrievers import BM25Retriever
 from langchain.schema import Document
 from server.knowledge_base.kb_cache.base import *
 from server.knowledge_base.faq_utils import lac, stopwords
