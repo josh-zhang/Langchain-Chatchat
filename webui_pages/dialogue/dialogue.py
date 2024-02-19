@@ -71,10 +71,19 @@ def get_knowledge_bases(_api):
     return _api.list_knowledge_bases()
 
 
+def support_iframe(ftype):
+    return ftype in ["text/plain", "application/pdf", "text/html"]
+
+
 def model_setup(api):
     running_models = get_running_models(api)
     available_models = get_api_running_models(api)
     config_models = get_config_models(api)
+
+    # for test
+    # running_models = ['qwen']
+    # available_models = []
+    # config_models = {}
 
     if available_models:
         running_models.append(available_models[0])
@@ -198,7 +207,8 @@ def dialogue_page(api: ApiRequest, dialogue_mode="闲聊"):
         "optional_text_label": "欢迎反馈您打分的理由",
     }
 
-    if prompt := st.chat_input("请输入对话内容，换行请使用Shift+Enter。输入/help查看自定义命令 ", key="prompt", max_chars=4000):
+    if prompt := st.chat_input("请输入对话内容，换行请使用Shift+Enter。输入/help查看自定义命令 ", key="prompt",
+                               max_chars=4000):
         history = get_messages_history(history_len)
 
         chat_box.user_say(prompt)
@@ -366,18 +376,28 @@ def file_dialogue_page(api: ApiRequest, dialogue_mode="文件问答"):
     col1, col2 = st.columns(spec=[1, 1], gap="small")
 
     with col1:
-        st.session_state["file_chat_content"] = st.text_area("请输入参考信息",
-                                                             value=st.session_state["file_chat_content"],
-                                                             height=200).strip()
+        inner_width = st_javascript("window.innerWidth")
+        if inner_width:
+            ui_width = max(inner_width - 10, 10)
+        else:
+            ui_width = 10
 
         file_type = st.session_state["file_chat_type"]
         file_value = st.session_state["file_chat_value"]
-        if file_type and file_value:
-            ui_width = st_javascript("window.innerWidth") - 10
+        if file_type and file_value and support_iframe(file_type):
+            st.session_state["file_chat_content"] = st.text_area("请输入参考信息",
+                                                                 value=st.session_state["file_chat_content"],
+                                                                 height=200).strip()
+
             html_template = f'<iframe src="data:{file_type};base64,{file_value}" type"{file_type}" width={str(ui_width)} height={str(ui_width * 4 / 3)}></iframe>'
             st.markdown(html_template, unsafe_allow_html=True)
+        else:
+            st.session_state["file_chat_content"] = st.text_area("请输入参考信息",
+                                                                 value=st.session_state["file_chat_content"],
+                                                                 height=int(ui_width)).strip()
 
-    prompt = st.chat_input("请输入对话内容，换行请使用Shift+Enter。输入/help查看自定义命令 ", key="prompt", max_chars=2000)
+    prompt = st.chat_input("请输入对话内容，换行请使用Shift+Enter。输入/help查看自定义命令 ", key="prompt",
+                           max_chars=2000)
 
     with col2:
         if prompt:
@@ -587,7 +607,8 @@ def kb_dialogue_page(api: ApiRequest, dialogue_mode="知识库问答"):
         "optional_text_label": "欢迎反馈您打分的理由",
     }
 
-    if prompt := st.chat_input("请输入对话内容，换行请使用Shift+Enter。输入/help查看自定义命令 ", key="prompt", max_chars=2000):
+    if prompt := st.chat_input("请输入对话内容，换行请使用Shift+Enter。输入/help查看自定义命令 ", key="prompt",
+                               max_chars=2000):
         history = get_messages_history(history_len)
 
         chat_box.user_say(prompt)
@@ -659,4 +680,3 @@ def kb_dialogue_page(api: ApiRequest, dialogue_mode="知识库问答"):
         mime="text/markdown",
         use_container_width=True,
     )
-
