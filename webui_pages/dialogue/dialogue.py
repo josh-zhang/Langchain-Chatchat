@@ -88,6 +88,8 @@ def model_setup(api):
     if available_models:
         running_models.append(available_models[0])
         available_models = available_models[1:]
+    else:
+        available_models = []
 
     if config_models:
         online_config_models = config_models.get("online", {})
