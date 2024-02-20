@@ -2,20 +2,7 @@ import re
 import unicodedata
 from typing import List
 
-prompt_template = """你是AI助手。你可以根据下面给出的参考资料和聊天历史来回答用户问题。
-
-### 参考资料 ###
-{{ context }}
-
-### 聊天历史 ###
-{{ chat_history }}
-
-### 用户问题 ###
-{{ question }}
-
-### 回答要求 ###
-{requirement}
-"""
+from server.chat.utils import History
 
 
 def language_detect(text: str) -> str:
@@ -86,7 +73,30 @@ def document_prompt_template():
     return """["Source_id": {doc_id}, "Content": "{page_content}"]"""
 
 
-def get_prompt(question: str, fallback: str, lan='') -> str:
+def get_prompt(question: str, fallback: str, history: List[History], context: str, lan='') -> str:
+    chat_history = ""
+    for his in history:
+        chat_history += f"'{his.role}': '{his.content}'\n"
+
+    prompt_template = "你是AI助手。你可以根据下面给出的参考资料和聊天历史来回答用户问题。"
+
+    if context:
+        prompt_template += """
+### 参考资料 ###
+{{ context }}
+"""
+
+    if chat_history:
+        prompt_template += f"""
+### 聊天历史 ###
+{chat_history}
+"""
+
+    prompt_template += """
+### 用户问题 ###
+{{ question }}
+"""
+
     answer_prompts = ["1. 你只能根据上面参考资料中给出的事实信息来回答用户问题，不要胡编乱造。",
                       "2. 如果向用户提出澄清问题有助于回答问题，可以尝试提问。"]
     index = 3
@@ -108,11 +118,17 @@ def get_prompt(question: str, fallback: str, lan='') -> str:
     )
     answer_prompts.append(str(index) + ". " + style_prompt)
     answer_prompts = "\n".join(answer_prompts)
-    prompt = prompt_template.replace('{requirement}', answer_prompts)
-    return prompt
+    # prompt = prompt_template.replace('{requirement}', answer_prompts)
+
+    prompt_template += f"""
+### 回答要求 ###
+{answer_prompts}
+"""
+
+    return prompt_template
 
 
-def generate_doc_qa(query: str, docs: List[str], fallback: str):
+def generate_doc_qa(query: str, history: List[History], docs: List[str], fallback: str):
     """Generates chat responses according to the input text, history and page content."""
     # handle input params
     print(f"query: {query}, docs: {docs}, fallback: {fallback}")
@@ -125,7 +141,7 @@ def generate_doc_qa(query: str, docs: List[str], fallback: str):
         source_id = inum + 1
         context += document_prompt_template().format(doc_id=f"出处{source_id}", page_content=doc) + "\n\n"
 
-    prompt_template = get_prompt(query, fallback, lan='zh')
+    prompt_template = get_prompt(query, fallback, history, context, lan='zh')
 
     print(f"docQA prompt_template: {prompt_template}")
 
