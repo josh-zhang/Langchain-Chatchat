@@ -131,7 +131,7 @@ class EmbeddingsPool(CachePool):
             with item.acquire(msg="初始化"):
                 self.atomic.release()
                 if 'bge-' in model:
-                    from langchain.embeddings import HuggingFaceBgeEmbeddings
+                    from langchain_community.embeddings import HuggingFaceBgeEmbeddings
                     if 'zh' in model:
                         # for chinese model
                         query_instruction = "为这个句子生成表示以用于检索相关文章："
@@ -148,7 +148,7 @@ class EmbeddingsPool(CachePool):
                     if model == "bge-large-zh-noinstruct":  # bge large -noinstruct embedding
                         embeddings.query_instruction = ""
                 else:
-                    from langchain.embeddings.huggingface import HuggingFaceEmbeddings
+                    from langchain_community.embeddings.huggingface import HuggingFaceEmbeddings
                     embeddings = HuggingFaceEmbeddings(model_name=get_model_path(model),
                                                        encode_kwargs={'normalize_embeddings': normalize_embeddings},
                                                        model_kwargs={'device': device})

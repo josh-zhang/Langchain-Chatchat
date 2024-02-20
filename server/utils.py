@@ -9,7 +9,7 @@ import httpx
 import pydantic
 from pydantic import BaseModel
 from fastapi import FastAPI
-from langchain_community.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 
 from configs import (LLM_DEVICE, EMBEDDING_DEVICE, MODEL_PATH, MODEL_ROOT_PATH, logger, log_verbose,
                      HTTPX_DEFAULT_TIMEOUT, ONLINE_LLM_MODEL, prompt_config, LLM_SERVER)
