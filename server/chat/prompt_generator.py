@@ -73,18 +73,27 @@ def document_prompt_template():
     return """["Source_id": {doc_id}, "Content": "{page_content}"]"""
 
 
-def get_prompt(question: str, fallback: str, history: List[History], context: str, lan='') -> str:
+def get_prompt(fallback: str, history: List[History], context: str) -> str:
     chat_history = ""
     for his in history:
         chat_history += f"'{his.role}': '{his.content}'\n"
 
-    prompt_template = "你是AI助手。你可以根据下面给出的参考资料和聊天历史来回答用户问题。"
+    if context and chat_history:
+        prompt_template = """你是AI助手。你根据下面给出的参考资料和聊天历史，严格按照回答要求来回答用户问题。
 
-    if context:
-        prompt_template += """
 ### 参考资料 ###
 {{ context }}
 """
+    elif context and not chat_history:
+        prompt_template = """你是AI助手。你根据下面给出的参考资料，严格按照回答要求来回答用户问题。
+
+### 参考资料 ###
+{{ context }}
+"""
+    elif not context and chat_history:
+        prompt_template = "你是AI助手。你根据下面给出的聊天历史，严格按照回答要求来回答用户问题。"
+    else:
+        prompt_template = "你是AI助手。你严格按照回答要求来回答用户问题。"
 
     if chat_history:
         prompt_template += f"""
@@ -97,28 +106,27 @@ def get_prompt(question: str, fallback: str, history: List[History], context: st
 {{ question }}
 """
 
-    answer_prompts = ["1. 你只能根据上面参考资料中给出的事实信息来回答用户问题，不要胡编乱造。",
-                      "2. 如果向用户提出澄清问题有助于回答问题，可以尝试提问。"]
-    index = 3
-    if len(fallback) > 0:
-        answer_prompts.append(
-            str(index) + ". " + """如果参考资料中的信息不足以回答用户问题，请直接回答下面三个双引号中的内容：\"\"\"{fallback}\"\"\"。""".format(
-                fallback=fallback))
+    if context:
+        answer_prompts = ["1. 你只能根据上面参考资料中给出的事实信息来回答用户问题，不要胡编乱造。",
+                          "2. 如果向用户提出澄清问题有助于回答问题，可以尝试提问。"]
+        index = 3
+        if len(fallback) > 0:
+            answer_prompts.append(
+                str(index) + ". " + """如果参考资料中的信息不足以回答用户问题，请直接回答下面三个双引号中的内容：\"\"\"{fallback}\"\"\"。""".format(
+                    fallback=fallback))
+            index += 1
+
+        citation_prompt = "如果你给出的答案里引用了参考资料中的内容，请在答案的结尾处添加你引用的Source_id，引用的Source_id值来自于参考资料中，并用两个方括号括起来。示例：[[出处1]]、[[出处2]]"
+        answer_prompts.append(str(index) + ". " + citation_prompt)
         index += 1
 
-    citation_prompt = "如果你给出的答案里引用了参考资料中的内容，请在答案的结尾处添加你引用的Source_id，引用的Source_id值来自于参考资料中，并用两个方括号括起来。示例：[[出处1]]、[[出处2]]"
-    answer_prompts.append(str(index) + ". " + citation_prompt)
-    index += 1
+        style_prompt = "请你以第一人称并且用严谨的风格来回答问题，并且基于事实详细阐述。"
+        answer_prompts.append(str(index) + ". " + style_prompt)
+    else:
+        answer_prompts = ["1. 请你以第一人称并且用严谨的风格来回答问题，并且基于事实详细阐述。",
+                          "2. 如果向用户提出澄清问题有助于回答问题，可以尝试提问。"]
 
-    if not lan:
-        lan = language_detect(question)
-
-    style_prompt = """请你以第一人称并且用严谨的风格来回答问题，一定要用{language}来回答，并且基于事实详细阐述。""".format(
-        language=language_prompt(lan),
-    )
-    answer_prompts.append(str(index) + ". " + style_prompt)
     answer_prompts = "\n".join(answer_prompts)
-    # prompt = prompt_template.replace('{requirement}', answer_prompts)
 
     prompt_template += f"""
 ### 回答要求 ###
@@ -141,7 +149,7 @@ def generate_doc_qa(query: str, history: List[History], docs: List[str], fallbac
         source_id = inum + 1
         context += document_prompt_template().format(doc_id=f"出处{source_id}", page_content=doc) + "\n\n"
 
-    prompt_template = get_prompt(query, fallback, history, context, lan='zh')
+    prompt_template = get_prompt(fallback, history, context)
 
     print(f"docQA prompt_template: {prompt_template}")
 
