@@ -3,18 +3,20 @@ import asyncio
 
 from fastapi import Body
 from sse_starlette.sse import EventSourceResponse
-from configs import LLM_MODELS, TEMPERATURE, HISTORY_LEN, Agent_MODEL
+from configs import LLM_MODELS, TEMPERATURE, HISTORY_LEN, Agent_MODEL, PROMPT_TEMPLATES
 
 from langchain.chains import LLMChain
 from langchain.memory import ConversationBufferWindowMemory
-from langchain.agents import LLMSingleActionAgent, AgentExecutor
+from langchain.agents import AgentExecutor
 from typing import AsyncIterable, Optional, List
 
 from server.utils import wrap_done, get_ChatOpenAI, get_prompt_template
 from server.knowledge_base.kb_service.base import get_kb_details
-from server.agent.custom_agent.ChatGLM3Agent import initialize_glm3_agent
-from server.agent.tools_select import tools, tool_names
+from langchain.prompts.chat import ChatPromptTemplate
 from server.agent.callbacks import CustomAsyncIteratorCallbackHandler, Status
+from server.agent.tools_select import tools, tool_names
+from server.agent.custom_agent.qwen_agent import create_structured_qwen_chat_agent
+from server.callback_handler.agent_callback_handler import AgentExecutorAsyncIteratorCallbackHandler
 from server.chat.utils import History
 from server.agent import model_container
 from server.agent.custom_template import CustomOutputParser, CustomPromptTemplate
@@ -44,67 +46,37 @@ async def agent_chat(query: str = Body(..., description="用户输入", examples
             prompt_name: str = prompt_name,
     ) -> AsyncIterable[str]:
         nonlocal max_tokens
-        callback = CustomAsyncIteratorCallbackHandler()
+
+        callback = AgentExecutorAsyncIteratorCallbackHandler()
+
         if isinstance(max_tokens, int) and max_tokens <= 0:
             max_tokens = None
 
-        model = get_ChatOpenAI(
+        model_agent = get_ChatOpenAI(
             model_name=model_name,
             temperature=temperature,
             max_tokens=max_tokens,
             callbacks=[callback],
+            streaming=False,
         )
 
         kb_list = {x["kb_name"]: x for x in get_kb_details()}
         model_container.DATABASE = {name: details['kb_info'] for name, details in kb_list.items()}
+        model_container.MODEL = model_agent
 
-        if Agent_MODEL:
-            model_agent = get_ChatOpenAI(
-                model_name=Agent_MODEL,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                callbacks=[callback],
-            )
-            model_container.MODEL = model_agent
-        else:
-            model_container.MODEL = model
-
-        prompt_template = get_prompt_template("agent_chat", prompt_name)
-        prompt_template_agent = CustomPromptTemplate(
-            template=prompt_template,
-            tools=tools,
-            input_variables=["input", "intermediate_steps", "history"]
-        )
-        output_parser = CustomOutputParser()
-        llm_chain = LLMChain(llm=model, prompt=prompt_template_agent)
         memory = ConversationBufferWindowMemory(k=HISTORY_LEN * 2)
         for message in history:
             if message.role == 'user':
                 memory.chat_memory.add_user_message(message.content)
             else:
                 memory.chat_memory.add_ai_message(message.content)
-        if "chatglm3" in model_container.MODEL.model_name or "zhipu-api" in model_container.MODEL.model_name:
-            agent_executor = initialize_glm3_agent(
-                llm=model,
-                tools=tools,
-                callback_manager=None,
-                prompt=prompt_template,
-                input_variables=["input", "intermediate_steps", "history"],
-                memory=memory,
-                verbose=True,
-            )
-        else:
-            agent = LLMSingleActionAgent(
-                llm_chain=llm_chain,
-                output_parser=output_parser,
-                stop=["\nObservation:", "Observation"],
-                allowed_tools=tool_names,
-            )
-            agent_executor = AgentExecutor.from_agent_and_tools(agent=agent,
-                                                                tools=tools,
-                                                                verbose=True,
-                                                                memory=memory,
-                                                                )
+
+        agent = create_structured_qwen_chat_agent(llm=model_agent, tools=tools)
+        agent_executor = AgentExecutor(agent=agent,
+                                       tools=tools,
+                                       verbose=True,
+                                       memory=memory)
+
         while True:
             try:
                 task = asyncio.create_task(wrap_done(
