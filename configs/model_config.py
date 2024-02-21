@@ -28,7 +28,7 @@ EMBEDDING_MODEL_OUTPUT_PATH = "output"
 
 # chatglm3-6b输出角色标签<|user|>及自问自答的问题详见项目wiki->常见问题->Q20.
 
-LLM_MODELS = ["qwen-72b-chat-int4"]  # "Qwen-1_8B-Chat",
+LLM_MODELS = ["通义千问1.5-72B-六千字"]
 
 # AgentLM模型的名称 (可以不指定，指定之后就锁定进入Agent之后的Chain的模型，不指定就是LLM_MODELS[0])
 Agent_MODEL = None
@@ -99,11 +99,6 @@ NLTK_DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "nltk_
 
 # 你认为支持Agent能力的模型，可以在这里添加，添加后不会出现可视化界面的警告
 # 经过我们测试，原生支持Agent的模型仅有以下几个
-# SUPPORT_AGENT_MODEL = [
-#     "azure-api",
-#     "openai-api",
-#     "qwen-api",
-#     "Qwen",
-#     "chatglm3",
-#     "xinghuo-api",
-# ]
+SUPPORT_AGENT_MODEL = [
+    "通义千问",
+]

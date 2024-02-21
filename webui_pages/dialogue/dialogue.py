@@ -6,7 +6,7 @@ import streamlit as st
 from streamlit_chatbox import *
 from streamlit_javascript import st_javascript
 
-from configs import HISTORY_LEN, MAX_TOKENS
+from configs import HISTORY_LEN, MAX_TOKENS, SUPPORT_AGENT_MODEL
 from server.knowledge_base.utils import LOADER_DICT
 from server.utils import get_prompts
 from webui_pages.utils import *
@@ -81,9 +81,9 @@ def model_setup(api):
     config_models = get_config_models(api)
 
     # for test
-    # running_models = ['qwen']
-    # available_models = []
-    # config_models = {}
+    running_models = ['qwen']
+    available_models = []
+    config_models = {}
 
     if available_models:
         running_models.append(available_models[0])
@@ -98,20 +98,21 @@ def model_setup(api):
                 running_models.append(k)
 
     if not running_models:
-        st.info("对话系统异常，暂时无法访问问答功能")
-        return
+        return None, None, None
     else:
         default_model = running_models[0]
 
     llm_models = running_models + available_models
 
-    # default_model = api.get_default_llm_model()[0]
-
     return default_model, running_models, llm_models
 
 
-def dialogue_page(api: ApiRequest, dialogue_mode="闲聊"):
+def dialogue_page(api: ApiRequest):
     default_model, running_models, llm_models = model_setup(api)
+
+    if not running_models:
+        st.info("对话系统异常，暂时无法访问对话功能")
+        return
 
     st.session_state.dialogue_mode = "闲聊"
 
@@ -265,8 +266,12 @@ def dialogue_page(api: ApiRequest, dialogue_mode="闲聊"):
     )
 
 
-def file_dialogue_page(api: ApiRequest, dialogue_mode="文件问答"):
+def file_dialogue_page(api: ApiRequest):
     default_model, running_models, llm_models = model_setup(api)
+
+    if not running_models:
+        st.info("对话系统异常，暂时无法访问对话功能")
+        return
 
     st.session_state.dialogue_mode = "文件问答"
 
@@ -476,8 +481,12 @@ def file_dialogue_page(api: ApiRequest, dialogue_mode="文件问答"):
     )
 
 
-def kb_dialogue_page(api: ApiRequest, dialogue_mode="知识库问答"):
+def kb_dialogue_page(api: ApiRequest):
     default_model, running_models, llm_models = model_setup(api)
+
+    if not running_models:
+        st.info("对话系统异常，暂时无法访问对话功能")
+        return
 
     st.session_state.dialogue_mode = "知识库问答"
 
@@ -672,6 +681,160 @@ def kb_dialogue_page(api: ApiRequest, dialogue_mode="知识库问答"):
                 use_container_width=True,
         ):
             st.session_state["cur_source_docs"] = []
+            chat_box.reset_history()
+            st.rerun()
+
+    export_btn.download_button(
+        "导出记录",
+        "".join(chat_box.export2md()),
+        file_name=f"{now:%Y-%m-%d %H.%M}_对话记录.md",
+        mime="text/markdown",
+        use_container_width=True,
+    )
+
+
+def agent_dialogue_page(api: ApiRequest):
+    default_model, running_models, llm_models = model_setup(api)
+
+    if not running_models:
+        st.info("对话系统异常，暂时无法访问对话功能")
+        return
+
+    st.session_state.dialogue_mode = "Agent问答"
+
+    st.session_state.setdefault("conversation_ids", {})
+    st.session_state["conversation_ids"].setdefault(chat_box.cur_chat_name, uuid.uuid4().hex)
+
+    if not chat_box.chat_inited:
+        st.toast(
+            f"欢迎使用知识库问答系统! \n\n"
+            f"当前运行的模型`{default_model}`, 您可以开始提问了."
+        )
+        chat_box.init_session()
+
+    with st.sidebar:
+        # 多会话
+        conv_names = list(st.session_state["conversation_ids"].keys())
+        index = 0
+        if st.session_state.get("cur_conv_name") in conv_names:
+            index = conv_names.index(st.session_state.get("cur_conv_name"))
+        # conversation_name = st.selectbox("当前会话：", conv_names, index=index)
+        conversation_name = conv_names[index]
+        chat_box.use_chat_name(conversation_name)
+        conversation_id = st.session_state["conversation_ids"][conversation_name]
+
+        def on_llm_change():
+            if llm_model:
+                # config = api.get_model_config(llm_model)
+                # if not config.get("online_api"):  # 只有本地model_worker可以切换模型
+                #     st.session_state["prev_llm_model"] = llm_model
+                st.session_state["cur_llm_model"] = st.session_state.llm_model
+
+        def llm_model_format_func(x):
+            if x in running_models:
+                return f"{x} (运行中)"
+            return x
+
+        cur_llm_model = st.session_state.get("cur_llm_model", default_model)
+        if cur_llm_model in llm_models:
+            index = llm_models.index(cur_llm_model)
+        else:
+            index = 0
+
+        llm_model = st.selectbox("选择对话模型：",
+                                 llm_models,
+                                 index,
+                                 format_func=llm_model_format_func,
+                                 on_change=on_llm_change,
+                                 key="llm_model")
+
+        temperature = st.slider("生成温度：", 0.0, 1.0, TEMPERATURE, 0.05)
+        history_len = st.number_input("历史对话轮数：", 0, 20, HISTORY_LEN)
+
+        prompt_dict = get_prompts("agent_chat")
+        prompt_templates_kb_list = list(prompt_dict.keys())
+
+        if "prompt_template_select" not in st.session_state:
+            st.session_state.prompt_template_select = prompt_templates_kb_list[0]
+
+        def prompt_change():
+            text = f"已切换为 {prompt_dict[st.session_state.prompt_template_select][0]} 模板。"
+            st.toast(text)
+
+        def prompt_format_func(key):
+            return prompt_dict[key][0]
+
+        st.selectbox(
+            "选择提示词模板：",
+            prompt_templates_kb_list,
+            index=0,
+            on_change=prompt_change,
+            format_func=prompt_format_func,
+            key="prompt_template_select",
+        )
+        prompt_template_name = st.session_state.prompt_template_select
+
+        with st.expander("当前提示词", False):
+            st.text(f"{prompt_dict[prompt_template_name][1]}")
+
+    # Display chat messages from history on app rerun
+    chat_box.output_messages()
+
+    if prompt := st.chat_input("请输入对话内容，换行请使用Shift+Enter。输入/help查看自定义命令 ", key="prompt",
+                               max_chars=2000):
+        history = get_messages_history(history_len)
+
+        chat_box.user_say(prompt)
+
+        if not any(agent in llm_model for agent in SUPPORT_AGENT_MODEL):
+            chat_box.ai_say([
+                f"正在思考... \n\n <span style='color:red'>该模型并没有进行Agent对齐，请更换支持Agent的模型获得更好的体验！</span>\n\n\n",
+                Markdown("...", in_expander=True, title="思考过程", state="complete"),
+            ])
+        else:
+            chat_box.ai_say([
+                f"正在思考...",
+                Markdown("...", in_expander=True, title="思考过程", state="complete"),
+            ])
+
+        text = ""
+        ans = ""
+        for d in api.agent_chat(prompt,
+                                history=history,
+                                model=llm_model,
+                                prompt_name=prompt_template_name,
+                                temperature=temperature,
+                                ):
+            try:
+                d = json.loads(d)
+            except:
+                pass
+            if error_msg := check_error_msg(d):  # check whether error occured
+                st.error(error_msg)
+            if chunk := d.get("answer"):
+                text += chunk
+                chat_box.update_msg(text, element_index=1)
+            if chunk := d.get("final_answer"):
+                ans += chunk
+                chat_box.update_msg(ans, element_index=0)
+            if chunk := d.get("tools"):
+                text += "\n\n".join(chunk)
+                chat_box.update_msg(text, element_index=1)
+        chat_box.update_msg(ans, element_index=0, streaming=False)
+        chat_box.update_msg(text, element_index=1, streaming=False)
+
+    if st.session_state.get("need_rerun"):
+        st.session_state["need_rerun"] = False
+        st.rerun()
+
+    now = datetime.now()
+    with st.sidebar:
+        cols = st.columns(2)
+        export_btn = cols[0]
+        if cols[1].button(
+                "清空对话",
+                use_container_width=True,
+        ):
             chat_box.reset_history()
             st.rerun()
 

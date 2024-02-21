@@ -1,0 +1,46 @@
+[theme]
+#primaryColor="#F63366"
+#backgroundColor="#FFFFFF"
+#secondaryBackgroundColor="#F0F2F6"
+#textColor="#262730"
+#font="sans serif"
+
+# 暗模式优雅 (Dark Mode Elegance)
+#[theme.dark_mode_elegance]
+#primaryColor = "#FF4B4B"
+#backgroundColor = "#0E1117"
+#secondaryBackgroundColor = "#161B22"
+#textColor = "#FFFFFF"
+#font = "Helvetica Neue"
+
+# 亮模式清新 (Light Mode Freshness)
+#[theme.light_mode_freshness]
+primaryColor = "#3498DB"
+backgroundColor = "#ECF0F1"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#2C3E50"
+font = "Arial"
+
+# 自然启发 (Nature Inspired)
+#[theme.nature_inspired]
+#primaryColor = "#27AE60"
+#backgroundColor = "#F9FBE7"
+#secondaryBackgroundColor = "#DAF7A6"
+#textColor = "#145A32"
+#font = "Times New Roman"
+
+# 技术达人 (Tech Savvy)
+#[theme.tech_savvy]
+#primaryColor = "#8E44AD"
+#backgroundColor = "#2C3E50"
+#secondaryBackgroundColor = "#34495E"
+#textColor = "#ECF0F1"
+#font = "Courier New"
+
+# 梦幻粉彩 (Pastel Dreams)
+#[theme.pastel_dreams]
+#primaryColor = "#F6B8B8"
+#backgroundColor = "#FEF5E7"
+#secondaryBackgroundColor = "#FDEBD0"
+#textColor = "#AF7AC5"
+#font = "Comic Sans MS"
