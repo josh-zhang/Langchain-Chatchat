@@ -6,11 +6,11 @@ from typing import List, Union, Dict, Tuple, Generator
 from pathlib import Path
 
 import chardet
-import langchain.document_loaders
+import langchain_community.document_loaders
 from unstructured.documents.elements import Element, Text, ElementMetadata, Title
 from unstructured.partition.common import get_last_modified_date
 from langchain.docstore.document import Document
-from langchain.text_splitter import TextSplitter
+from langchain.text_splitter import TextSplitter, MarkdownHeaderTextSplitter
 
 from configs import (
     KB_ROOT_PATH,
@@ -136,7 +136,7 @@ LOADER_DICT = {"CustomHTMLLoader": ['.html'],
                "JSONLinesLoader": [".jsonl"],
                # "CSVLoader": [".csv"],
                # "FilteredCSVLoader": [".csv"], # 需要自己指定，目前还没有支持
-               # "RapidOCRPDFLoader": [".pdf"],
+               "RapidOCRPDFLoader": [".pdf"],
                # "RapidOCRLoader": ['.png', '.jpg', '.jpeg', '.bmp'],
                # "UnstructuredEmailLoader": ['.eml', '.msg'],
                # "UnstructuredEPubLoader": ['.epub'],
@@ -150,7 +150,7 @@ LOADER_DICT = {"CustomHTMLLoader": ['.html'],
                # "SRTLoader": ['.srt'],
                # "TomlLoader": ['.toml'],
                # "UnstructuredTSVLoader": ['.tsv'],
-               "UnstructuredWordDocumentLoader": ['.docx', 'doc'],
+               "UnstructuredWordDocumentLoader": ['.docx', '.doc'],
                # "UnstructuredXMLLoader": ['.xml'],
                # "UnstructuredPowerPointLoader": ['.ppt', '.pptx'],
                # "UnstructuredFileLoader": ['.txt'],
@@ -159,7 +159,7 @@ LOADER_DICT = {"CustomHTMLLoader": ['.html'],
 SUPPORTED_EXTS = [ext for sublist in LOADER_DICT.values() for ext in sublist]
 
 
-class CustomHTMLLoader(langchain.document_loaders.unstructured.UnstructuredFileLoader):
+class CustomHTMLLoader(langchain_community.document_loaders.unstructured.UnstructuredFileLoader):
     delimiter = " 之 "
 
     def load_content(self, file_path) -> List[Element]:
@@ -241,17 +241,17 @@ class CustomHTMLLoader(langchain.document_loaders.unstructured.UnstructuredFileL
         return self.load_content(self.file_path)
 
 
-langchain.document_loaders.CustomHTMLLoader = CustomHTMLLoader
+langchain_community.document_loaders.CustomHTMLLoader = CustomHTMLLoader
 
 
-class CustomExcelLoader(langchain.document_loaders.unstructured.UnstructuredFileLoader):
+class CustomExcelLoader(langchain_community.document_loaders.unstructured.UnstructuredFileLoader):
 
     def _get_elements(self) -> List:
         """Convert given content to documents."""
         return []
 
 
-langchain.document_loaders.CustomExcelLoader = CustomExcelLoader
+langchain_community.document_loaders.CustomExcelLoader = CustomExcelLoader
 
 
 # patch json.dumps to disable ensure_ascii
@@ -265,7 +265,7 @@ if json.dumps is not _new_json_dumps:
     json.dumps = _new_json_dumps
 
 
-class JSONLinesLoader(langchain.document_loaders.JSONLoader):
+class JSONLinesLoader(langchain_community.document_loaders.JSONLoader):
     '''
     行式 Json 加载器，要求文件扩展名为 .jsonl
     '''
@@ -275,7 +275,7 @@ class JSONLinesLoader(langchain.document_loaders.JSONLoader):
         self._json_lines = True
 
 
-langchain.document_loaders.JSONLinesLoader = JSONLinesLoader
+langchain_community.document_loaders.JSONLinesLoader = JSONLinesLoader
 
 
 def get_LoaderClass(file_extension):
@@ -294,13 +294,13 @@ def get_loader(loader_name: str, file_path: str, loader_kwargs: Dict = None):
         if loader_name in ["RapidOCRPDFLoader", "RapidOCRLoader", "FilteredCSVLoader"]:
             document_loaders_module = importlib.import_module('document_loaders')
         else:
-            document_loaders_module = importlib.import_module('langchain.document_loaders')
+            document_loaders_module = importlib.import_module('langchain_community.document_loaders')
         DocumentLoader = getattr(document_loaders_module, loader_name)
     except Exception as e:
         msg = f"为文件{file_path}查找加载器{loader_name}时出错：{e}"
         logger.error(f'{e.__class__.__name__}: {msg}',
                      exc_info=e if log_verbose else None)
-        document_loaders_module = importlib.import_module('langchain.document_loaders')
+        document_loaders_module = importlib.import_module('langchain_community.document_loaders')
         DocumentLoader = getattr(document_loaders_module, "UnstructuredFileLoader")
 
     if loader_name == "UnstructuredFileLoader":
@@ -339,8 +339,7 @@ def make_text_splitter(
     try:
         if splitter_name == "MarkdownHeaderTextSplitter":  # MarkdownHeaderTextSplitter特殊判定
             headers_to_split_on = text_splitter_dict[splitter_name]['headers_to_split_on']
-            text_splitter = langchain.text_splitter.MarkdownHeaderTextSplitter(
-                headers_to_split_on=headers_to_split_on)
+            text_splitter = MarkdownHeaderTextSplitter(headers_to_split_on=headers_to_split_on)
         else:
 
             try:  ## 优先使用用户自定义的text_splitter

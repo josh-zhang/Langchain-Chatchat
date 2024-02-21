@@ -130,13 +130,8 @@ class EmbeddingsPool(CachePool):
             self.set(key, item)
             with item.acquire(msg="初始化"):
                 self.atomic.release()
-
-                if model == "text-embedding-ada-002":  # openai text-embedding-ada-002
-                    from langchain.embeddings.openai import OpenAIEmbeddings
-                    embeddings = OpenAIEmbeddings(model=model, openai_api_key=get_model_path(model),
-                                                  chunk_size=CHUNK_SIZE)
-                elif 'bge-' in model:
-                    from langchain.embeddings import HuggingFaceBgeEmbeddings
+                if 'bge-' in model:
+                    from langchain_community.embeddings import HuggingFaceBgeEmbeddings
                     if 'zh' in model:
                         # for chinese model
                         query_instruction = "为这个句子生成表示以用于检索相关文章："
@@ -153,8 +148,9 @@ class EmbeddingsPool(CachePool):
                     if model == "bge-large-zh-noinstruct":  # bge large -noinstruct embedding
                         embeddings.query_instruction = ""
                 else:
-                    from langchain.embeddings.huggingface import HuggingFaceEmbeddings
+                    from langchain_community.embeddings.huggingface import HuggingFaceEmbeddings
                     embeddings = HuggingFaceEmbeddings(model_name=get_model_path(model),
+                                                       encode_kwargs={'normalize_embeddings': normalize_embeddings},
                                                        model_kwargs={'device': device})
                 item.obj = embeddings
                 item.finish_loading()

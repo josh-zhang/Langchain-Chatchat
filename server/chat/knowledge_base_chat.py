@@ -115,8 +115,12 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
             if USE_RERANKER and len(docs) > 1:
                 doc_list = list(docs)
                 doc_length = len(doc_list)
-                _docs = [d.page_content[:512] for d in doc_list]
-                sentence_pairs = [[query, _doc] for _doc in _docs]
+
+                this_query = query[:200]
+                remain_length = 600 - len(this_query)
+                _docs = [d.page_content[:remain_length] for d in doc_list]
+
+                sentence_pairs = [[this_query, _doc] for _doc in _docs]
 
                 reranker_model = reranker_pool.load_reranker(RERANKER_MODEL)
                 results = reranker_model.predict(sentences=sentence_pairs,
@@ -133,8 +137,8 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
                     final_results.append(doc)
                 docs = final_results
 
-                print("---------after rerank------------------")
-                print(docs)
+                # print("---------after rerank------------------")
+                # print(docs)
 
             docs = docs[:top_k]
             text_docs = [doc.page_content for doc in docs]
@@ -142,53 +146,63 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
             docs = source
             text_docs = docs
 
-        enhanced_prompt = True
+        prompt_template, context = generate_doc_qa(query, history, text_docs, "根据已知信息无法回答该问题")
 
-        if enhanced_prompt and len(docs) > 0:
-            prompt_template, context = generate_doc_qa(query, text_docs, "根据已知信息无法回答该问题")
+        input_msg = History(role="user", content=prompt_template).to_msg_template(False)
 
-            input_msg = History(role="user", content=prompt_template).to_msg_template(False)
+        chat_prompt = ChatPromptTemplate.from_messages([input_msg])
 
-            chat_prompt = ChatPromptTemplate.from_messages([input_msg])
+        chain = LLMChain(prompt=chat_prompt, llm=model)
 
-            chain = LLMChain(prompt=chat_prompt, llm=model)
+        # Begin a task that runs in the background.
+        task = asyncio.create_task(wrap_done(
+            chain.acall({"context": context, "question": query}),
+            callback.done),
+        )
 
-            chat_history = ""
-            for his in history:
-                chat_history += f"'{his.role}': '{his.content}'\n"
-
-            # Begin a task that runs in the background.
-            task = asyncio.create_task(wrap_done(
-                chain.acall({"context": context, "question": query, "chat_history": chat_history}),
-                callback.done),
-            )
-        else:
-            if len(docs) == 0:  # 如果没有找到相关文档，使用empty模板
-                prompt_template = get_prompt_template("knowledge_base_chat", "empty")[1]
-            else:
-                prompt_template = get_prompt_template("knowledge_base_chat", prompt_name)[1]
-
-            input_msg = History(role="user", content=prompt_template).to_msg_template(False)
-
-            chat_prompt = ChatPromptTemplate.from_messages(
-                [i.to_msg_template() for i in history] + [input_msg])
-
-            chain = LLMChain(prompt=chat_prompt, llm=model)
-
-            header = "已知信息"
-            if "faq" in prompt_name:
-                header = "常见问答"
-            context = ""
-            index = 1
-            for doc in text_docs:
-                context += f"\n##{header}{index}##\n{doc}\n"
-                index += 1
-
-            # Begin a task that runs in the background.
-            task = asyncio.create_task(wrap_done(
-                chain.acall({"context": context, "question": query}),
-                callback.done),
-            )
+        # enhanced_prompt = True
+        #
+        # if enhanced_prompt and len(docs) > 0:
+        #     prompt_template, context = generate_doc_qa(query, history, text_docs, "根据已知信息无法回答该问题")
+        #
+        #     input_msg = History(role="user", content=prompt_template).to_msg_template(False)
+        #
+        #     chat_prompt = ChatPromptTemplate.from_messages([input_msg])
+        #
+        #     chain = LLMChain(prompt=chat_prompt, llm=model)
+        #
+        #     # Begin a task that runs in the background.
+        #     task = asyncio.create_task(wrap_done(
+        #         chain.acall({"context": context, "question": query}),
+        #         callback.done),
+        #     )
+        # else:
+        #     if len(docs) == 0:  # 如果没有找到相关文档，使用empty模板
+        #         prompt_template = get_prompt_template("knowledge_base_chat", "empty")[1]
+        #     else:
+        #         prompt_template = get_prompt_template("knowledge_base_chat", prompt_name)[1]
+        #
+        #     input_msg = History(role="user", content=prompt_template).to_msg_template(False)
+        #
+        #     chat_prompt = ChatPromptTemplate.from_messages(
+        #         [i.to_msg_template() for i in history] + [input_msg])
+        #
+        #     chain = LLMChain(prompt=chat_prompt, llm=model)
+        #
+        #     header = "已知信息"
+        #     if "faq" in prompt_name:
+        #         header = "常见问答"
+        #     context = ""
+        #     index = 1
+        #     for doc in text_docs:
+        #         context += f"\n##{header}{index}##\n{doc}\n"
+        #         index += 1
+        #
+        #     # Begin a task that runs in the background.
+        #     task = asyncio.create_task(wrap_done(
+        #         chain.acall({"context": context, "question": query}),
+        #         callback.done),
+        #     )
 
         source_documents = []
         source_documents_content = []

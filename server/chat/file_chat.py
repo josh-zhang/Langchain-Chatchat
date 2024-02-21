@@ -17,6 +17,7 @@ from server.chat.utils import History
 from server.knowledge_base.kb_cache.faiss_cache import memo_faiss_pool
 from server.knowledge_base.kb_service.base import EmbeddingsFunAdapter
 from server.knowledge_base.utils import KnowledgeFile
+from server.chat.prompt_generator import generate_doc_qa
 
 
 def _parse_files_in_thread(
@@ -93,6 +94,7 @@ def upload_temp_docs(
 
 async def file_chat(query: str = Body(..., description="用户输入", examples=["你好"]),
                     knowledge_id: str = Body(..., description="临时知识库ID"),
+                    knowledge_content: str = Body(..., description="临时知识内容"),
                     top_k: int = Body(VECTOR_SEARCH_TOP_K, description="匹配向量数"),
                     score_threshold: float = Body(SCORE_THRESHOLD,
                                                   description="知识库匹配相关度阈值，取值范围在0-1之间，SCORE越小，相关度越高，取到1相当于不筛选，建议设置在0.5左右",
@@ -112,8 +114,10 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
                     prompt_name: str = Body("default",
                                             description="使用的prompt模板名称(在configs/prompt_config.py中配置)"),
                     ):
-    if knowledge_id not in memo_faiss_pool.keys():
-        return BaseResponse(code=404, msg=f"未找到临时知识库 {knowledge_id}，请先上传文件")
+    if not knowledge_content or not knowledge_content.strip():
+        knowledge_content = ""
+        if knowledge_id not in memo_faiss_pool.keys():
+            return BaseResponse(code=404, msg=f"未找到临时知识库 {knowledge_id}，请先上传文件，或者在参考信息文本框输入参考信息")
 
     history = [History.from_data(h) for h in history]
 
@@ -130,49 +134,100 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
             callbacks=[callback],
         )
 
-        embed_func = EmbeddingsFunAdapter()
-        embeddings = await embed_func.aembed_query(query)
-        with memo_faiss_pool.acquire(knowledge_id) as vs:
-            docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=1 - score_threshold)
-            docs = [x[0] for x in docs]
-
-        # context = "\n".join([doc.page_content for doc in docs])
-        header = "已知信息"
-        if prompt_name == "faq":
-            header = "常见问答"
-        context = ""
-        index = 1
-        for doc in docs:
-            context += f"\n##{header}{index}##\n{doc.page_content}\n"
-            index += 1
-
-        if len(docs) == 0:  ## 如果没有找到相关文档，使用Empty模板
-            prompt_template = get_prompt_template("knowledge_base_chat", "empty")[1]
-        else:
-            prompt_template = get_prompt_template("knowledge_base_chat", prompt_name)[1]
-        input_msg = History(role="user", content=prompt_template).to_msg_template(False)
-        chat_prompt = ChatPromptTemplate.from_messages(
-            [i.to_msg_template() for i in history] + [input_msg])
-
-        chain = LLMChain(prompt=chat_prompt, llm=model)
-
-        # Begin a task that runs in the background.
-        task = asyncio.create_task(wrap_done(
-            chain.acall({"context": context, "question": query}),
-            callback.done),
-        )
-
         source_documents = []
-        for inum, doc in enumerate(docs):
-            filename = doc.metadata.get("source")
-            text = ""
-            if inum > 0:
-                text = "--------\n"
-            text += f"""出处 [{inum + 1}] [{filename}] \n\n{doc.page_content}\n\n"""
-            source_documents.append(text)
 
-        if len(source_documents) == 0:  # 没有找到相关文档
-            source_documents.append(f"""<span style='color:red'>未找到相关文档,该回答为大模型自身能力解答！</span>""")
+        if knowledge_content:
+            prompt_template, _ = generate_doc_qa(query, history, [], "根据已知信息无法回答该问题")
+
+            input_msg = History(role="user", content=prompt_template).to_msg_template(False)
+
+            chat_prompt = ChatPromptTemplate.from_messages([input_msg])
+
+            chain = LLMChain(prompt=chat_prompt, llm=model)
+
+            # Begin a task that runs in the background.
+            task = asyncio.create_task(wrap_done(
+                chain.acall({"context": knowledge_content, "question": query}),
+                callback.done),
+            )
+
+            source_documents.append(f"""<span style='color:red'>大模型根据文本输入框中内容进行回答</span>""")
+        else:
+            embed_func = EmbeddingsFunAdapter()
+            embeddings = await embed_func.aembed_query(query)
+            with memo_faiss_pool.acquire(knowledge_id) as vs:
+                docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=1 - score_threshold)
+                docs = [x[0] for x in docs]
+                text_docs = [doc.page_content for doc in docs]
+
+            prompt_template, context = generate_doc_qa(query, history, text_docs, "根据已知信息无法回答该问题")
+
+            input_msg = History(role="user", content=prompt_template).to_msg_template(False)
+
+            chat_prompt = ChatPromptTemplate.from_messages([input_msg])
+
+            chain = LLMChain(prompt=chat_prompt, llm=model)
+
+            # Begin a task that runs in the background.
+            task = asyncio.create_task(wrap_done(
+                chain.acall({"context": context, "question": query}),
+                callback.done),
+            )
+
+            # enhanced_prompt = True
+            #
+            # if enhanced_prompt and len(docs) > 0:
+            #     prompt_template, context = generate_doc_qa(query, history, text_docs, "根据已知信息无法回答该问题")
+            #
+            #     input_msg = History(role="user", content=prompt_template).to_msg_template(False)
+            #
+            #     chat_prompt = ChatPromptTemplate.from_messages([input_msg])
+            #
+            #     chain = LLMChain(prompt=chat_prompt, llm=model)
+            #
+            #     # Begin a task that runs in the background.
+            #     task = asyncio.create_task(wrap_done(
+            #         chain.acall({"context": context, "question": query}),
+            #         callback.done),
+            #     )
+            # else:
+            #     if len(docs) == 0:  # 如果没有找到相关文档，使用empty模板
+            #         prompt_template = get_prompt_template("knowledge_base_chat", "empty")[1]
+            #     else:
+            #         prompt_template = get_prompt_template("knowledge_base_chat", prompt_name)[1]
+            #
+            #     input_msg = History(role="user", content=prompt_template).to_msg_template(False)
+            #
+            #     chat_prompt = ChatPromptTemplate.from_messages(
+            #         [i.to_msg_template() for i in history] + [input_msg])
+            #
+            #     chain = LLMChain(prompt=chat_prompt, llm=model)
+            #
+            #     header = "已知信息"
+            #     if "faq" in prompt_name:
+            #         header = "常见问答"
+            #     context = ""
+            #     index = 1
+            #     for doc in text_docs:
+            #         context += f"\n##{header}{index}##\n{doc}\n"
+            #         index += 1
+            #
+            #     # Begin a task that runs in the background.
+            #     task = asyncio.create_task(wrap_done(
+            #         chain.acall({"context": context, "question": query}),
+            #         callback.done),
+            #     )
+
+            for inum, doc in enumerate(docs):
+                filename = doc.metadata.get("source")
+                text = ""
+                if inum > 0:
+                    text = "--------\n"
+                text += f"""出处 [{inum + 1}] [{filename}] \n\n{doc.page_content}\n\n"""
+                source_documents.append(text)
+
+            if len(source_documents) == 0:  # 没有找到相关文档
+                source_documents.append(f"""<span style='color:red'>未找到相关文档,该回答为大模型自身能力解答！</span>""")
 
         if stream:
             async for token in callback.aiter():

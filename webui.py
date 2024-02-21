@@ -2,6 +2,8 @@ import streamlit as st
 from webui_pages.utils import *
 from streamlit_option_menu import option_menu
 from webui_pages.dialogue.dialogue import dialogue_page
+from webui_pages.dialogue.dialogue import file_dialogue_page
+from webui_pages.dialogue.dialogue import kb_dialogue_page
 from webui_pages.knowledge_base.knowledge_base import knowledge_base_page
 import os
 import sys
@@ -24,7 +26,15 @@ if __name__ == "__main__":
     )
 
     pages = {
-        "对话": {
+        "知识库对话": {
+            "icon": "chat",
+            "func": kb_dialogue_page,
+        },
+        "文件对话": {
+            "icon": "chat",
+            "func": file_dialogue_page,
+        },
+        "闲聊对话": {
             "icon": "chat",
             "func": dialogue_page,
         },
@@ -59,4 +69,4 @@ if __name__ == "__main__":
         )
 
     if selected_page in pages:
-        pages[selected_page]["func"](api=api, is_lite=is_lite)
+        pages[selected_page]["func"](api=api)

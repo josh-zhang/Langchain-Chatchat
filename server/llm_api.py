@@ -1,7 +1,7 @@
 from typing import List
 
 from fastapi import Body
-from configs import logger, log_verbose
+from configs import logger, log_verbose, LLM_SERVER
 from server.utils import BaseResponse, get_httpx_client, fschat_controller_address, list_config_llm_models
 
 
@@ -26,6 +26,24 @@ def list_running_models(
             code=500,
             data={},
             msg=f"failed to get available models from controller: {controller_address}。错误信息是： {e}")
+
+
+def list_api_running_models() -> BaseResponse:
+    '''
+    从fastchat controller获取已加载模型列表及其配置项
+    '''
+    try:
+        with get_httpx_client() as client:
+            r = client.post("http://" + LLM_SERVER + "/v1/models")
+            data = r.json()['data']
+            return BaseResponse(data=data)
+    except Exception as e:
+        logger.error(f'{e.__class__.__name__}: {e}',
+                     exc_info=e if log_verbose else None)
+        return BaseResponse(
+            code=500,
+            data={},
+            msg=f"failed to get available models from LLM_SERVER: {LLM_SERVER}。错误信息是： {e}")
 
 
 def list_config_models(

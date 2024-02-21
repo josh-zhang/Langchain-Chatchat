@@ -414,6 +414,7 @@ class ApiRequest:
             self,
             query: str,
             knowledge_id: str,
+            knowledge_content: str,
             top_k: int = VECTOR_SEARCH_TOP_K,
             score_threshold: float = SCORE_THRESHOLD,
             history: List[Dict] = [],
@@ -429,6 +430,7 @@ class ApiRequest:
         data = {
             "query": query,
             "knowledge_id": knowledge_id,
+            "knowledge_content": knowledge_content,
             "top_k": top_k,
             "score_threshold": score_threshold,
             "history": history,
@@ -758,6 +760,19 @@ class ApiRequest:
         response = self.post(
             "/llm_model/list_running_models",
             json=data,
+        )
+        return self._get_response_value(response, as_json=True, value_func=lambda r: r.get("data", []))
+
+    # LLM模型相关操作
+    def list_api_running_models(
+            self,
+    ):
+        '''
+        获取Fastchat中正运行的模型列表
+        '''
+
+        response = self.post(
+            "/llm_model/list_api_running_models",
         )
         return self._get_response_value(response, as_json=True, value_func=lambda r: r.get("data", []))
 

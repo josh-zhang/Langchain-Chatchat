@@ -37,8 +37,6 @@ def create_kb(knowledge_base_name: str = Body(..., examples=["samples"]),
                      exc_info=e if log_verbose else None)
         return BaseResponse(code=500, msg=msg)
 
-    print(f"kb.search_enhance {kb.search_enhance}")
-
     return BaseResponse(code=200, msg=f"已新增知识库 {knowledge_base_name}")
 
 
