@@ -349,31 +349,31 @@ def file_dialogue_page(api: ApiRequest, dialogue_mode="文件问答"):
         temperature = st.slider("生成温度：", 0.0, 1.0, TEMPERATURE, 0.05)
         history_len = st.number_input("历史对话轮数：", 0, 20, HISTORY_LEN)
 
-        prompt_dict = get_prompts("knowledge_base_chat")
-        prompt_templates_kb_list = list(prompt_dict.keys())
-
-        if "prompt_template_select" not in st.session_state:
-            st.session_state.prompt_template_select = prompt_templates_kb_list[0]
-
-        def prompt_change():
-            text = f"已切换为 {prompt_dict[st.session_state.prompt_template_select][0]} 模板。"
-            st.toast(text)
-
-        def prompt_format_func(key):
-            return prompt_dict[key][0]
-
-        st.selectbox(
-            "选择提示词模板：",
-            prompt_templates_kb_list,
-            index=0,
-            on_change=prompt_change,
-            format_func=prompt_format_func,
-            key="prompt_template_select",
-        )
-        prompt_template_name = st.session_state.prompt_template_select
-
-        with st.expander("当前提示词", False):
-            st.text(f"{prompt_dict[prompt_template_name][1]}")
+        # prompt_dict = get_prompts("knowledge_base_chat")
+        # prompt_templates_kb_list = list(prompt_dict.keys())
+        #
+        # if "prompt_template_select" not in st.session_state:
+        #     st.session_state.prompt_template_select = prompt_templates_kb_list[0]
+        #
+        # def prompt_change():
+        #     text = f"已切换为 {prompt_dict[st.session_state.prompt_template_select][0]} 模板。"
+        #     st.toast(text)
+        #
+        # def prompt_format_func(key):
+        #     return prompt_dict[key][0]
+        #
+        # st.selectbox(
+        #     "选择提示词模板：",
+        #     prompt_templates_kb_list,
+        #     index=0,
+        #     on_change=prompt_change,
+        #     format_func=prompt_format_func,
+        #     key="prompt_template_select",
+        # )
+        # prompt_template_name = st.session_state.prompt_template_select
+        #
+        # with st.expander("当前提示词", False):
+        #     st.text(f"{prompt_dict[prompt_template_name][1]}")
 
     col1, col2 = st.columns(spec=[1, 1], gap="small")
 
@@ -434,7 +434,7 @@ def file_dialogue_page(api: ApiRequest, dialogue_mode="文件问答"):
                                    score_threshold=score_threshold,
                                    history=history,
                                    model=llm_model,
-                                   prompt_name=prompt_template_name,
+                                   # prompt_name=prompt_template_name,
                                    temperature=temperature,
                                    max_tokens=MAX_TOKENS):
                 if error_msg := check_error_msg(d):  # check whether error occured
@@ -563,31 +563,31 @@ def kb_dialogue_page(api: ApiRequest, dialogue_mode="知识库问答"):
         temperature = st.slider("生成温度：", 0.0, 1.0, TEMPERATURE, 0.05)
         history_len = st.number_input("历史对话轮数：", 0, 20, HISTORY_LEN)
 
-        prompt_dict = get_prompts("knowledge_base_chat")
-        prompt_templates_kb_list = list(prompt_dict.keys())
+        # prompt_dict = get_prompts("knowledge_base_chat")
+        # prompt_templates_kb_list = list(prompt_dict.keys())
 
-        if "prompt_template_select" not in st.session_state:
-            st.session_state.prompt_template_select = prompt_templates_kb_list[0]
+        # if "prompt_template_select" not in st.session_state:
+        #     st.session_state.prompt_template_select = prompt_templates_kb_list[0]
+        #
+        # def prompt_change():
+        #     text = f"已切换为 {prompt_dict[st.session_state.prompt_template_select][0]} 模板。"
+        #     st.toast(text)
 
-        def prompt_change():
-            text = f"已切换为 {prompt_dict[st.session_state.prompt_template_select][0]} 模板。"
-            st.toast(text)
-
-        def prompt_format_func(key):
-            return prompt_dict[key][0]
-
-        st.selectbox(
-            "选择提示词模板：",
-            prompt_templates_kb_list,
-            index=0,
-            on_change=prompt_change,
-            format_func=prompt_format_func,
-            key="prompt_template_select",
-        )
-        prompt_template_name = st.session_state.prompt_template_select
-
-        with st.expander("当前提示词", False):
-            st.text(f"{prompt_dict[prompt_template_name][1]}")
+        # def prompt_format_func(key):
+        #     return prompt_dict[key][0]
+        #
+        # st.selectbox(
+        #     "选择提示词模板：",
+        #     prompt_templates_kb_list,
+        #     index=0,
+        #     on_change=prompt_change,
+        #     format_func=prompt_format_func,
+        #     key="prompt_template_select",
+        # )
+        # prompt_template_name = st.session_state.prompt_template_select
+        #
+        # with st.expander("当前提示词", False):
+        #     st.text(f"{prompt_dict[prompt_template_name][1]}")
 
     # Display chat messages from history on app rerun
     chat_box.output_messages()
@@ -629,7 +629,7 @@ def kb_dialogue_page(api: ApiRequest, dialogue_mode="知识库问答"):
                                          source=st.session_state[
                                              "cur_source_docs"] if kb_search_type == '继续问答' else [],
                                          model=llm_model,
-                                         prompt_name=prompt_template_name,
+                                         # prompt_name=prompt_template_name,
                                          temperature=temperature,
                                          max_tokens=MAX_TOKENS):
             if error_msg := check_error_msg(d):  # check whether error occured
