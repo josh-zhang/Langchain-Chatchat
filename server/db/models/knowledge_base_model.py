@@ -11,6 +11,7 @@ class KnowledgeBaseModel(Base):
     id = Column(Integer, primary_key=True, autoincrement=True, comment='知识库ID')
     kb_name = Column(String(50), comment='知识库名称')
     kb_info = Column(String(200), comment='知识库简介(用于Agent)')
+    kb_agent_guide = Column(String(200), comment='知识库Agent介绍')
     kb_summary = Column(String(500), comment='知识库总结')
     vs_type = Column(String(50), comment='向量库类型')
     search_enhance = Column(Boolean, comment='是否进行检索增强')
@@ -19,6 +20,7 @@ class KnowledgeBaseModel(Base):
     create_time = Column(DateTime, default=func.now(), comment='创建时间')
 
     def __repr__(self):
-        return (f"<KnowledgeBase(id='{self.id}', kb_name='{self.kb_name}',kb_intro='{self.kb_info}, "
-                f"kb_summary='{self.kb_summary}, vs_type='{self.vs_type}', embed_model='{self.embed_model}', "
-                f"file_count='{self.file_count}', create_time='{self.create_time}')>")
+        return (
+            f"<KnowledgeBase(id='{self.id}', kb_name='{self.kb_name}',kb_info='{self.kb_info},kb_agent_guide='{self.kb_agent_guide}, "
+            f"kb_summary='{self.kb_summary}, vs_type='{self.vs_type}', embed_model='{self.embed_model}', "
+            f"file_count='{self.file_count}', create_time='{self.create_time}')>")

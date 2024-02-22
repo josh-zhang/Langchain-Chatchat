@@ -16,6 +16,7 @@ import asyncio
 from server.agent import model_container
 from pydantic import BaseModel, Field
 
+
 async def search_knowledge_base_iter(database: str, query: str) -> str:
     response = await knowledge_base_chat(query=query,
                                          knowledge_base_name=database,
@@ -32,7 +33,7 @@ async def search_knowledge_base_iter(database: str, query: str) -> str:
     async for data in response.body_iterator:  # 这里的data是一个json字符串
         data = json.loads(data)
         contents += data["answer"]
-        docs = data["docs"]
+        # docs = data["docs"]
     return contents
 
 
@@ -248,7 +249,8 @@ class LLMKnowledgeChain(LLMChain):
             stop=["```output"],
             callbacks=_run_manager.get_child(),
         )
-        return await self._aprocess_llm_result(llm_output, inputs[self.input_key], _run_manager)
+        # return await self._aprocess_llm_result(llm_output, inputs[self.input_key], _run_manager)
+        return await self._aprocess_llm_result(llm_output, _run_manager)
 
     @property
     def _chain_type(self) -> str:
@@ -271,8 +273,10 @@ def search_knowledgebase_complex(query: str):
     ans = llm_knowledge.run(query)
     return ans
 
+
 class KnowledgeSearchInput(BaseModel):
     location: str = Field(description="The query to be searched")
+
 
 if __name__ == "__main__":
     result = search_knowledgebase_complex("机器人和大数据在代码教学上有什么区别")

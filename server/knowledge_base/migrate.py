@@ -116,7 +116,7 @@ def folder2db(
 
     kb_names = kb_names or list_kbs_from_folder()
     for kb_name in kb_names:
-        kb = KBServiceFactory.get_service(kb_name, f"关于{kb_name}的介绍", vs_type, embed_model)
+        kb = KBServiceFactory.get_service(kb_name, f"关于{kb_name}的介绍", f"关于{kb_name}的介绍", vs_type, embed_model)
         if not kb.exists():
             kb.create_kb()
 

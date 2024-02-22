@@ -25,6 +25,7 @@ import asyncio
 from server.agent import model_container
 from pydantic import BaseModel, Field
 
+
 async def search_knowledge_base_iter(database: str, query: str):
     response = await knowledge_base_chat(query=query,
                                          knowledge_base_name=database,

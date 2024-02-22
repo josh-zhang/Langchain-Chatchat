@@ -62,15 +62,14 @@ PROMPT = PromptTemplate(
 class CalculatorInput(BaseModel):
     query: str = Field()
 
+
 def calculate(query: str):
     model = model_container.MODEL
     llm_math = LLMMathChain.from_llm(model, verbose=True, prompt=PROMPT)
     ans = llm_math.run(query)
     return ans
 
+
 if __name__ == "__main__":
     result = calculate("2的三次方")
-    print("答案:",result)
-
-
-
+    print("答案:", result)

@@ -56,14 +56,18 @@ def file_exists(kb_name: str, selected_rows: List) -> Tuple[str, str]:
 
 def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
     selected_kb_index = 0
-    kb_names = []
-    kb_dict = []
+    exist_kb_names = []
+    exist_kb_infos = []
+    kb_dict = {}
+
+    kb_details = get_kb_details()
 
     try:
-        kb_dict = {x["kb_name"]: x for x in get_kb_details()}
-        kb_names = list(kb_dict.keys())
-        if "selected_kb_name" in st.session_state and st.session_state["selected_kb_name"] in kb_names:
-            selected_kb_index = kb_names.index(st.session_state["selected_kb_name"])
+        kb_dict = {x["kb_name"]: x for x in kb_details}
+        exist_kb_names = list(kb_dict.keys())
+        exist_kb_infos = [x["kb_info"] for x in kb_details]
+        if "selected_kb_name" in st.session_state and st.session_state["selected_kb_name"] in exist_kb_names:
+            selected_kb_index = exist_kb_names.index(st.session_state["selected_kb_name"])
     except Exception as e:
         st.error(
             "获取知识库信息错误，请检查是否已按照 `README.md` 中 `4 知识库初始化与迁移` 步骤完成初始化或迁移，或是否为数据库连接错误。")
@@ -80,7 +84,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
 
     selected_kb = st.selectbox(
         "请选择或新建知识库：",
-        kb_names + ["新建知识库"],
+        exist_kb_names + ["新建知识库"],
         format_func=format_selected_kb,
         index=selected_kb_index
     )
@@ -98,12 +102,21 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 placeholder="新知识库ID，不支持中文命名",
                 key="kb_name",
                 value=suggested_id,
+                max_chars=50,
             )
             new_kb_info = st.text_input(
                 "知识库名称",
                 placeholder="知识库名称",
                 key="kb_info",
                 value=suggested_name,
+                max_chars=200,
+            )
+            new_kb_agent_guide = st.text_area(
+                "知识库介绍",
+                placeholder="知识库介绍",
+                key="kb_agent_guide",
+                value="",
+                max_chars=200,
             )
 
             cols = st.columns(2)
@@ -145,10 +158,13 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
             else:
                 if not new_kb_info or not new_kb_info.strip():
                     st.error(f"知识库名称不能为空！")
+                elif new_kb_info in exist_kb_infos:
+                    st.error(f"名称为 {new_kb_info} 的知识库已经存在，请直接使用。如需重新创建，请先删除现有同名称知识库！")
                 else:
                     ret = api.create_knowledge_base(
                         knowledge_base_name=new_kb_name,
                         knowledge_base_info=new_kb_info,
+                        knowledge_base_agent_guide=new_kb_agent_guide,
                         vector_store_type=vs_type,
                         embed_model=embed_model,
                         search_enhance=search_enhance,
@@ -163,6 +179,8 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
         # st.session_state["selected_kb_info"] = kb_dict[kb]['kb_info']
         # 上传文件
         this_kb_info = st.text_area("知识库名称", value=kb_dict[this_kb_name]['kb_info'], max_chars=None,
+                                    key=None, help=None, on_change=None, args=None, kwargs=None, disabled=True)
+        this_kb_agent_guide = st.text_area("知识库介绍", value=kb_dict[this_kb_name]['kb_agent_guide'], max_chars=None,
                                     key=None, help=None, on_change=None, args=None, kwargs=None, disabled=True)
         files = st.file_uploader("上传知识文件：",
                                  [i for ls in LOADER_DICT.values() for i in ls],
@@ -354,6 +372,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 empty.progress(0.0, "")
                 for d in api.recreate_vector_store(this_kb_name,
                                                    this_kb_info,
+                                                   this_kb_agent_guide,
                                                    chunk_size=chunk_size,
                                                    chunk_overlap=chunk_overlap,
                                                    zh_title_enhance=zh_title_enhance):

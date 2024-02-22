@@ -3,20 +3,17 @@ import asyncio
 
 from fastapi import Body
 from sse_starlette.sse import EventSourceResponse
-from configs import LLM_MODELS, TEMPERATURE, HISTORY_LEN, Agent_MODEL, PROMPT_TEMPLATES
+from configs import LLM_MODELS, TEMPERATURE, HISTORY_LEN
 
 from langchain.chains import LLMChain
 from langchain.memory import ConversationBufferWindowMemory
-from langchain.agents import AgentExecutor
+from langchain.agents import AgentExecutor, LLMSingleActionAgent
 from typing import AsyncIterable, Optional, List
 
 from server.utils import wrap_done, get_ChatOpenAI, get_prompt_template
 from server.knowledge_base.kb_service.base import get_kb_details
-from langchain.prompts.chat import ChatPromptTemplate
 from server.agent.callbacks import CustomAsyncIteratorCallbackHandler, Status
 from server.agent.tools_select import tools, tool_names
-from server.agent.custom_agent.qwen_agent import create_structured_qwen_chat_agent
-from server.callback_handler.agent_callback_handler import AgentExecutorAsyncIteratorCallbackHandler
 from server.chat.utils import History
 from server.agent import model_container
 from server.agent.custom_template import CustomOutputParser, CustomPromptTemplate
@@ -47,7 +44,7 @@ async def agent_chat(query: str = Body(..., description="用户输入", examples
     ) -> AsyncIterable[str]:
         nonlocal max_tokens
 
-        callback = AgentExecutorAsyncIteratorCallbackHandler()
+        callback = CustomAsyncIteratorCallbackHandler()
 
         if isinstance(max_tokens, int) and max_tokens <= 0:
             max_tokens = None
@@ -57,12 +54,20 @@ async def agent_chat(query: str = Body(..., description="用户输入", examples
             temperature=temperature,
             max_tokens=max_tokens,
             callbacks=[callback],
-            streaming=False,
         )
 
         kb_list = {x["kb_name"]: x for x in get_kb_details()}
-        model_container.DATABASE = {name: details['kb_info'] for name, details in kb_list.items()}
+        model_container.DATABASE = {name: details['kb_agent_guide'] for name, details in kb_list.items()}
         model_container.MODEL = model_agent
+
+        prompt_template = get_prompt_template("agent_chat", "qwen")
+        prompt_template_agent = CustomPromptTemplate(
+            template=prompt_template,
+            tools=tools,
+            input_variables=["input", "intermediate_steps", "history"]
+        )
+        output_parser = CustomOutputParser()
+        llm_chain = LLMChain(llm=model_agent, prompt=prompt_template_agent)
 
         memory = ConversationBufferWindowMemory(k=HISTORY_LEN * 2)
         for message in history:
@@ -71,11 +76,17 @@ async def agent_chat(query: str = Body(..., description="用户输入", examples
             else:
                 memory.chat_memory.add_ai_message(message.content)
 
-        agent = create_structured_qwen_chat_agent(llm=model_agent, tools=tools)
-        agent_executor = AgentExecutor(agent=agent,
-                                       tools=tools,
-                                       verbose=True,
-                                       memory=memory)
+        agent = LLMSingleActionAgent(
+            llm_chain=llm_chain,
+            output_parser=output_parser,
+            stop=["\nObservation:", "Observation"],
+            allowed_tools=tool_names,
+        )
+        agent_executor = AgentExecutor.from_agent_and_tools(agent=agent,
+                                                            tools=tools,
+                                                            verbose=True,
+                                                            memory=memory,
+                                                            )
 
         while True:
             try:

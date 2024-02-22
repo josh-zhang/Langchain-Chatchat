@@ -78,7 +78,7 @@ PROMPT_TEMPLATES = {
             'You have access to the following tools:\n\n'
             '{tools}\n\n'
             'Use the following format:\n'
-            'Question: the input question you must answer1\n'
+            'Question: the input question you must answer\n'
             'Thought: you should always think about what to do and what tools to use.\n'
             'Action: the action to take, should be one of [{tool_names}]\n'
             'Action Input: the input to the action\n'
@@ -127,5 +127,22 @@ PROMPT_TEMPLATES = {
             'history: {history}\n\n'
             'Question: {input}\n\n'
             'Thought: {agent_scratchpad}',
+
+        "qwen":
+            'Answer the following question as best you can. You have access to the following APIs:\n\n'
+            '{tools}\n\n'
+            'Use the following format:\n\n'
+            'Question: the input question you must answer\n'
+            'Thought: you should always think about what to do\n'
+            'Action: the action to take, should be one of [{tool_names}]\n'
+            'Action Input: the input to the action\n'
+            'Observation: the result of the action\n'
+            '... (this Thought/Action/Action Input/Observation can be repeated zero or more times)\n'
+            'Thought: I now know the final answer\n'
+            'Final Answer: the final answer to the original input question\n\n'
+            'Format the Action Input as a JSON object.\n\n'
+            'Begin!\n\n'
+            'Question: {input}\n\n'
+            '{agent_scratchpad}\n\n',
     }
 }
