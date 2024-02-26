@@ -49,7 +49,8 @@ def embed_texts(
             supervisor_address = xinference_supervisor_address()
             response = requests.post(f"{supervisor_address}/v1/embeddings",
                                      json={"model": embed_model[:-4], "input": texts})
-            return response.json()
+            data = [i["embedding"] for i in response.json()["data"]]
+            return BaseResponse(data=data)
         else:
             from server.utils import load_local_embeddings
 
@@ -73,7 +74,8 @@ async def aembed_texts(
             supervisor_address = xinference_supervisor_address()
             response = requests.post(f"{supervisor_address}/v1/embeddings",
                                      json={"model": embed_model[:-4], "input": texts})
-            return response.json()
+            data = [i["embedding"] for i in response.json()["data"]]
+            return BaseResponse(data=data)
         else:
             from server.utils import load_local_embeddings
 
