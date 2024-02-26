@@ -36,7 +36,7 @@ class CustomAsyncIteratorCallbackHandler(AsyncIteratorCallbackHandler):
                             metadata: Dict[str, Any] | None = None, **kwargs: Any) -> None:
 
         # 对于截断不能自理的大模型，我来帮他截断
-        stop_words = ["Observation:", "Thought","\"","（", "\n","\t"]
+        stop_words = ["Observation:", "Thought", "\"", "（", "\n", "\t"]
         for stop_word in stop_words:
             index = input_str.find(stop_word)
             if index != -1:
@@ -58,7 +58,7 @@ class CustomAsyncIteratorCallbackHandler(AsyncIteratorCallbackHandler):
 
     async def on_tool_end(self, output: str, *, run_id: UUID, parent_run_id: UUID | None = None,
                           tags: List[str] | None = None, **kwargs: Any) -> None:
-        self.out = True ## 重置输出
+        self.out = True  ## 重置输出
         self.cur_tool.update(
             status=Status.tool_finish,
             output_str=output.replace("Answer:", ""),
@@ -116,16 +116,17 @@ class CustomAsyncIteratorCallbackHandler(AsyncIteratorCallbackHandler):
             llm_token="",
         )
         self.queue.put_nowait(dumps(self.cur_tool))
+
     async def on_chat_model_start(
-        self,
-        serialized: Dict[str, Any],
-        messages: List[List],
-        *,
-        run_id: UUID,
-        parent_run_id: Optional[UUID] = None,
-        tags: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        **kwargs: Any,
+            self,
+            serialized: Dict[str, Any],
+            messages: List[List],
+            *,
+            run_id: UUID,
+            parent_run_id: Optional[UUID] = None,
+            tags: Optional[List[str]] = None,
+            metadata: Optional[Dict[str, Any]] = None,
+            **kwargs: Any,
     ) -> None:
         self.cur_tool.update(
             status=Status.start,

@@ -125,7 +125,6 @@ async def agent_chat(query: str = Body(..., description="用户输入", examples
                 else:
                     yield json.dumps({"answer": data["llm_token"]}, ensure_ascii=False)
 
-
         else:
             answer = ""
             final_answer = ""
@@ -157,5 +156,4 @@ async def agent_chat(query: str = Body(..., description="用户输入", examples
     return EventSourceResponse(agent_chat_iterator(query=query,
                                                    history=history,
                                                    model_name=model_name,
-                                                   prompt_name=prompt_name),
-                               )
+                                                   prompt_name=prompt_name))

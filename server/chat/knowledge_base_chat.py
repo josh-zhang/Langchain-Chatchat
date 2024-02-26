@@ -73,11 +73,14 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
     rescale_factor = 1 + BM_25_FACTOR if is_search_enhance else 1
     score_threshold = score_threshold * rescale_factor
 
-    base_url = request.base_url.__str__()
-    base_url_parsed = urlparse(base_url)
-    hostname_altered = API_SERVER_HOST_MAPPING.get(base_url_parsed.hostname, base_url_parsed.hostname)
-    port_altered = str(API_SERVER_PORT_MAPPING.get(base_url_parsed.port, base_url_parsed.port))
-    base_url_altered = base_url_parsed.scheme + "://" + hostname_altered + ":" + port_altered + "/"
+    if request:
+        base_url = request.base_url.__str__()
+        base_url_parsed = urlparse(base_url)
+        hostname_altered = API_SERVER_HOST_MAPPING.get(base_url_parsed.hostname, base_url_parsed.hostname)
+        port_altered = str(API_SERVER_PORT_MAPPING.get(base_url_parsed.port, base_url_parsed.port))
+        base_url_altered = base_url_parsed.scheme + "://" + hostname_altered + ":" + port_altered + "/"
+    else:
+        base_url_altered = ""
 
     history = [History.from_data(h) for h in history]
 

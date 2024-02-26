@@ -39,6 +39,10 @@ if __name__ == "__main__":
             "icon": "chat",
             "func": dialogue_page,
         },
+        "Agent对话": {
+            "icon": "chat",
+            "func": agent_dialogue_page,
+        },
         "知识库管理": {
             "icon": "hdd-stack",
             "func": knowledge_base_page,
