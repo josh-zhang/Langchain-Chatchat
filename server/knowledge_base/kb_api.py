@@ -14,6 +14,7 @@ def list_kbs():
 
 def create_kb(knowledge_base_name: str = Body(..., examples=["samples"]),
             kb_info: str = Body(..., examples=["samples_introduction"]),
+            kb_agent_guide: str = Body(..., examples=["samples_introduction_for_agent"]),
             vector_store_type: str = Body("faiss"),
             embed_model: str = Body(EMBEDDING_MODEL),
             search_enhance: bool = Body(SEARCH_ENHANCE),
@@ -28,7 +29,7 @@ def create_kb(knowledge_base_name: str = Body(..., examples=["samples"]),
     if kb is not None:
         return BaseResponse(code=404, msg=f"已存在同名知识库 {knowledge_base_name}")
 
-    kb = KBServiceFactory.get_service(knowledge_base_name, kb_info, vector_store_type, embed_model, search_enhance)
+    kb = KBServiceFactory.get_service(knowledge_base_name, kb_info, kb_agent_guide, vector_store_type, embed_model, search_enhance)
     try:
         kb.create_kb()
     except Exception as e:

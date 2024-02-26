@@ -99,6 +99,7 @@ def gen_qa_task(knowledge_base_name, kb_info):
 
     new_kb_name = f"{knowledge_base_name}_faq"
     new_kb_info = f"{kb_info}-生成问答"
+    new_kb_agent_guide = f"关于{kb_info}的FAQ"
 
     kb = KBServiceFactory.get_service_by_name(new_kb_name)
     if kb is not None:
@@ -116,7 +117,8 @@ def gen_qa_task(knowledge_base_name, kb_info):
             # return BaseResponse(code=500, msg=msg)
             return
 
-    kb = KBServiceFactory.get_service(new_kb_name, new_kb_info, "faiss", EMBEDDING_MODEL, SEARCH_ENHANCE)
+    kb = KBServiceFactory.get_service(new_kb_name, new_kb_info, new_kb_agent_guide, "faiss", EMBEDDING_MODEL,
+                                      SEARCH_ENHANCE)
     status = kb.create_kb()
     if not status:
         msg = f"创建知识库出错"

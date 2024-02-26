@@ -468,6 +468,7 @@ class ApiRequest:
             self,
             knowledge_base_name: str,
             knowledge_base_info: str,
+            knowledge_base_agent_guide: str,
             vector_store_type: str = DEFAULT_VS_TYPE,
             embed_model: str = EMBEDDING_MODEL,
             search_enhance: bool = SEARCH_ENHANCE,
@@ -478,6 +479,7 @@ class ApiRequest:
         data = {
             "knowledge_base_name": knowledge_base_name,
             "kb_info": knowledge_base_info,
+            "kb_agent_guide": knowledge_base_agent_guide,
             "vector_store_type": vector_store_type,
             "embed_model": embed_model,
             "search_enhance": search_enhance,
@@ -711,6 +713,7 @@ class ApiRequest:
             self,
             knowledge_base_name: str,
             knowledge_base_info: str,
+            knowledge_agent_guide: str,
             allow_empty_kb: bool = True,
             vs_type: str = DEFAULT_VS_TYPE,
             embed_model: str = EMBEDDING_MODEL,
@@ -725,6 +728,7 @@ class ApiRequest:
         data = {
             "knowledge_base_name": knowledge_base_name,
             "kb_info": knowledge_base_info,
+            "kb_agent_guide": knowledge_agent_guide,
             "allow_empty_kb": allow_empty_kb,
             "vs_type": vs_type,
             "embed_model": embed_model,

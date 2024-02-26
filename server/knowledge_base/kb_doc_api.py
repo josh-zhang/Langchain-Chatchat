@@ -275,6 +275,20 @@ def update_info(
 
     return BaseResponse(code=200, msg=f"知识库介绍修改完成", data={"kb_info": kb_info})
 
+def update_agent_guide(
+        knowledge_base_name: str = Body(..., description="知识库名称", examples=["samples"]),
+        kb_agent_guide: str = Body(..., description="知识库Agent介绍", examples=["这是一个知识库"]),
+):
+    if not validate_kb_name(knowledge_base_name):
+        return BaseResponse(code=403, msg="Don't attack me")
+
+    kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
+    if kb is None:
+        return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}")
+    kb.update_agent_guide(kb_agent_guide)
+
+    return BaseResponse(code=200, msg=f"知识库介绍修改完成", data={"kb_agent_guide": kb_agent_guide})
+
 
 def update_docs(
         knowledge_base_name: str = Body(..., description="知识库名称", examples=["samples"]),
@@ -481,6 +495,7 @@ def download_kb_files(
 def recreate_vector_store(
         knowledge_base_name: str = Body(..., examples=["samples"]),
         kb_info: str = Body(..., examples=["samples_introduction"]),
+        kb_agent_guide: str = Body(..., examples=["samples_introduction_for_agent"]),
         allow_empty_kb: bool = Body(True),
         vs_type: str = Body(DEFAULT_VS_TYPE),
         embed_model: str = Body(EMBEDDING_MODEL),
@@ -498,7 +513,7 @@ def recreate_vector_store(
     """
 
     def output():
-        kb = KBServiceFactory.get_service(knowledge_base_name, kb_info, vs_type, embed_model, search_enhance)
+        kb = KBServiceFactory.get_service(knowledge_base_name, kb_info, kb_agent_guide, vs_type, embed_model, search_enhance)
         if not kb.exists() and not allow_empty_kb:
             yield {"code": 404, "msg": f"未找到知识库 ‘{knowledge_base_name}’"}
         else:

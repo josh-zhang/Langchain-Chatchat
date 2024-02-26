@@ -70,11 +70,13 @@ class KBService(ABC):
     def __init__(self,
                  knowledge_base_name: str,
                  kb_info: str,
+                 kb_agent_guide: str,
                  search_enhance: bool = SEARCH_ENHANCE,
                  embed_model: str = EMBEDDING_MODEL,
                  ):
         self.kb_name = knowledge_base_name
         self.kb_info = kb_info
+        self.kb_agent_guide = kb_agent_guide
         self.embed_model = embed_model
         self.search_enhance = search_enhance
         self.kb_path = get_kb_path(self.kb_name)
@@ -103,8 +105,8 @@ class KBService(ABC):
         self.do_create_kb("answer")
         self.do_create_kb("query")
 
-        status = add_kb_to_db(self.kb_name, self.kb_info, self.kb_summary, self.vs_type(), self.embed_model,
-                              self.search_enhance)
+        status = add_kb_to_db(self.kb_name, self.kb_info, self.kb_agent_guide, self.kb_summary, self.vs_type(),
+                              self.embed_model, self.search_enhance)
 
         return status
 
@@ -262,8 +264,17 @@ class KBService(ABC):
         更新知识库介绍
         """
         self.kb_info = kb_info
-        status = add_kb_to_db(self.kb_name, self.kb_info, self.kb_summary, self.vs_type(), self.embed_model,
-                              self.search_enhance)
+        status = add_kb_to_db(self.kb_name, self.kb_info, self.kb_agent_guide, self.kb_summary, self.vs_type(),
+                              self.embed_model, self.search_enhance)
+        return status
+
+    def update_agent_guide(self, kb_agent_guide: str):
+        """
+        更新知识库Agent介绍
+        """
+        self.kb_agent_guide = kb_agent_guide
+        status = add_kb_to_db(self.kb_name, self.kb_info, self.kb_agent_guide, self.kb_summary, self.vs_type(),
+                              self.embed_model, self.search_enhance)
         return status
 
     def update_faq(self, kb_file: KnowledgeFile, is_generated, **kwargs):
@@ -726,6 +737,7 @@ class KBServiceFactory:
     @staticmethod
     def get_service(kb_name: str,
                     kb_info: str,
+                    kb_agent_guide: str,
                     vector_store_type: Union[str, SupportedVSType],
                     embed_model: str = EMBEDDING_MODEL,
                     search_enhance: bool = SEARCH_ENHANCE,
@@ -734,7 +746,7 @@ class KBServiceFactory:
             vector_store_type = getattr(SupportedVSType, vector_store_type.upper())
         if SupportedVSType.FAISS == vector_store_type:
             from server.knowledge_base.kb_service.faiss_kb_service import FaissKBService
-            return FaissKBService(kb_name, kb_info, search_enhance, embed_model=embed_model)
+            return FaissKBService(kb_name, kb_info, kb_agent_guide, search_enhance, embed_model=embed_model)
         # elif SupportedVSType.PG == vector_store_type:
         #     from server.knowledge_base.kb_service.pg_kb_service import PGKBService
         #     return PGKBService(kb_name, embed_model=embed_model)
@@ -756,10 +768,10 @@ class KBServiceFactory:
 
     @staticmethod
     def get_service_by_name(kb_name: str) -> Optional[KBService]:
-        kb_name, kb_info, _, vs_type, embed_model, search_enhance = load_kb_from_db(kb_name)
+        kb_name, kb_info, kb_agent_guide, _, vs_type, embed_model, search_enhance = load_kb_from_db(kb_name)
         if kb_name is None:  # kb not in db, just return None
             return None
-        return KBServiceFactory.get_service(kb_name, kb_info, vs_type, embed_model, search_enhance)
+        return KBServiceFactory.get_service(kb_name, kb_info, kb_agent_guide, vs_type, embed_model, search_enhance)
 
     # @staticmethod
     # def get_default():
@@ -776,6 +788,7 @@ def get_kb_details() -> List[Dict]:
             "kb_name": kb,
             "vs_type": "",
             "kb_info": "",
+            "kb_agent_guide": "",
             "kb_summary": "",
             "embed_model": "",
             "file_count": 0,
