@@ -17,7 +17,7 @@ from configs.model_config import NLTK_DATA_PATH
 from configs.server_config import OPEN_CROSS_DOMAIN
 from server.chat.chat import chat
 from server.chat.feedback import chat_feedback
-from server.embeddings_api import embed_texts_endpoint, embed_texts_simi_endpoint
+from server.embeddings_api import embed_texts_endpoint, list_embed_models
 from server.llm_api import list_running_models, list_config_models, list_api_running_models
 from server.utils import (BaseResponse, ListResponse, ListListResponse, FastAPI, MakeFastAPIOffline,
                           get_server_configs, get_prompt_template)
@@ -70,6 +70,13 @@ def mount_app_routes(app: FastAPI, run_mode: str = None):
              tags=["Chat"],
              summary="返回llm模型对话评分",
              )(chat_feedback)
+
+
+    # Tag: embedding
+    app.post("/embed_model/list_embed_models",
+             tags=["Embedding"],
+             summary="列出当前已加载的嵌入模型",
+             )(list_embed_models)
 
     # 知识库相关接口
     mount_knowledge_routes(app)
@@ -137,11 +144,11 @@ def mount_app_routes(app: FastAPI, run_mode: str = None):
              tags=["Other"],
              summary="将文本向量化，支持本地模型",
              )(embed_texts_endpoint)
-
-    app.post("/other/texts_simi",
-             tags=["Other"],
-             summary="比较任意两个文本的相似度，支持本地模型",
-             )(embed_texts_simi_endpoint)
+    #
+    # app.post("/other/texts_simi",
+    #          tags=["Other"],
+    #          summary="比较任意两个文本的相似度，支持本地模型",
+    #          )(embed_texts_simi_endpoint)
 
 
 def mount_knowledge_routes(app: FastAPI):

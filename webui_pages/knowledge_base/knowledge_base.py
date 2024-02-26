@@ -7,7 +7,6 @@ import streamlit as st
 from st_aggrid import AgGrid, JsCode
 from st_aggrid.grid_options_builder import GridOptionsBuilder
 
-from server.utils import list_embed_models
 from server.knowledge_base.utils import get_file_path, LOADER_DICT
 from server.knowledge_base.kb_service.base import get_kb_details, get_kb_file_details
 from configs import kbs_config
@@ -54,6 +53,11 @@ def file_exists(kb_name: str, selected_rows: List) -> Tuple[str, str]:
     return "", ""
 
 
+@st.cache_data(ttl=300)
+def get_embed_models(_api):
+    return _api.list_embed_models()
+
+
 def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
     selected_kb_index = 0
     exist_kb_names = []
@@ -90,6 +94,12 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
     )
 
     if selected_kb == "新建知识库":
+        embed_models = get_embed_models(api)
+
+        if not embed_models:
+            st.info("系统异常，暂时无法新建知识库")
+            return
+
         with st.form("新建知识库"):
 
             now = datetime.datetime.now()
@@ -129,16 +139,10 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 key="vs_type",
             )
 
-            # if is_lite:
-            #     embed_models = list_online_embed_models()
-            # else:
-            #     embed_models = list_embed_models() + list_online_embed_models()
-            embed_models = list_embed_models()
-
             embed_model = cols[1].selectbox(
                 "Embedding 模型",
                 embed_models,
-                index=embed_models.index(EMBEDDING_MODEL),
+                index=0,
                 key="embed_model",
             )
 

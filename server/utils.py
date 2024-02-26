@@ -296,11 +296,11 @@ def MakeFastAPIOffline(
 
 # 从model_config中获取模型信息
 
-def list_embed_models() -> List[str]:
-    '''
-    get names of configured embedding models
-    '''
-    return list(MODEL_PATH["embed_model"])
+# def list_embed_models() -> List[str]:
+#     '''
+#     get names of configured embedding models
+#     '''
+#     return list(MODEL_PATH["embed_model"])
 
 
 def list_config_llm_models() -> Dict[str, Dict]:
@@ -380,6 +380,16 @@ def fschat_openai_api_address() -> str:
         host = "127.0.0.1"
     port = FSCHAT_OPENAI_API["port"]
     return f"http://{host}:{port}/v1"
+
+
+def xinference_supervisor_address() -> str:
+    from configs.server_config import XINFERENCE_API
+
+    host = XINFERENCE_API["host"]
+    if host == "0.0.0.0":
+        host = "127.0.0.1"
+    port = XINFERENCE_API["port"]
+    return f"http://{host}:{port}"
 
 
 def api_address() -> str:

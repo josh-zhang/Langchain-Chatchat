@@ -768,6 +768,27 @@ class ApiRequest:
         return self._get_response_value(response, as_json=True, value_func=lambda r: r.get("data", []))
 
     # LLM模型相关操作
+    def list_embed_models(
+            self,
+            supervisor_address: str = None,
+    ):
+        '''
+        获取xinference中正运行的模型列表
+        '''
+        data = {
+            "supervisor_address": supervisor_address,
+        }
+
+        if log_verbose:
+            logger.info(f'{self.__class__.__name__}:data: {data}')
+
+        response = self.post(
+            "/embed_model/list_embed_models",
+            json=data,
+        )
+        return self._get_response_value(response, as_json=True, value_func=lambda r: r.get("data", []))
+
+    # LLM模型相关操作
     def list_api_running_models(
             self,
     ):
