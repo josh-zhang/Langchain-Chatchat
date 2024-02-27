@@ -144,37 +144,36 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
             # 加入reranker
             if USE_RERANKER and len(docs) > 1:
                 doc_list = list(docs)
-                doc_length = len(doc_list)
+                # doc_length = len(doc_list)
 
                 this_query = query[:200]
                 remain_length = 600 - len(this_query)
                 _docs = [d.page_content[:remain_length] for d in doc_list]
 
-                online = True
-
                 final_results = []
-                if online:
-                    results = rerank(_docs, this_query)
-                    for i in results:
-                        idx = i['index']
-                        value = i['relevance_score']
-                        doc = doc_list[idx]
-                        doc.metadata["relevance_score"] = value
-                        final_results.append(doc)
-                else:
-                    sentence_pairs = [[this_query, _doc] for _doc in _docs]
-                    reranker_model = reranker_pool.load_reranker(RERANKER_MODEL)
-                    results = reranker_model.predict(sentences=sentence_pairs,
-                                                     batch_size=32,
-                                                     num_workers=0,
-                                                     convert_to_tensor=True)
 
-                    doc_length = doc_length if doc_length < len(results) else len(results)
-                    values, indices = results.topk(doc_length)
-                    for value, index in zip(values, indices):
-                        doc = doc_list[index]
-                        doc.metadata["relevance_score"] = value
-                        final_results.append(doc)
+                results = rerank(_docs, this_query)
+                for i in results:
+                    idx = i['index']
+                    value = i['relevance_score']
+                    doc = doc_list[idx]
+                    doc.metadata["relevance_score"] = value
+                    final_results.append(doc)
+
+                # sentence_pairs = [[this_query, _doc] for _doc in _docs]
+                # reranker_model = reranker_pool.load_reranker(RERANKER_MODEL)
+                # results = reranker_model.predict(sentences=sentence_pairs,
+                #                                  batch_size=32,
+                #                                  num_workers=0,
+                #                                  convert_to_tensor=True)
+                #
+                # doc_length = doc_length if doc_length < len(results) else len(results)
+                # values, indices = results.topk(doc_length)
+                # for value, index in zip(values, indices):
+                #     doc = doc_list[index]
+                #     doc.metadata["relevance_score"] = value
+                #     final_results.append(doc)
+
                 docs = final_results
 
                 # print("---------after rerank------------------")
