@@ -17,7 +17,7 @@ from server.chat.utils import History
 from server.chat.prompt_generator import generate_doc_qa
 from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.knowledge_base.kb_doc_api import search_docs
-from server.knowledge_base.kb_cache.base import reranker_pool
+# from server.knowledge_base.kb_cache.base import reranker_pool
 from server.utils import BaseResponse, xinference_supervisor_address
 from configs import (LLM_MODELS,
                      VECTOR_SEARCH_TOP_K,
