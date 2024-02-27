@@ -19,7 +19,7 @@ primaryColor = "#3498DB"
 backgroundColor = "#ECF0F1"
 secondaryBackgroundColor = "#FFFFFF"
 textColor = "#2C3E50"
-font = "Arial"
+font = "sans serif"
 
 # 自然启发 (Nature Inspired)
 #[theme.nature_inspired]
