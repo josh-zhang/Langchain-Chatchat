@@ -6,8 +6,7 @@ from contextlib import contextmanager
 from langchain.embeddings.base import Embeddings
 from langchain.vectorstores.faiss import FAISS
 
-from configs import (EMBEDDING_MODEL, CHUNK_SIZE, logger, log_verbose, MODEL_PATH,
-                     RERANKER_MAX_LENGTH, CACHED_EMBED_NUM, CACHED_RERANK_NUM, RERANKER_MODEL)
+from configs import EMBEDDING_MODEL, CACHED_EMBED_NUM, logger, log_verbose
 from server.utils import embedding_device, get_model_path
 # from sentence_transformers import CrossEncoder
 

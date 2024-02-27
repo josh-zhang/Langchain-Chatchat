@@ -27,19 +27,19 @@ from configs import (LLM_MODELS,
                      USE_RERANKER,
                      RERANKER_MODEL,
                      API_SERVER_HOST_MAPPING,
-                     API_SERVER_PORT_MAPPING, )
+                     API_SERVER_PORT_MAPPING)
 
 
-def rerank(
+def do_rerank(
         documents: List[str],
         query: str,
         top_n: Optional[int] = None,
         max_chunks_per_doc: Optional[int] = None,
         return_documents: Optional[bool] = None,
-        model_uid: str = "bge-reranker-large-1",
+        model_name: str = RERANKER_MODEL,
 ):
-    supervisor_address = xinference_supervisor_address()
-    url = f"{supervisor_address}/v1/rerank"
+    model_uid = model_name[:-4] if model_name.endswith("-api") else model_name
+    url = f"{xinference_supervisor_address()}/v1/rerank"
     request_body = {
         "model": model_uid,
         "documents": documents,
@@ -152,7 +152,7 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
 
                 final_results = []
 
-                results = rerank(_docs, this_query)
+                results = do_rerank(_docs, this_query)
                 for i in results:
                     idx = i['index']
                     value = i['relevance_score']
