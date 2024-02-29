@@ -18,6 +18,7 @@ python webui_alline.py --model-path-address model@host@port --num-gpus 2 --gpus 
 import subprocess
 import sys
 import os
+import time
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
@@ -78,6 +79,7 @@ if __name__ == "__main__":
     # if not args.use_remote_api:
     #     launch_all(args=args,controller_args=controller_args,worker_args=worker_args,server_args=server_args)
     launch_api(args=args, args_list=api_args)
+    time.sleep(5)
     launch_webui(args=args, args_list=web_args)
     print("Start webui_allinone.py done!")
     print("感谢耐心等待，启动webui_allinone完毕。")

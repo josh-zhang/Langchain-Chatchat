@@ -136,18 +136,18 @@ def get_prompt(fallback: str, history: List[History], context: str) -> str:
     return prompt_template
 
 
-def generate_doc_qa(query: str, history: List[History], docs: List[str], fallback: str):
+def generate_doc_qa(query: str, history: List[History], docs: List[str], fallback: str, context: str = ""):
     """Generates chat responses according to the input text, history and page content."""
     # handle input params
     print(f"query: {query}, docs: {docs}, fallback: {fallback}")
 
     # iterate over all documents
-    context = ""
-    for inum, doc in enumerate(docs):
-        if not doc:
-            continue
-        source_id = inum + 1
-        context += document_prompt_template().format(doc_id=f"出处{source_id}", page_content=doc) + "\n\n"
+    if not context:
+        for inum, doc in enumerate(docs):
+            if not doc:
+                continue
+            source_id = inum + 1
+            context += document_prompt_template().format(doc_id=f"出处{source_id}", page_content=doc) + "\n\n"
 
     prompt_template = get_prompt(fallback, history, context)
 
