@@ -131,18 +131,21 @@ def list_files_from_path(folder_path):
 
 
 LOADER_DICT = {"CustomHTMLLoader": ['.html'],
-               # "UnstructuredHTMLLoader": ['.html'],
-               # "UnstructuredMarkdownLoader": ['.md'],
+               "UnstructuredHTMLLoader": ['.htm'],
+               "MHTMLLoader": ['.mhtml'],
+               "UnstructuredMarkdownLoader": ['.md'],
                "JSONLoader": [".json"],
                "JSONLinesLoader": [".jsonl"],
-               # "CSVLoader": [".csv"],
-               # "FilteredCSVLoader": [".csv"], # 需要自己指定，目前还没有支持
-               "RapidOCRPDFLoader": [".pdf"],
+               "CSVLoader": [".csv"],
+               # "FilteredCSVLoader": [".csv"], 如果使用自定义分割csv
+               # "RapidOCRPDFLoader": [".pdf"],
+               # "RapidOCRDocLoader": ['.docx', '.doc'],
+               # "RapidOCRPPTLoader": ['.ppt', '.pptx', ],
                # "RapidOCRLoader": ['.png', '.jpg', '.jpeg', '.bmp'],
-               # "UnstructuredEmailLoader": ['.eml', '.msg'],
+               "UnstructuredFileLoader": ['.txt'],
+               "UnstructuredEmailLoader": ['.eml', '.msg'],
                # "UnstructuredEPubLoader": ['.epub'],
-               # "UnstructuredExcelLoader": ['.xlsx', '.xls', '.xlsd'],
-               "CustomExcelLoader": ['.xlsx'],
+               "UnstructuredExcelLoader": ['.xlsx', '.xls', '.xlsd'],
                # "NotebookLoader": ['.ipynb'],
                # "UnstructuredODTLoader": ['.odt'],
                # "PythonLoader": ['.py'],
@@ -150,12 +153,12 @@ LOADER_DICT = {"CustomHTMLLoader": ['.html'],
                # "UnstructuredRTFLoader": ['.rtf'],
                # "SRTLoader": ['.srt'],
                # "TomlLoader": ['.toml'],
-               # "UnstructuredTSVLoader": ['.tsv'],
+               "UnstructuredTSVLoader": ['.tsv'],
                "UnstructuredWordDocumentLoader": ['.docx', '.doc'],
-               # "UnstructuredXMLLoader": ['.xml'],
-               # "UnstructuredPowerPointLoader": ['.ppt', '.pptx'],
-               # "UnstructuredFileLoader": ['.txt'],
-               "TextLoader": ['.txt'],
+               "UnstructuredXMLLoader": ['.xml'],
+               "UnstructuredPowerPointLoader": ['.ppt', '.pptx'],
+               # "TextLoader": ['.txt'],
+               # "EverNoteLoader": ['.enex'],
                }
 SUPPORTED_EXTS = [ext for sublist in LOADER_DICT.values() for ext in sublist]
 
@@ -279,7 +282,7 @@ class JSONLinesLoader(langchain_community.document_loaders.JSONLoader):
 langchain_community.document_loaders.JSONLinesLoader = JSONLinesLoader
 
 
-def get_LoaderClass(file_extension):
+def get_LoaderClass(file_extension, kb_name):
     for LoaderClass, extensions in LOADER_DICT.items():
         if file_extension in extensions:
             return LoaderClass
@@ -292,7 +295,8 @@ def get_loader(loader_name: str, file_path: str, loader_kwargs: Dict = None):
     '''
     loader_kwargs = loader_kwargs or {}
     try:
-        if loader_name in ["RapidOCRPDFLoader", "RapidOCRLoader", "FilteredCSVLoader"]:
+        if loader_name in ["RapidOCRPDFLoader", "RapidOCRLoader", "FilteredCSVLoader",
+                           "RapidOCRDocLoader", "RapidOCRPPTLoader"]:
             document_loaders_module = importlib.import_module('document_loaders')
         else:
             document_loaders_module = importlib.import_module('langchain_community.document_loaders')
@@ -314,7 +318,6 @@ def get_loader(loader_name: str, file_path: str, loader_kwargs: Dict = None):
             if encode_detect is None:
                 encode_detect = {"encoding": "utf-8"}
             loader_kwargs["encoding"] = encode_detect["encoding"]
-        ## TODO：支持更多的自定义CSV读取逻辑
 
     elif loader_name == "JSONLoader":
         loader_kwargs.setdefault("jq_schema", ".")
@@ -419,7 +422,7 @@ class KnowledgeFile:
         self.filepath = get_file_path(knowledge_base_name, filename)
         self.docs = None
         self.splited_docs = None
-        self.document_loader_name = get_LoaderClass(self.ext)
+        self.document_loader_name = get_LoaderClass(self.ext, knowledge_base_name)
         self.text_splitter_name = TEXT_SPLITTER_NAME
 
     def file2docs(self, refresh: bool = False):
