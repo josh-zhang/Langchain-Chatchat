@@ -49,7 +49,7 @@ class PythonScriptExecutor:
         }
 
 
-def gen_qa_task(knowledge_base_name, kb_info):
+def gen_qa_task(knowledge_base_name, kb_info, model_name):
     now = datetime.datetime.now()
     now_str = now.strftime("%Y%m%d_%H%M%S")
     task_id = f"{knowledge_base_name}_{now_str}"
@@ -74,7 +74,7 @@ def gen_qa_task(knowledge_base_name, kb_info):
             total_count += 1
             title = filename[:-5]
             executor = PythonScriptExecutor()
-            script_command = f'{QA_JOB_SCRIPT_PATH} -f "{filepath}" -t "{title}" -o "{output_path}" --usetitle --onlinemodel'
+            script_command = f'{QA_JOB_SCRIPT_PATH} -f "{filepath}" -t "{title}" --modelname "{model_name}" -o "{output_path}" --usetitle --onlinemodel'
             results = executor.execute_script(script_command)
             return_code = results['return_code']
             if return_code != 0:

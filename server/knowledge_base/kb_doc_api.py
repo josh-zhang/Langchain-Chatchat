@@ -559,6 +559,7 @@ def recreate_vector_store(
 
 def gen_qa_for_kb(
         knowledge_base_name: str = Body(..., examples=["samples"]),
+        model_name: str = Body(...),
 ):
     kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
     if not kb.exists():
@@ -570,10 +571,10 @@ def gen_qa_for_kb(
         future = JobFutures.get(knowledge_base_name)
 
         if future is None or future.done():
-            new_future = JobExecutor.submit(gen_qa_task, knowledge_base_name, kb_info)
+            new_future = JobExecutor.submit(gen_qa_task, knowledge_base_name, kb_info, model_name)
             JobFutures[knowledge_base_name] = new_future
             FuturesAtomic.release()
-            return BaseResponse(code=200, msg=f"文档问答生成任务提交成功")
+            return BaseResponse(code=200, msg=f"使用{model_name}的文档问答生成任务提交成功")
         else:
             FuturesAtomic.release()
             return BaseResponse(code=404, msg=f"上次任务仍在运行中，请等待任务完成后再提交新任务")
