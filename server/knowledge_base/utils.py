@@ -282,7 +282,7 @@ class JSONLinesLoader(langchain_community.document_loaders.JSONLoader):
 langchain_community.document_loaders.JSONLinesLoader = JSONLinesLoader
 
 
-def get_LoaderClass(file_extension, kb_name):
+def get_LoaderClass(file_extension):
     for LoaderClass, extensions in LOADER_DICT.items():
         if file_extension in extensions:
             return LoaderClass
@@ -422,7 +422,7 @@ class KnowledgeFile:
         self.filepath = get_file_path(knowledge_base_name, filename)
         self.docs = None
         self.splited_docs = None
-        self.document_loader_name = get_LoaderClass(self.ext, knowledge_base_name)
+        self.document_loader_name = get_LoaderClass(self.ext)
         self.text_splitter_name = TEXT_SPLITTER_NAME
 
     def file2docs(self, refresh: bool = False):
