@@ -81,9 +81,9 @@ def model_setup(api):
     config_models = get_config_models(api)
 
     # for test
-    running_models = ['qwen']
-    available_models = []
-    config_models = {}
+    # running_models = ['qwen']
+    # available_models = []
+    # config_models = {}
 
     if available_models:
         running_models.append(available_models[0])

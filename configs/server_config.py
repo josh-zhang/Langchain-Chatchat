@@ -57,6 +57,12 @@ FSCHAT_CONTROLLER = {
 
 QA_JOB_SCRIPT_PATH = "/opt/projects/qabot-be/deploy/main.py"
 
+# xinference server
+XINFERENCE_API = {
+    "host": DEFAULT_BIND_HOST,
+    "port": 30002,
+}
+
 # LLM_SERVER = {
 #     "host": DEFAULT_BIND_HOST,
 #     "port": 30000,

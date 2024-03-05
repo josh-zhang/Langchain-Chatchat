@@ -316,6 +316,10 @@ def delete_files_from_db(session, knowledge_base_name: str):
         synchronize_session=False)
     session.query(FileDocModel).filter(FileDocModel.kb_name.ilike(knowledge_base_name)).delete(
         synchronize_session=False)
+    session.query(FileAnswerModel).filter(FileAnswerModel.kb_name.ilike(knowledge_base_name)).delete(
+        synchronize_session=False)
+    session.query(AnswerQuestionModel).filter(AnswerQuestionModel.kb_name.ilike(knowledge_base_name)).delete(
+        synchronize_session=False)
     kb = session.query(KnowledgeBaseModel).filter(KnowledgeBaseModel.kb_name.ilike(knowledge_base_name)).first()
     if kb:
         kb.file_count = 0

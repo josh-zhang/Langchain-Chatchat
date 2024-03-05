@@ -6,16 +6,16 @@ import os
 MODEL_ROOT_PATH = "/opt/projects/hf_models"
 
 # 选用的 Embedding 名称
-EMBEDDING_MODEL = "bge-m3"
+EMBEDDING_MODEL = "bge-m3-1-api"
 
 # Embedding 模型运行设备。设为"auto"会自动检测，也可手动设定为"cuda","mps","cpu"其中之一。
 EMBEDDING_DEVICE = "auto"
 
 # 选用的reranker模型
-RERANKER_MODEL = "bge-reranker-large"
+RERANKER_MODEL = "bge-reranker-large-1-api"
 # 是否启用reranker模型
 USE_RERANKER = True
-RERANKER_MAX_LENGTH = 1024
+# RERANKER_MAX_LENGTH = 1024
 
 # 如果需要在 EMBEDDING_MODEL 中增加自定义的关键字时配置
 EMBEDDING_KEYWORD_FILE = "keywords.txt"
@@ -45,7 +45,6 @@ MAX_TOKENS = 6000
 # LLM通用对话参数
 TEMPERATURE = 0.0
 TOP_P = 0.95  # ChatOpenAI暂不支持该参数
-
 
 ONLINE_LLM_MODEL = {
     # 线上模型。请在server_config中为每个在线API设置不同的端口

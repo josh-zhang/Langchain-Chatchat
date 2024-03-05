@@ -1,5 +1,6 @@
 import json
 import asyncio
+import requests
 from typing import AsyncIterable, List, Optional
 
 from fastapi import Body, Request
@@ -16,7 +17,8 @@ from server.chat.utils import History
 from server.chat.prompt_generator import generate_doc_qa
 from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.knowledge_base.kb_doc_api import search_docs
-from server.knowledge_base.kb_cache.base import reranker_pool
+# from server.knowledge_base.kb_cache.base import reranker_pool
+from server.utils import BaseResponse, xinference_supervisor_address
 from configs import (LLM_MODELS,
                      VECTOR_SEARCH_TOP_K,
                      SCORE_THRESHOLD,
@@ -26,6 +28,31 @@ from configs import (LLM_MODELS,
                      RERANKER_MODEL,
                      API_SERVER_HOST_MAPPING,
                      API_SERVER_PORT_MAPPING)
+
+
+def do_rerank(
+        documents: List[str],
+        query: str,
+        top_n: Optional[int] = None,
+        max_chunks_per_doc: Optional[int] = None,
+        return_documents: Optional[bool] = None,
+        model_name: str = RERANKER_MODEL,
+):
+    model_uid = model_name[:-4] if model_name.endswith("-api") else model_name
+    url = f"{xinference_supervisor_address()}/v1/rerank"
+    request_body = {
+        "model": model_uid,
+        "documents": documents,
+        "query": query,
+        "top_n": top_n,
+        "max_chunks_per_doc": max_chunks_per_doc,
+        "return_documents": return_documents,
+    }
+    response = requests.post(url, json=request_body)
+    if response.status_code != 200:
+        return []
+    response_data = response.json()['results']
+    return response_data
 
 
 async def knowledge_base_chat(query: str = Body(..., description="用户输入", examples=["你好"]),
@@ -117,27 +144,36 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
             # 加入reranker
             if USE_RERANKER and len(docs) > 1:
                 doc_list = list(docs)
-                doc_length = len(doc_list)
+                # doc_length = len(doc_list)
 
                 this_query = query[:200]
                 remain_length = 600 - len(this_query)
                 _docs = [d.page_content[:remain_length] for d in doc_list]
 
-                sentence_pairs = [[this_query, _doc] for _doc in _docs]
-
-                reranker_model = reranker_pool.load_reranker(RERANKER_MODEL)
-                results = reranker_model.predict(sentences=sentence_pairs,
-                                                 batch_size=32,
-                                                 num_workers=0,
-                                                 convert_to_tensor=True)
-
-                doc_length = doc_length if doc_length < len(results) else len(results)
-                values, indices = results.topk(doc_length)
                 final_results = []
-                for value, index in zip(values, indices):
-                    doc = doc_list[index]
+
+                results = do_rerank(_docs, this_query)
+                for i in results:
+                    idx = i['index']
+                    value = i['relevance_score']
+                    doc = doc_list[idx]
                     doc.metadata["relevance_score"] = value
                     final_results.append(doc)
+
+                # sentence_pairs = [[this_query, _doc] for _doc in _docs]
+                # reranker_model = reranker_pool.load_reranker(RERANKER_MODEL)
+                # results = reranker_model.predict(sentences=sentence_pairs,
+                #                                  batch_size=32,
+                #                                  num_workers=0,
+                #                                  convert_to_tensor=True)
+                #
+                # doc_length = doc_length if doc_length < len(results) else len(results)
+                # values, indices = results.topk(doc_length)
+                # for value, index in zip(values, indices):
+                #     doc = doc_list[index]
+                #     doc.metadata["relevance_score"] = value
+                #     final_results.append(doc)
+
                 docs = final_results
 
                 # print("---------after rerank------------------")

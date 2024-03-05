@@ -2,8 +2,10 @@ from typing import List, Dict, Optional
 
 from langchain.schema import Document
 from langchain.vectorstores.milvus import Milvus
+import os
 
 from configs import kbs_config
+from server.db.repository import list_file_num_docs_id_by_kb_name_and_file_name
 
 from server.knowledge_base.kb_service.base import KBService, SupportedVSType, EmbeddingsFunAdapter, \
     score_threshold_process
@@ -12,24 +14,26 @@ from server.knowledge_base.utils import KnowledgeFile
 
 class MilvusKBService(KBService):
     milvus: Milvus
+    milvus_q: Milvus
+    milvus_a: Milvus
 
     @staticmethod
     def get_collection(milvus_name):
         from pymilvus import Collection
         return Collection(milvus_name)
 
-    # def save_vector_store(self):
-    #     if self.milvus.col:
-    #         self.milvus.col.flush()
-
     def get_doc_by_ids(self, ids: List[str]) -> List[Document]:
         result = []
         if self.milvus.col:
-            data_list = self.milvus.col.query(expr=f'pk in {ids}', output_fields=["*"])
+            # ids = [int(id) for id in ids]  # for milvus if needed #pr 2725
+            data_list = self.milvus.col.query(expr=f'pk in {[int(_id) for _id in ids]}', output_fields=["*"])
             for data in data_list:
                 text = data.pop("text")
                 result.append(Document(page_content=text, metadata=data))
         return result
+
+    def del_doc_by_ids(self, ids: List[str]) -> bool:
+        self.milvus.col.delete(expr=f'pk in {ids}')
 
     @staticmethod
     def search(milvus_name, content, limit=3):
@@ -48,7 +52,11 @@ class MilvusKBService(KBService):
 
     def _load_milvus(self):
         self.milvus = Milvus(embedding_function=EmbeddingsFunAdapter(self.embed_model),
-                             collection_name=self.kb_name, connection_args=kbs_config.get("milvus"))
+                             collection_name=self.kb_name,
+                             connection_args=kbs_config.get("milvus"),
+                             index_params=kbs_config.get("milvus_kwargs")["index_params"],
+                             search_params=kbs_config.get("milvus_kwargs")["search_params"]
+                             )
 
     def do_init(self):
         self._load_milvus()
@@ -66,7 +74,6 @@ class MilvusKBService(KBService):
         return score_threshold_process(score_threshold, top_k, docs)
 
     def do_add_doc(self, docs: List[Document], **kwargs) -> List[Dict]:
-        # TODO: workaround for bug #10492 in langchain
         for doc in docs:
             for k, v in doc.metadata.items():
                 doc.metadata[k] = str(v)
@@ -80,13 +87,11 @@ class MilvusKBService(KBService):
         return doc_infos
 
     def do_delete_doc(self, kb_file: KnowledgeFile, **kwargs):
+        id_list = list_file_num_docs_id_by_kb_name_and_file_name(kb_file.kb_name, kb_file.filename)
         if self.milvus.col:
-            filepath = kb_file.filepath.replace('\\', '\\\\')
-            delete_list = [item.get("pk") for item in
-                           self.milvus.col.query(expr=f'source == "{filepath}"', output_fields=["pk"])]
-            self.milvus.col.delete(expr=f'pk in {delete_list}')
+            self.milvus.col.delete(expr=f'pk in {id_list}')
 
-    def do_clear_vs(self):
+    def do_clear_vs(self, vector_name):
         if self.milvus.col:
             self.do_drop_kb()
             self.do_init()
