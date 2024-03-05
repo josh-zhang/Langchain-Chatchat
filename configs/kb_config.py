@@ -88,7 +88,7 @@ kbs_config = {
 text_splitter_dict = {
     "ChineseRecursiveTextSplitter": {
         "source": "huggingface",  # 选择tiktoken则使用openai的方法
-        "tokenizer_name_or_path": "/opt/projects/hf_models/qwen-14b-chat-int4",
+        "tokenizer_name_or_path": "/opt/projects/hf_models/qwen1.5-14b-chat-gptq-int4",
     },
     "SpacyTextSplitter": {
         "source": "huggingface",
