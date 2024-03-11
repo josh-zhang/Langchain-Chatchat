@@ -1,6 +1,7 @@
 from langchain.document_loaders.unstructured import UnstructuredFileLoader
 from typing import List
 import tqdm
+from rapidocr_onnxruntime import RapidOCR
 
 
 class RapidOCRPPTLoader(UnstructuredFileLoader):
@@ -10,7 +11,7 @@ class RapidOCRPPTLoader(UnstructuredFileLoader):
             from PIL import Image
             import numpy as np
             from io import BytesIO
-            from rapidocr_onnxruntime import RapidOCR
+
             ocr = RapidOCR()
             prs = Presentation(filepath)
             resp = ""
