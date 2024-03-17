@@ -5,7 +5,7 @@ import functools
 from langchain_community.retrievers import BM25Retriever
 from langchain.schema import Document
 from server.knowledge_base.kb_cache.base import *
-from server.knowledge_base.faq_utils import lac, stopwords
+from server.knowledge_base.faq_utils import tok_fine, stopwords
 from configs import CACHED_BM25_VS_NUM
 
 
@@ -16,7 +16,8 @@ def preprocess_func(sentence: str) -> List[str]:
     sentence = re.sub(" {2,}", " ", sentence).strip()
     sentence = sentence.strip().upper()
 
-    seg_text = lac.run([sentence])[0]
+    # seg_text = lac.run([sentence])[0]
+    seg_text = tok_fine(sentence)
 
     result = list()
     for word in seg_text:

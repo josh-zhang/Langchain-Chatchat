@@ -8,7 +8,6 @@ from langchain.vectorstores.faiss import FAISS
 
 from configs import EMBEDDING_MODEL, CACHED_EMBED_NUM, logger, log_verbose
 from server.utils import embedding_device, get_model_path
-# from sentence_transformers import CrossEncoder
 
 
 class ThreadSafeObject:

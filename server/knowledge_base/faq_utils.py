@@ -5,21 +5,22 @@ import functools
 from collections import Counter
 
 import pandas
-from LAC import LAC
+import hanlp
+# from LAC import LAC
 
 from configs import COMMON_PATH, logger
 
-
-lac = LAC(mode='seg')
-term_dict_file = f"{COMMON_PATH}/custom_20230720.txt"
-if not os.path.exists(term_dict_file):
-    term_dict_file = ""
-term_dictionary = list()
-if term_dict_file:
-    with open(term_dict_file) as f:
-        term_dictionary = [i.replace("\n", "")[:-4] for i in f.readlines()]
-    logger.info(f"term_dictionary len {len(term_dictionary)}")
-    lac.load_customization(term_dict_file, sep=None)
+# lac = LAC(mode='seg')
+# term_dict_file = f"{COMMON_PATH}/custom_20230720.txt"
+# if not os.path.exists(term_dict_file):
+#     term_dict_file = ""
+# term_dictionary = list()
+# if term_dict_file:
+#     with open(term_dict_file) as f:
+#         term_dictionary = [i.replace("\n", "")[:-4] for i in f.readlines()]
+#     logger.info(f"term_dictionary len {len(term_dictionary)}")
+#     lac.load_customization(term_dict_file, sep=None)
+tok_fine = hanlp.load(hanlp.pretrained.tok.FINE_ELECTRA_SMALL_ZH)
 
 stopwords_file = f"{COMMON_PATH}/stopwords.txt"
 if not os.path.exists(stopwords_file):
@@ -137,15 +138,17 @@ class StandardQuery(Query):
 
 @functools.lru_cache()
 def seg_text(sentence):
-    seg_result = lac.run([sentence])
-    seg_result = seg_result[0]
+    # seg_result = lac.run([sentence])
+    # seg_result = seg_result[0]
+    seg_result = tok_fine(sentence)
     return [j.strip() for j in seg_result if j.strip()]
 
 
 def seg_text_list(sentence_list, return_list_of_list=False):
-    seg_result = lac.run(sentence_list)
+    # seg_result = lac.run(sentence_list)
     seg_result_text = list()
-    for i in seg_result:
+    for sentence in sentence_list:
+        i = tok_fine(sentence)
         if return_list_of_list:
             seg_result_text.append([j.strip() for j in i if j.strip()])
         else:

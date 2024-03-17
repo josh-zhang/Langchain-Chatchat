@@ -11,7 +11,6 @@ from unstructured.documents.elements import Element, Text, ElementMetadata, Titl
 from unstructured.partition.common import get_last_modified_date
 from langchain.docstore.document import Document
 from langchain.text_splitter import TextSplitter, MarkdownHeaderTextSplitter
-from transformers import AutoTokenizer, GPT2TokenizerFast
 
 from configs import (
     KB_ROOT_PATH,
@@ -372,8 +371,10 @@ def make_text_splitter(
                     assert False, f"{splitter_name} tokenizer_name_or_path is empty"
 
                 if text_splitter_dict[splitter_name]["tokenizer_name_or_path"] == "gpt2":
+                    from transformers import GPT2TokenizerFast
                     tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
                 else:  ## 字符长度加载
+                    from transformers import AutoTokenizer
                     tokenizer = AutoTokenizer.from_pretrained(
                         text_splitter_dict[splitter_name]["tokenizer_name_or_path"],
                         trust_remote_code=True)
