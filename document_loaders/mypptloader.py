@@ -1,4 +1,4 @@
-from langchain.document_loaders.unstructured import UnstructuredFileLoader
+from langchain.document_loaders import UnstructuredFileLoader
 from typing import List
 import tqdm
 from rapidocr_onnxruntime import RapidOCR

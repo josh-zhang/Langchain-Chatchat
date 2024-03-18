@@ -162,7 +162,7 @@ LOADER_DICT = {"CustomHTMLLoader": ['.html'],
 SUPPORTED_EXTS = [ext for sublist in LOADER_DICT.values() for ext in sublist]
 
 
-class CustomHTMLLoader(langchain_community.document_loaders.unstructured.UnstructuredFileLoader):
+class CustomHTMLLoader(langchain_community.document_loaders.UnstructuredFileLoader):
     delimiter = " 之 "
 
     def load_content(self, file_path) -> List[Element]:
@@ -247,7 +247,7 @@ class CustomHTMLLoader(langchain_community.document_loaders.unstructured.Unstruc
 langchain_community.document_loaders.CustomHTMLLoader = CustomHTMLLoader
 
 
-class CustomExcelLoader(langchain_community.document_loaders.unstructured.UnstructuredFileLoader):
+class CustomExcelLoader(langchain_community.document_loaders.UnstructuredFileLoader):
 
     def _get_elements(self) -> List:
         """Convert given content to documents."""

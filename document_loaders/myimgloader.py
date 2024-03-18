@@ -1,5 +1,5 @@
 from typing import List
-from langchain.document_loaders.unstructured import UnstructuredFileLoader
+from langchain.document_loaders import UnstructuredFileLoader
 from rapidocr_onnxruntime import RapidOCR
 
 

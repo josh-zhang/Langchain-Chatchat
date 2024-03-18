@@ -1,7 +1,7 @@
 from typing import List
 
 import tqdm
-from langchain.document_loaders.unstructured import UnstructuredFileLoader
+from langchain.document_loaders import UnstructuredFileLoader
 from rapidocr_onnxruntime import RapidOCR
 
 
@@ -85,4 +85,6 @@ class RapidOCRDocLoader(UnstructuredFileLoader):
 if __name__ == '__main__':
     loader = RapidOCRDocLoader(file_path="../tests/samples/ocr_test.docx")
     docs = loader.load()
-    print(docs)
+    print(len(docs))
+    for d in docs:
+        print(d)
