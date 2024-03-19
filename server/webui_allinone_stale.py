@@ -43,7 +43,7 @@ def launch_api(args, args_list=api_args, log_name=None):
     print(f"logs on api are written in {log_name}")
     print(f"API日志位于{log_name}下，如启动异常请查看日志")
     args_str = string_args(args, args_list)
-    api_sh = "python server/{script} {args_str} >{log_name}.log 2>&1 &".format(
+    api_sh = "python3.10 server/{script} {args_str} >{log_name}.log 2>&1 &".format(
         script="api.py", args_str=args_str, log_name=log_name)
     subprocess.run(api_sh, shell=True, check=True)
     print("launch api done!")

@@ -1,11 +1,12 @@
 from typing import List
-from langchain.document_loaders import UnstructuredFileLoader
+from langchain_community.document_loaders import UnstructuredFileLoader
 import cv2
 from PIL import Image
 import numpy as np
 from configs import PDF_OCR_THRESHOLD
-from rapidocr_onnxruntime import RapidOCR
 import tqdm
+from rapidocr_paddle import RapidOCR
+
 
 
 class RapidOCRPDFLoader(UnstructuredFileLoader):

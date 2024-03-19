@@ -46,6 +46,13 @@ httpx>=0.26.0
 httpx_sse>=0.4.0
 watchdog>=3.0.0
 pyjwt>=2.8.0
+selectolax
+et-xmlfile
+openpyxl
+python-multipart
+xinference-client
+opencv-python-headless
+xlrd
 
 # cu118
 
