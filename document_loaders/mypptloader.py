@@ -1,7 +1,7 @@
 from langchain_community.document_loaders import UnstructuredFileLoader
 from typing import List
 import tqdm
-from rapidocr_paddle import RapidOCR
+from rapidocr_onnxruntime import RapidOCR
 
 
 class RapidOCRPPTLoader(UnstructuredFileLoader):

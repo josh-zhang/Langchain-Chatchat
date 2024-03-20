@@ -2,7 +2,7 @@ from typing import List
 
 import tqdm
 from langchain_community.document_loaders import UnstructuredFileLoader
-from rapidocr_paddle import RapidOCR
+from rapidocr_onnxruntime import RapidOCR
 
 
 class RapidOCRDocLoader(UnstructuredFileLoader):

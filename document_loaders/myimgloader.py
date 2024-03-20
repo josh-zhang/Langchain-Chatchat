@@ -1,6 +1,6 @@
 from typing import List
 from langchain_community.document_loaders import UnstructuredFileLoader
-from rapidocr_paddle import RapidOCR
+from rapidocr_onnxruntime import RapidOCR
 
 
 class RapidOCRLoader(UnstructuredFileLoader):

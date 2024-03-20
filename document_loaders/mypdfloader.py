@@ -5,7 +5,7 @@ from PIL import Image
 import numpy as np
 from configs import PDF_OCR_THRESHOLD
 import tqdm
-from rapidocr_paddle import RapidOCR
+from rapidocr_onnxruntime import RapidOCR
 
 
 
