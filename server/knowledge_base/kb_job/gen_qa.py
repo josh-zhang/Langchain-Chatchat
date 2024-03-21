@@ -28,7 +28,7 @@ class PythonScriptExecutor:
         start_time = time.time()
 
         # Execute the script using subprocess
-        with subprocess.Popen(f"python {script_path}", stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        with subprocess.Popen(f"python3.10 {script_path}", stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                               shell=True) as process:
             for line in process.stdout:
                 logger.info(line.strip())

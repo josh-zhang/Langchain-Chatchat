@@ -160,7 +160,7 @@ class KBService(ABC):
                 except Exception as e:
                     print(f"cannot convert absolute path ({source}) to relative path. error is : {e}")
             self.delete_doc(kb_file)
-            doc_infos = self.do_add_doc(docs, **kwargs)
+            doc_infos = self.do_add_doc("docs", docs, **kwargs)
             status = add_file_to_db(kb_file,
                                     custom_docs=custom_docs,
                                     docs_count=len(docs),
@@ -174,7 +174,7 @@ class KBService(ABC):
         """
         从知识库删除文件
         """
-        self.do_delete_doc(kb_file, **kwargs)
+        self.do_delete_doc("docs", kb_file, **kwargs)
         status = delete_file_from_db(kb_file)
         if delete_content and os.path.exists(kb_file.filepath):
             os.remove(kb_file.filepath)
@@ -219,6 +219,10 @@ class KBService(ABC):
 
                 answer_dict[a_idx] = [doca, docq]
 
+        answer_objs = list()
+        question_objs = list()
+        answer_id_for_question_list = list()
+
         for a_idx, ele_list in answer_dict.items():
             answer_id = str(a_idx)
             answer_obj = ele_list[0]
@@ -226,23 +230,26 @@ class KBService(ABC):
 
             assert answer_id == answer_obj.metadata["raw_id"]
 
-            answers = [answer_obj]
-            doc_infos = self.do_add_answer(answers, **kwargs)
-            answer_id_list = [a.metadata["raw_id"] for a in answers]
-            file_name_list = [a.metadata["source"] for a in answers]
+            answer_objs.append(answer_obj)
+            question_objs += questions
 
-            this_status = add_answer_to_db(self.kb_name, file_name_list, answer_id_list, doc_infos=doc_infos)
+            answer_id_for_question_list += [answer_id] * len(questions)
 
-            status = this_status & status
+        answer_id_list = [a.metadata["raw_id"] for a in answer_objs]
+        answer_file_name_list = [a.metadata["source"] for a in answer_objs]
 
-            doc_infos = self.do_add_question(questions, **kwargs)
-            question_id_list = [q.metadata["raw_id"] for q in questions]
-            file_name_list = [q.metadata["source"] for q in questions]
+        question_id_list = [q.metadata["raw_id"] for q in question_objs]
+        question_file_name_list = [q.metadata["source"] for q in question_objs]
 
-            this_status = add_question_to_db(self.kb_name, file_name_list, answer_id, question_id_list,
-                                             doc_infos=doc_infos)
+        a_doc_infos = self.do_add_doc('answer', answer_objs, **kwargs)
 
-            status = this_status & status
+        this_status_a = add_answer_to_db(self.kb_name, answer_file_name_list, answer_id_list, doc_infos=a_doc_infos)
+
+        q_doc_infos = self.do_add_doc('question', question_objs, **kwargs)
+
+        this_status_q = add_question_to_db(self.kb_name, question_file_name_list, answer_id_for_question_list,
+                                           question_id_list, doc_infos=q_doc_infos)
+        status = this_status_a & this_status_q
 
         return status
 
@@ -251,8 +258,8 @@ class KBService(ABC):
         从知识库删除文件
         """
 
-        self.do_delete_answer(kb_file, **kwargs)
-        self.do_delete_question(kb_file, **kwargs)
+        self.do_delete_doc("answer", kb_file, **kwargs)
+        self.do_delete_doc("question", kb_file, **kwargs)
 
         status = delete_file_from_db(kb_file)
         if delete_content and os.path.exists(kb_file.filepath):
@@ -386,7 +393,7 @@ class KBService(ABC):
                 doc_ids.append(doc_id)
                 scores_list.append(scores)
 
-        answers = list(zip(self.get_answer_by_ids(doc_ids), scores_list))
+        answers = list(zip(self.get_doc_by_ids("answer", doc_ids), scores_list))
 
         return [DocumentWithScores(**{"page_content": d.page_content, "metadata": d.metadata}, scores=s) for d, s in
                 answers]
@@ -396,13 +403,13 @@ class KBService(ABC):
                         top_k: int = VECTOR_SEARCH_TOP_K,
                         score_threshold: float = SCORE_THRESHOLD,
                         ) -> (List[DocumentWithScores], List[DocumentWithScores]):
-        query_embedding, docs_data = self.search_docs(query, top_k, score_threshold)
+        query_embedding, docs_data = self.search_docs("docs", query, top_k, score_threshold)
 
-        _, answer_data = self.search_answer(query, top_k, score_threshold, embeddings=query_embedding)
+        _, answer_data = self.search_docs("answer", query, top_k, score_threshold, embeddings=query_embedding)
 
         # print(f"answer_data {answer_data}")
 
-        _, question_data = self.search_question(query, top_k, score_threshold, embeddings=query_embedding)
+        _, question_data = self.search_docs("question", query, top_k, score_threshold, embeddings=query_embedding)
 
         # print(f"question_data {question_data}")
 
@@ -440,7 +447,7 @@ class KBService(ABC):
             docs_text_list = list()
             metadata_list = list()
             for file_name in non_faq_file_names:
-                documentWithVSIds = self.list_docs(file_name=file_name)
+                documentWithVSIds = self.list_docs("docs", file_name=file_name)
                 docs_text_list += [i.page_content for i in documentWithVSIds]
                 metadata_list += [i.metadata for i in documentWithVSIds]
 
@@ -458,7 +465,7 @@ class KBService(ABC):
             docs_text_list = list()
             metadata_list = list()
             for file_name in faq_file_names:
-                documentWithVSIds = self.list_answers(file_name=file_name)
+                documentWithVSIds = self.list_docs("answer", file_name=file_name)
 
                 docs_text_list += [i.page_content for i in documentWithVSIds]
                 metadata_list += [i.metadata for i in documentWithVSIds]
@@ -479,7 +486,7 @@ class KBService(ABC):
             docs_text_list = list()
             metadata_list = list()
             for file_name in faq_file_names:
-                documentWithVSIds = self.list_questions(file_name=file_name)
+                documentWithVSIds = self.list_docs("question", file_name=file_name)
                 docs_text_list += [i.page_content for i in documentWithVSIds]
                 metadata_list += [i.metadata for i in documentWithVSIds]
 
@@ -508,86 +515,33 @@ class KBService(ABC):
         return docs_data, merged_answer_data
 
     def search_docs(self,
+                    vector_name: str,
                     query: str,
                     top_k: int = VECTOR_SEARCH_TOP_K,
                     score_threshold: float = SCORE_THRESHOLD,
                     embeddings: List[float] = None,
                     ) -> (List[float], List[DocumentWithScores]):
-        embedding, docs = self.do_search_docs(query, top_k, score_threshold, embeddings=embeddings)
+        embedding, docs = self.do_search_docs(vector_name, query, top_k, score_threshold, embeddings=embeddings)
         return embedding, docs
 
-    def search_question(self,
-                        query: str,
-                        top_k: int = VECTOR_SEARCH_TOP_K,
-                        score_threshold: float = SCORE_THRESHOLD,
-                        embeddings: List[float] = None,
-                        ) -> (List[float], List[DocumentWithScores]):
-        embedding, docs = self.do_search_question(query, top_k, score_threshold, embeddings=embeddings)
-        return embedding, docs
-
-    def search_answer(self,
-                      query: str,
-                      top_k: int = VECTOR_SEARCH_TOP_K,
-                      score_threshold: float = SCORE_THRESHOLD,
-                      embeddings: List[float] = None,
-                      ) -> (List[float], List[DocumentWithScores]):
-        embedding, docs = self.do_search_answer(query, top_k, score_threshold, embeddings=embeddings)
-        return embedding, docs
-
-    def get_doc_by_ids(self, ids: List[str]) -> List[Document]:
+    def get_doc_by_ids(self, vector_name, ids: List[str]) -> List[Document]:
         return []
 
-    def get_answer_by_ids(self, ids: List[str]) -> List[Document]:
-        return []
-
-    def get_question_by_ids(self, ids: List[str]) -> List[Document]:
-        return []
-
-    def list_docs(self, file_name: str = None, metadata: Dict = {}) -> List[DocumentWithVSId]:
+    def list_docs(self, vector_name, file_name: str = None, metadata: Dict = {}) -> List[DocumentWithVSId]:
         '''
         通过file_name或metadata检索Document
         '''
-        doc_infos = list_docs_from_db(kb_name=self.kb_name, file_name=file_name, metadata=metadata)
-        doc_infos_ids = [x["id"] for x in doc_infos]
-        doc_infos_s = self.get_doc_by_ids(doc_infos_ids)
-        docs = []
-        for id, doc_info_s in zip(doc_infos_ids, doc_infos_s):
-            if doc_info_s is not None:
-                # 处理非空的情况
-                doc_with_id = DocumentWithVSId(**doc_info_s.dict(), id=id)
-                docs.append(doc_with_id)
-            else:
-                # 处理空的情况
-                # 可以选择跳过当前循环迭代或执行其他操作
-                pass
-        return docs
+        if vector_name == "docs":
+            doc_infos = list_docs_from_db(kb_name=self.kb_name, file_name=file_name, metadata=metadata)
+        elif vector_name == "question":
+            doc_infos = list_question_from_db(kb_name=self.kb_name, file_name=file_name, metadata=metadata)
+        elif vector_name == "answer":
+            doc_infos = list_answer_from_db(kb_name=self.kb_name, file_name=file_name, metadata=metadata)
+        else:
+            assert False
 
-    def list_questions(self, file_name: str = None, metadata: Dict = {}) -> List[DocumentWithVSId]:
-        '''
-        通过file_name或metadata检索question
-        '''
-        doc_infos = list_question_from_db(kb_name=self.kb_name, file_name=file_name, metadata=metadata)
         doc_infos_ids = [x["id"] for x in doc_infos]
-        doc_infos_s = self.get_question_by_ids(doc_infos_ids)
-        docs = []
-        for id, doc_info_s in zip(doc_infos_ids, doc_infos_s):
-            if doc_info_s is not None:
-                # 处理非空的情况
-                doc_with_id = DocumentWithVSId(**doc_info_s.dict(), id=id)
-                docs.append(doc_with_id)
-            else:
-                # 处理空的情况
-                # 可以选择跳过当前循环迭代或执行其他操作
-                pass
-        return docs
-
-    def list_answers(self, file_name: str = None, metadata: Dict = {}) -> List[DocumentWithVSId]:
-        '''
-        通过file_name或metadata检索answer
-        '''
-        doc_infos = list_answer_from_db(kb_name=self.kb_name, file_name=file_name, metadata=metadata)
-        doc_infos_ids = [x["id"] for x in doc_infos]
-        doc_infos_s = self.get_answer_by_ids(doc_infos_ids)
+        doc_infos_s = self.get_doc_by_ids(vector_name, doc_infos_ids)
         docs = []
         for id, doc_info_s in zip(doc_infos_ids, doc_infos_s):
             if doc_info_s is not None:
@@ -636,6 +590,7 @@ class KBService(ABC):
 
     @abstractmethod
     def do_search_docs(self,
+                       vector_name: str,
                        query: str,
                        top_k: int,
                        score_threshold: float,
@@ -647,31 +602,8 @@ class KBService(ABC):
         pass
 
     @abstractmethod
-    def do_search_question(self,
-                           query: str,
-                           top_k: int,
-                           score_threshold: float,
-                           embeddings: List[float] = None,
-                           ) -> (List[float], List[DocumentWithScores]):
-        """
-        搜索知识库子类实自己逻辑
-        """
-        pass
-
-    @abstractmethod
-    def do_search_answer(self,
-                         query: str,
-                         top_k: int,
-                         score_threshold: float,
-                         embeddings: List[float] = None,
-                         ) -> (List[float], List[DocumentWithScores]):
-        """
-        搜索知识库子类实自己逻辑
-        """
-        pass
-
-    @abstractmethod
     def do_add_doc(self,
+                   vector_name: str,
                    docs: List[Document],
                    **kwargs,
                    ) -> List[Dict]:
@@ -682,43 +614,10 @@ class KBService(ABC):
 
     @abstractmethod
     def do_delete_doc(self,
-                      kb_file: KnowledgeFile):
-        """
-        从知识库删除文档子类实自己逻辑
-        """
-        pass
-
-    @abstractmethod
-    def do_add_question(self,
-                        docs: List[Document],
-                        **kwargs,
-                        ) -> List[Dict]:
-        """
-        向知识库添加文档子类实自己逻辑
-        """
-        pass
-
-    @abstractmethod
-    def do_delete_question(self,
-                           kb_file: KnowledgeFile):
-        """
-        从知识库删除文档子类实自己逻辑
-        """
-        pass
-
-    @abstractmethod
-    def do_add_answer(self,
-                      docs: List[Document],
-                      **kwargs,
-                      ) -> List[Dict]:
-        """
-        向知识库添加文档子类实自己逻辑
-        """
-        pass
-
-    @abstractmethod
-    def do_delete_answer(self,
-                         kb_file: KnowledgeFile):
+                      vector_name: str,
+                      kb_file: KnowledgeFile,
+                      **kwargs
+                      ):
         """
         从知识库删除文档子类实自己逻辑
         """

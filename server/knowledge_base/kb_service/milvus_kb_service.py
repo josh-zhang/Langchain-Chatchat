@@ -13,7 +13,7 @@ from server.knowledge_base.utils import KnowledgeFile
 
 
 class MilvusKBService(KBService):
-    milvus: Milvus
+    milvus_d: Milvus
     milvus_q: Milvus
     milvus_a: Milvus
 
