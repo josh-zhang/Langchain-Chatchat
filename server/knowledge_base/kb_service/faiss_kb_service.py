@@ -5,7 +5,7 @@ from configs import SCORE_THRESHOLD
 from server.knowledge_base.kb_service.base import KBService, SupportedVSType, EmbeddingsFunAdapter
 from server.knowledge_base.kb_cache.faiss_cache import kb_faiss_pool, ThreadSafeFaiss
 from server.knowledge_base.utils import KnowledgeFile, get_kb_path, get_vs_path, DocumentWithScores
-from server.utils import torch_gc
+# from server.utils import torch_gc
 from langchain.docstore.document import Document
 from typing import List, Dict
 
@@ -53,13 +53,13 @@ class FaissKBService(KBService):
         except Exception:
             ...
 
-    def do_search_docs(self,
-                       vector_name: str,
-                       query: str,
-                       top_k: int,
-                       score_threshold: float = SCORE_THRESHOLD,
-                       embeddings: List[float] = None,
-                       ) -> (List[float], List[DocumentWithScores]):
+    def do_search(self,
+                  vector_name: str,
+                  query: str,
+                  top_k: int,
+                  score_threshold: float = SCORE_THRESHOLD,
+                  embeddings: List[float] = None,
+                  ) -> (List[float], List[DocumentWithScores]):
         if embeddings is None:
             embed_func = EmbeddingsFunAdapter(self.embed_model)
             embeddings = embed_func.embed_query(query)
@@ -72,12 +72,7 @@ class FaissKBService(KBService):
             docs = [DocumentWithScores(**d.dict(), scores={f"sbert_{vector_name}": 1 - s}) for d, s in docs]
         return embeddings, docs
 
-    def do_add_doc(self,
-                   vector_name: str,
-                   docs: List[Document],
-                   **kwargs,
-                   ) -> List[Dict]:
-
+    def do_add_doc(self, vector_name: str, docs: List[Document], **kwargs) -> List[Dict]:
         data = self._docs_to_embeddings(docs)  # 将向量化单独出来可以减少向量库的锁定时间
 
         with self.load_vector_store(vector_name).acquire() as vs:
@@ -90,13 +85,10 @@ class FaissKBService(KBService):
                 # print(f"{len(ids)} docs saved to faiss local")
 
         doc_infos = [{"id": id, "metadata": doc.metadata} for id, doc in zip(ids, docs)]
-        torch_gc()
+        # torch_gc()
         return doc_infos
 
-    def do_delete_doc(self,
-                      vector_name: str,
-                      kb_file: KnowledgeFile,
-                      **kwargs):
+    def do_delete_doc(self, vector_name: str, kb_file: KnowledgeFile, **kwargs):
         vs_path = self.get_vs_path(vector_name)
         with self.load_vector_store(vector_name).acquire() as vs:
             ids = [k for k, v in vs.docstore._dict.items() if v.metadata.get("source") == kb_file.filename]

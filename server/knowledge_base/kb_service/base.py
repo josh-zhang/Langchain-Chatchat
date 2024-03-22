@@ -521,7 +521,7 @@ class KBService(ABC):
                     score_threshold: float = SCORE_THRESHOLD,
                     embeddings: List[float] = None,
                     ) -> (List[float], List[DocumentWithScores]):
-        embedding, docs = self.do_search_docs(vector_name, query, top_k, score_threshold, embeddings=embeddings)
+        embedding, docs = self.do_search(vector_name, query, top_k, score_threshold, embeddings=embeddings)
         return embedding, docs
 
     def get_doc_by_ids(self, vector_name, ids: List[str]) -> List[Document]:
@@ -589,7 +589,7 @@ class KBService(ABC):
         pass
 
     @abstractmethod
-    def do_search_docs(self,
+    def do_search(self,
                        vector_name: str,
                        query: str,
                        top_k: int,
