@@ -8,7 +8,6 @@ import tqdm
 from rapidocr_onnxruntime import RapidOCR
 
 
-
 class RapidOCRPDFLoader(UnstructuredFileLoader):
     def _get_elements(self) -> List:
         def rotate_img(img, angle):
