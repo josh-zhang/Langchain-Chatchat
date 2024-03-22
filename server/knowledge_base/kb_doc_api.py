@@ -211,7 +211,7 @@ def upload_docs(
             chunk_overlap=chunk_overlap,
             zh_title_enhance=zh_title_enhance,
             docs=docs,
-            not_refresh_vs_cache=not_refresh_vs_cache,
+            not_refresh_vs_cache=True,
         )
         failed_files.update(result.data["failed_files"])
         if not not_refresh_vs_cache:
@@ -274,6 +274,7 @@ def update_info(
     kb.update_info(kb_info)
 
     return BaseResponse(code=200, msg=f"知识库介绍修改完成", data={"kb_info": kb_info})
+
 
 def update_agent_guide(
         knowledge_base_name: str = Body(..., description="知识库名称", examples=["samples"]),
@@ -347,7 +348,7 @@ def update_docs(
             kb_file = KnowledgeFile(filename=file_name,
                                     knowledge_base_name=knowledge_base_name)
             kb_file.splited_docs = new_docs
-            kb.update_doc(kb_file, not_refresh_vs_cache=not_refresh_vs_cache)
+            kb.update_doc(kb_file, not_refresh_vs_cache=True)
         else:
             kb_name, file_name, error = result
             failed_files[file_name] = error
@@ -450,48 +451,6 @@ def download_kb_files(
         return BaseResponse(code=500, msg=msg)
 
 
-# def download_faq(
-#         knowledge_base_name: str = Query(..., description="知识库名称", examples=["samples"]),
-#         file_name: str = Query(..., description="文件名称", examples=["test.txt"]),
-#         preview: bool = Query(False, description="是：浏览器内预览；否：下载"),
-#         faq_prefix="faq_"
-# ):
-#     """
-#     下载知识库文档对应FAQ
-#     """
-#     if not validate_kb_name(knowledge_base_name):
-#         return BaseResponse(code=403, msg="Don't attack me")
-#
-#     kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
-#     if kb is None:
-#         return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}")
-#
-#     if preview:
-#         content_disposition_type = "inline"
-#     else:
-#         content_disposition_type = None
-#
-#     file_name = f"{faq_prefix}{file_name}"
-#
-#     try:
-#         kb_file = KnowledgeFile(filename=file_name, knowledge_base_name=knowledge_base_name)
-#
-#         if os.path.exists(kb_file.filepath):
-#             return FileResponse(
-#                 path=kb_file.filepath,
-#                 filename=kb_file.filename,
-#                 media_type="multipart/form-data",
-#                 content_disposition_type=content_disposition_type,
-#             )
-#     except Exception as e:
-#         msg = f"{file_name} 读取文件失败，错误信息是：{e}"
-#         logger.error(f'{e.__class__.__name__}: {msg}',
-#                      exc_info=e if log_verbose else None)
-#         return BaseResponse(code=500, msg=msg)
-#
-#     return BaseResponse(code=500, msg=f"{file_name} 读取文件失败")
-
-
 def recreate_vector_store(
         knowledge_base_name: str = Body(..., examples=["samples"]),
         kb_info: str = Body(..., examples=["samples_introduction"]),
@@ -513,7 +472,8 @@ def recreate_vector_store(
     """
 
     def output():
-        kb = KBServiceFactory.get_service(knowledge_base_name, kb_info, kb_agent_guide, vs_type, embed_model, search_enhance)
+        kb = KBServiceFactory.get_service(knowledge_base_name, kb_info, kb_agent_guide, vs_type, embed_model,
+                                          search_enhance)
         if not kb.exists() and not allow_empty_kb:
             yield {"code": 404, "msg": f"未找到知识库 ‘{knowledge_base_name}’"}
         else:
