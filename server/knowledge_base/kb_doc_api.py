@@ -170,6 +170,7 @@ def _save_files_in_thread(files: List[UploadFile],
 def upload_docs(
         files: List[UploadFile] = File(..., description="上传文件，支持多文件"),
         knowledge_base_name: str = Form(..., description="知识库名称", examples=["samples"]),
+        document_loader_name: str = Form(..., description="文件加载类型", examples=["default"]),
         override: bool = Form(False, description="覆盖已有文件"),
         to_vector_store: bool = Form(True, description="上传文件后是否进行向量化"),
         chunk_size: int = Form(CHUNK_SIZE, description="知识库中单段文本最大长度"),
@@ -205,6 +206,7 @@ def upload_docs(
     if to_vector_store:
         result = update_docs(
             knowledge_base_name=knowledge_base_name,
+            document_loader_name=document_loader_name,
             file_names=file_names,
             override_custom_docs=True,
             chunk_size=chunk_size,
@@ -293,6 +295,7 @@ def update_agent_guide(
 
 def update_docs(
         knowledge_base_name: str = Body(..., description="知识库名称", examples=["samples"]),
+        document_loader_name: str = Form(..., description="文件加载类型", examples=["default"]),
         file_names: List[str] = Body(..., description="文件名称，支持多文件", examples=[["file_name1", "text.txt"]]),
         chunk_size: int = Body(CHUNK_SIZE, description="知识库中单段文本最大长度"),
         chunk_overlap: int = Body(OVERLAP_SIZE, description="知识库中相邻文本重合长度"),
@@ -313,57 +316,59 @@ def update_docs(
         return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}")
 
     failed_files = {}
-    kb_files = []
 
-    # 生成需要加载docs的文件列表
-    for file_name in file_names:
-        file_detail = get_file_detail(kb_name=knowledge_base_name, filename=file_name)
-        # 如果该文件之前使用了自定义docs，则根据参数决定略过或覆盖
-        if file_detail.get("custom_docs") and not override_custom_docs:
-            continue
-        if file_name not in docs:
-            if file_name.startswith("gen_") and file_name.endswith(".xlsx"):
-                kb_file = KnowledgeFile(filename=file_name, knowledge_base_name=knowledge_base_name)
-                kb.update_faq(kb_file, True, not_refresh_vs_cache=False)
-            elif file_name.startswith("faq_") and file_name.endswith(".xlsx"):
-                kb_file = KnowledgeFile(filename=file_name, knowledge_base_name=knowledge_base_name)
-                kb.update_faq(kb_file, False, not_refresh_vs_cache=False)
-            else:
+    if document_loader_name == "CustomExcelLoader":
+        for file_name in file_names:
+            kb_file = KnowledgeFile(filename=file_name, knowledge_base_name=knowledge_base_name)
+            status = kb.update_faq(kb_file, not_refresh_vs_cache=False)
+            if not status:
+                failed_files[file_name] = f"加载FAQ文件 {kb_file.kb_name}/{kb_file.filename} 时出错"
+    else:
+        kb_files = []
+
+        # 生成需要加载docs的文件列表
+        for file_name in file_names:
+            file_detail = get_file_detail(kb_name=knowledge_base_name, filename=file_name)
+            # 如果该文件之前使用了自定义docs，则根据参数决定略过或覆盖
+            if file_detail.get("custom_docs") and not override_custom_docs:
+                continue
+            if file_name not in docs:
                 try:
-                    kb_files.append(KnowledgeFile(filename=file_name, knowledge_base_name=knowledge_base_name))
+                    kb_files.append(KnowledgeFile(filename=file_name, knowledge_base_name=knowledge_base_name,
+                                                  document_loader_name=document_loader_name))
                 except Exception as e:
                     msg = f"加载文档 {file_name} 时出错：{e}"
                     logger.error(f'{e.__class__.__name__}: {msg}',
                                  exc_info=e if log_verbose else None)
                     failed_files[file_name] = msg
 
-    # 从文件生成docs，并进行向量化。
-    # 这里利用了KnowledgeFile的缓存功能，在多线程中加载Document，然后传给KnowledgeFile
-    for status, result in files2docs_in_thread(kb_files,
-                                               chunk_size=chunk_size,
-                                               chunk_overlap=chunk_overlap,
-                                               zh_title_enhance=zh_title_enhance):
-        if status:
-            kb_name, file_name, new_docs = result
-            kb_file = KnowledgeFile(filename=file_name,
-                                    knowledge_base_name=knowledge_base_name)
-            kb_file.splited_docs = new_docs
-            kb.update_doc(kb_file, not_refresh_vs_cache=True)
-        else:
-            kb_name, file_name, error = result
-            failed_files[file_name] = error
+        # 从文件生成docs，并进行向量化。
+        # 这里利用了KnowledgeFile的缓存功能，在多线程中加载Document，然后传给KnowledgeFile
+        for status, result in files2docs_in_thread(kb_files,
+                                                   chunk_size=chunk_size,
+                                                   chunk_overlap=chunk_overlap,
+                                                   zh_title_enhance=zh_title_enhance):
+            if status:
+                kb_name, file_name, new_docs = result
+                kb_file = KnowledgeFile(filename=file_name,
+                                        knowledge_base_name=knowledge_base_name)
+                kb_file.splited_docs = new_docs
+                kb.update_doc(kb_file, not_refresh_vs_cache=True)
+            else:
+                kb_name, file_name, error = result
+                failed_files[file_name] = error
 
-    # 将自定义的docs进行向量化
-    for file_name, v in docs.items():
-        try:
-            v = [x if isinstance(x, Document) else Document(**x) for x in v]
-            kb_file = KnowledgeFile(filename=file_name, knowledge_base_name=knowledge_base_name)
-            kb.update_doc(kb_file, docs=v, not_refresh_vs_cache=True)
-        except Exception as e:
-            msg = f"为 {file_name} 添加自定义docs时出错：{e}"
-            logger.error(f'{e.__class__.__name__}: {msg}',
-                         exc_info=e if log_verbose else None)
-            failed_files[file_name] = msg
+        # 将自定义的docs进行向量化
+        for file_name, v in docs.items():
+            try:
+                v = [x if isinstance(x, Document) else Document(**x) for x in v]
+                kb_file = KnowledgeFile(filename=file_name, knowledge_base_name=knowledge_base_name)
+                kb.update_doc(kb_file, docs=v, not_refresh_vs_cache=True)
+            except Exception as e:
+                msg = f"为 {file_name} 添加自定义docs时出错：{e}"
+                logger.error(f'{e.__class__.__name__}: {msg}',
+                             exc_info=e if log_verbose else None)
+                failed_files[file_name] = msg
 
     if not not_refresh_vs_cache:
         kb.save_vector_store("docs")
@@ -451,70 +456,70 @@ def download_kb_files(
         return BaseResponse(code=500, msg=msg)
 
 
-def recreate_vector_store(
-        knowledge_base_name: str = Body(..., examples=["samples"]),
-        kb_info: str = Body(..., examples=["samples_introduction"]),
-        kb_agent_guide: str = Body(..., examples=["samples_introduction_for_agent"]),
-        allow_empty_kb: bool = Body(True),
-        vs_type: str = Body(DEFAULT_VS_TYPE),
-        embed_model: str = Body(EMBEDDING_MODEL),
-        chunk_size: int = Body(CHUNK_SIZE, description="知识库中单段文本最大长度"),
-        chunk_overlap: int = Body(OVERLAP_SIZE, description="知识库中相邻文本重合长度"),
-        zh_title_enhance: bool = Body(ZH_TITLE_ENHANCE, description="是否开启中文标题加强"),
-        not_refresh_vs_cache: bool = Body(False, description="暂不保存向量库（用于FAISS）"),
-        search_enhance: bool = Body(SEARCH_ENHANCE),
-):
-    """
-    recreate vector store from the content.
-    this is usefull when user can copy files to content folder directly instead of upload through network.
-    by default, get_service_by_name only return knowledge base in the info.db and having document files in it.
-    set allow_empty_kb to True make it applied on empty knowledge base which it not in the info.db or having no documents.
-    """
-
-    def output():
-        kb = KBServiceFactory.get_service(knowledge_base_name, kb_info, kb_agent_guide, vs_type, embed_model,
-                                          search_enhance)
-        if not kb.exists() and not allow_empty_kb:
-            yield {"code": 404, "msg": f"未找到知识库 ‘{knowledge_base_name}’"}
-        else:
-            if kb.exists():
-                kb.clear_vs()
-            kb.create_kb()
-            files = list_files_from_folder(knowledge_base_name)
-            kb_files = [(file, knowledge_base_name) for file in files]
-            i = 0
-            for status, result in files2docs_in_thread(kb_files,
-                                                       chunk_size=chunk_size,
-                                                       chunk_overlap=chunk_overlap,
-                                                       zh_title_enhance=zh_title_enhance):
-                if status:
-                    kb_name, file_name, docs = result
-                    kb_file = KnowledgeFile(filename=file_name, knowledge_base_name=kb_name)
-                    kb_file.splited_docs = docs
-                    yield json.dumps({
-                        "code": 200,
-                        "msg": f"({i + 1} / {len(files)}): {file_name}",
-                        "total": len(files),
-                        "finished": i + 1,
-                        "doc": file_name,
-                    }, ensure_ascii=False)
-                    kb.add_doc(kb_file, not_refresh_vs_cache=True)
-                else:
-                    kb_name, file_name, error = result
-                    msg = f"添加文件‘{file_name}’到知识库‘{knowledge_base_name}’时出错：{error}。已跳过。"
-                    logger.error(msg)
-                    yield json.dumps({
-                        "code": 500,
-                        "msg": msg,
-                    })
-                i += 1
-            if not not_refresh_vs_cache:
-                kb.save_vector_store("docs")
-                kb.save_vector_store("question")
-                kb.save_vector_store("answer")
-                kb.save_vector_store("query")
-
-    return EventSourceResponse(output())
+# def recreate_vector_store(
+#         knowledge_base_name: str = Body(..., examples=["samples"]),
+#         kb_info: str = Body(..., examples=["samples_introduction"]),
+#         kb_agent_guide: str = Body(..., examples=["samples_introduction_for_agent"]),
+#         allow_empty_kb: bool = Body(True),
+#         vs_type: str = Body(DEFAULT_VS_TYPE),
+#         embed_model: str = Body(EMBEDDING_MODEL),
+#         chunk_size: int = Body(CHUNK_SIZE, description="知识库中单段文本最大长度"),
+#         chunk_overlap: int = Body(OVERLAP_SIZE, description="知识库中相邻文本重合长度"),
+#         zh_title_enhance: bool = Body(ZH_TITLE_ENHANCE, description="是否开启中文标题加强"),
+#         not_refresh_vs_cache: bool = Body(False, description="暂不保存向量库（用于FAISS）"),
+#         search_enhance: bool = Body(SEARCH_ENHANCE),
+# ):
+#     """
+#     recreate vector store from the content.
+#     this is usefull when user can copy files to content folder directly instead of upload through network.
+#     by default, get_service_by_name only return knowledge base in the info.db and having document files in it.
+#     set allow_empty_kb to True make it applied on empty knowledge base which it not in the info.db or having no documents.
+#     """
+#
+#     def output():
+#         kb = KBServiceFactory.get_service(knowledge_base_name, kb_info, kb_agent_guide, vs_type, embed_model,
+#                                           search_enhance)
+#         if not kb.exists() and not allow_empty_kb:
+#             yield {"code": 404, "msg": f"未找到知识库 ‘{knowledge_base_name}’"}
+#         else:
+#             if kb.exists():
+#                 kb.clear_vs()
+#             kb.create_kb()
+#             files = list_files_from_folder(knowledge_base_name)
+#             kb_files = [(file, knowledge_base_name) for file in files]
+#             i = 0
+#             for status, result in files2docs_in_thread(kb_files,
+#                                                        chunk_size=chunk_size,
+#                                                        chunk_overlap=chunk_overlap,
+#                                                        zh_title_enhance=zh_title_enhance):
+#                 if status:
+#                     kb_name, file_name, docs = result
+#                     kb_file = KnowledgeFile(filename=file_name, knowledge_base_name=kb_name)
+#                     kb_file.splited_docs = docs
+#                     yield json.dumps({
+#                         "code": 200,
+#                         "msg": f"({i + 1} / {len(files)}): {file_name}",
+#                         "total": len(files),
+#                         "finished": i + 1,
+#                         "doc": file_name,
+#                     }, ensure_ascii=False)
+#                     kb.add_doc(kb_file, not_refresh_vs_cache=True)
+#                 else:
+#                     kb_name, file_name, error = result
+#                     msg = f"添加文件‘{file_name}’到知识库‘{knowledge_base_name}’时出错：{error}。已跳过。"
+#                     logger.error(msg)
+#                     yield json.dumps({
+#                         "code": 500,
+#                         "msg": msg,
+#                     })
+#                 i += 1
+#             if not not_refresh_vs_cache:
+#                 kb.save_vector_store("docs")
+#                 kb.save_vector_store("question")
+#                 kb.save_vector_store("answer")
+#                 kb.save_vector_store("query")
+#
+#     return EventSourceResponse(output())
 
 
 def gen_qa_for_kb(

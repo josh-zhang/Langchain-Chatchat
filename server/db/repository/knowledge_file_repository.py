@@ -283,7 +283,7 @@ def add_file_to_db(session,
                 file_ext=kb_file.ext,
                 kb_name=kb_file.kb_name,
                 document_loader_name=kb_file.document_loader_name,
-                text_splitter_name=kb_file.text_splitter_name or "SpacyTextSplitter",
+                text_splitter_name=kb_file.text_splitter_name or "ChineseRecursiveTextSplitter",
                 file_mtime=mtime,
                 file_size=size,
                 docs_count=docs_count,
@@ -291,8 +291,10 @@ def add_file_to_db(session,
             )
             kb.file_count += 1
             session.add(new_file)
-        add_docs_to_db(kb_name=kb_file.kb_name, file_name=kb_file.filename, doc_infos=doc_infos)
-    return True
+        status = add_docs_to_db(kb_name=kb_file.kb_name, file_name=kb_file.filename, doc_infos=doc_infos)
+    else:
+        status = False
+    return status
 
 
 @with_session

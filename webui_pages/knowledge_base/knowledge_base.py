@@ -185,23 +185,18 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                                     key=None, help=None, on_change=None, args=None, kwargs=None, disabled=True)
         this_kb_agent_guide = st.text_area("知识库介绍", value=kb_dict[this_kb_name]['kb_agent_guide'], max_chars=None,
                                     key=None, help=None, on_change=None, args=None, kwargs=None, disabled=True)
-        files = st.file_uploader("上传知识文件：",
+
+        files = st.file_uploader("上传文件：",
                                  [i for ls in LOADER_DICT.values() for i in ls],
                                  accept_multiple_files=True,
                                  )
-        # kb_info = st.text_area("请输入知识库介绍:", value=st.session_state["selected_kb_info"], max_chars=None,
-        #                        key=None, help=None, on_change=None, args=None, kwargs=None)
 
-        # if kb_info != st.session_state["selected_kb_info"]:
-        #     st.session_state["selected_kb_info"] = kb_info
-        #     api.update_kb_info(kb, kb_info)
-        # with st.sidebar:
         with st.expander(
-                "html,txt,类文件处理配置",
-                expanded=True,
+                "文件处理配置",
+                expanded=False,
         ):
             cols = st.columns(3)
-            chunk_size = cols[0].number_input("单段文本最大长度：", 1, 1000, CHUNK_SIZE)
+            chunk_size = cols[0].number_input("单段文本最大长度：", 1, 8000, CHUNK_SIZE)
             chunk_overlap = cols[1].number_input("相邻文本重合长度：", 0, chunk_size, OVERLAP_SIZE)
             cols[2].write("")
             cols[2].write("")
@@ -209,11 +204,45 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
 
         if st.button(
                 "添加文件到知识库",
-                # use_container_width=True,
                 disabled=len(files) == 0,
         ):
             ret = api.upload_kb_docs(files,
                                      knowledge_base_name=this_kb_name,
+                                     document_loader_name="default",
+                                     override=True,
+                                     chunk_size=chunk_size,
+                                     chunk_overlap=chunk_overlap,
+                                     zh_title_enhance=zh_title_enhance)
+            if msg := check_success_msg(ret):
+                st.toast(msg, icon="✔")
+            elif msg := check_error_msg(ret):
+                st.toast(msg, icon="✖")
+
+        kf_files = st.file_uploader("上传客服知识库文件：", ["html"], accept_multiple_files=True)
+        if st.button(
+                "添加知识库文件到知识库",
+                disabled=len(kf_files) == 0,
+        ):
+            ret = api.upload_kb_docs(kf_files,
+                                     knowledge_base_name=this_kb_name,
+                                     document_loader_name="CustomHTMLLoader",
+                                     override=True,
+                                     chunk_size=chunk_size,
+                                     chunk_overlap=chunk_overlap,
+                                     zh_title_enhance=zh_title_enhance)
+            if msg := check_success_msg(ret):
+                st.toast(msg, icon="✔")
+            elif msg := check_error_msg(ret):
+                st.toast(msg, icon="✖")
+
+        faq_files = st.file_uploader("上传FAQ文件：", ["xlsx"], accept_multiple_files=True)
+        if st.button(
+                "添加FAQ文件到知识库",
+                disabled=len(faq_files) == 0,
+        ):
+            ret = api.upload_kb_docs(faq_files,
+                                     knowledge_base_name=this_kb_name,
+                                     document_loader_name="CustomExcelLoader",
                                      override=True,
                                      chunk_size=chunk_size,
                                      chunk_overlap=chunk_overlap,
@@ -271,7 +300,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
 
             selected_rows = doc_grid.get("selected_rows", [])
 
-            cols = st.columns(4)
+            cols = st.columns(3)
 
             # file_name, file_path = file_exists(this_kb_name, selected_rows)
             # if file_path:
@@ -295,13 +324,13 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                     disabled=True,
                 )
 
-                # 将文件分词并加载到向量库中
-                if cols[1].button(
-                        "添加至向量库",
-                        disabled=True,
-                        use_container_width=True,
-                ):
-                    pass
+                # # 将文件分词并加载到向量库中
+                # if cols[1].button(
+                #         "添加至向量库",
+                #         disabled=True,
+                #         use_container_width=True,
+                # ):
+                #     pass
             else:
                 selected_file_name = selected_rows[0]["file_name"]
                 cols[0].link_button(
@@ -311,23 +340,23 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                     disabled=False,
                 )
 
-                # 将文件分词并加载到向量库中
-                if cols[1].button(
-                        "重新添加至向量库" if selected_rows and (
-                                pd.DataFrame(selected_rows)["in_db"]).any() else "添加至向量库",
-                        disabled=False,
-                        use_container_width=True,
-                ):
-                    file_names = [row["file_name"] for row in selected_rows]
-                    api.update_kb_docs(this_kb_name,
-                                       file_names=file_names,
-                                       chunk_size=chunk_size,
-                                       chunk_overlap=chunk_overlap,
-                                       zh_title_enhance=zh_title_enhance)
-                    st.rerun()
+                # # 将文件分词并加载到向量库中
+                # if cols[1].button(
+                #         "重新添加至向量库" if selected_rows and (
+                #                 pd.DataFrame(selected_rows)["in_db"]).any() else "添加至向量库",
+                #         disabled=False,
+                #         use_container_width=True,
+                # ):
+                #     file_names = [row["file_name"] for row in selected_rows]
+                #     api.update_kb_docs(this_kb_name,
+                #                        file_names=file_names,
+                #                        chunk_size=chunk_size,
+                #                        chunk_overlap=chunk_overlap,
+                #                        zh_title_enhance=zh_title_enhance)
+                #     st.rerun()
 
             # 将文件从向量库中删除，但不删除文件本身。
-            if cols[2].button(
+            if cols[1].button(
                     "从向量库删除",
                     disabled=not (selected_rows and selected_rows[0]["in_db"]),
                     use_container_width=True,
@@ -336,7 +365,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 api.delete_kb_docs(this_kb_name, file_names=file_names)
                 st.rerun()
 
-            if cols[3].button(
+            if cols[2].button(
                     "从知识库中删除",
                     type="primary",
                     use_container_width=True,
@@ -347,7 +376,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
 
         st.divider()
 
-        cols = st.columns(4)
+        cols = st.columns(3)
 
         cols[0].link_button(
             "下载知识库中所有文档",
@@ -366,26 +395,26 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
             time.sleep(1)
             st.rerun()
 
-        if cols[2].button(
-                "依据源文件重建向量库",
-                use_container_width=True,
-        ):
-            with st.spinner("向量库重构中，请耐心等待，勿刷新或关闭页面。"):
-                empty = st.empty()
-                empty.progress(0.0, "")
-                for d in api.recreate_vector_store(this_kb_name,
-                                                   this_kb_info,
-                                                   this_kb_agent_guide,
-                                                   chunk_size=chunk_size,
-                                                   chunk_overlap=chunk_overlap,
-                                                   zh_title_enhance=zh_title_enhance):
-                    if msg := check_error_msg(d):
-                        st.toast(msg)
-                    else:
-                        empty.progress(d["finished"] / d["total"], d["msg"])
-                st.rerun()
+        # if cols[2].button(
+        #         "依据源文件重建向量库",
+        #         use_container_width=True,
+        # ):
+        #     with st.spinner("向量库重构中，请耐心等待，勿刷新或关闭页面。"):
+        #         empty = st.empty()
+        #         empty.progress(0.0, "")
+        #         for d in api.recreate_vector_store(this_kb_name,
+        #                                            this_kb_info,
+        #                                            this_kb_agent_guide,
+        #                                            chunk_size=chunk_size,
+        #                                            chunk_overlap=chunk_overlap,
+        #                                            zh_title_enhance=zh_title_enhance):
+        #             if msg := check_error_msg(d):
+        #                 st.toast(msg)
+        #             else:
+        #                 empty.progress(d["finished"] / d["total"], d["msg"])
+        #         st.rerun()
 
-        if cols[3].button(
+        if cols[2].button(
                 "删除知识库",
                 use_container_width=True,
         ):
@@ -393,52 +422,3 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
             st.toast(ret.get("msg", " "))
             time.sleep(1)
             st.rerun()
-
-        # with st.sidebar:
-        #     keyword = st.text_input("查询关键字")
-        #     top_k = st.slider("匹配条数", 1, 100, 3)
-
-        # st.write("文件内文档列表。双击进行修改，在删除列填入 Y 可删除对应行。")
-        # docs = []
-        # df = pd.DataFrame([], columns=["seq", "id", "content", "source"])
-        # if selected_rows:
-        #     file_name = selected_rows[0]["file_name"]
-        #     docs = api.search_kb_docs(knowledge_base_name=selected_kb, file_name=file_name)
-        #     data = [
-        #         {"seq": i + 1, "id": x["id"], "page_content": x["page_content"], "source": x["metadata"].get("source"),
-        #          "type": x["type"],
-        #          "metadata": json.dumps(x["metadata"], ensure_ascii=False),
-        #          "to_del": "",
-        #          } for i, x in enumerate(docs)]
-        #     df = pd.DataFrame(data)
-        #
-        #     gb = GridOptionsBuilder.from_dataframe(df)
-        #     gb.configure_columns(["id", "source", "type", "metadata"], hide=True)
-        #     gb.configure_column("seq", "No.", width=50)
-        #     gb.configure_column("page_content", "内容", editable=True, autoHeight=True, wrapText=True, flex=1,
-        #                         cellEditor="agLargeTextCellEditor", cellEditorPopup=True)
-        #     gb.configure_column("to_del", "删除", editable=True, width=50, wrapHeaderText=True,
-        #                         cellEditor="agCheckboxCellEditor", cellRender="agCheckboxCellRenderer")
-        #     gb.configure_selection()
-        #     edit_docs = AgGrid(df, gb.build())
-        #
-        #     if st.button("保存更改"):
-        #         # origin_docs = {x["id"]: {"page_content": x["page_content"], "type": x["type"], "metadata": x["metadata"]} for x in docs}
-        #         changed_docs = []
-        #         for index, row in edit_docs.data.iterrows():
-        #             # origin_doc = origin_docs[row["id"]]
-        #             # if row["page_content"] != origin_doc["page_content"]:
-        #             if row["to_del"] not in ["Y", "y", 1]:
-        #                 changed_docs.append({
-        #                     "page_content": row["page_content"],
-        #                     "type": row["type"],
-        #                     "metadata": json.loads(row["metadata"]),
-        #                 })
-        #
-        #         if changed_docs:
-        #             if api.update_kb_docs(knowledge_base_name=selected_kb,
-        #                                   file_names=[file_name],
-        #                                   docs={file_name: changed_docs}):
-        #                 st.toast("更新文档成功")
-        #             else:
-        #                 st.toast("更新文档失败")

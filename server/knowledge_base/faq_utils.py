@@ -302,10 +302,35 @@ def process_sys_reg(raw_text):
     return final_list
 
 
-def load_df_raw(faq_full_file):
+def check_faq_is_generated(faq_file):
+    this_df = pandas.read_excel(faq_file, dtype=str)
+    col_names = this_df.columns.values.tolist()
+    if "生成序号" in col_names and "生成问题" in col_names:
+        return True, this_df
+    else:
+        return False, this_df
+
+
+def load_df_generated(this_df):
+    query_list = list()
+    # this_df = pandas.read_excel(faq_file, dtype=str)
+    this_df.set_index('生成序号')
+    this_df.fillna("", inplace=True)
+    logger.info(f"this_df {this_df.shape}")
+    for idx, row in this_df.iterrows():
+        raw_q = row["生成问题"]
+        raw_a = row["生成答案"]
+        if is_valid_std_query(raw_q, raw_a):
+            l_query = StandardQuery(idx, raw_q, raw_a)
+            query_list.append(l_query)
+
+    return query_list
+
+
+def load_df_raw(this_df):
     query_list = list()
 
-    this_df = pandas.read_excel(faq_full_file, dtype=str)
+    # this_df = pandas.read_excel(faq_full_file, dtype=str)
     this_df.fillna("", inplace=True)
     logger.info(f"df_raw {this_df.shape}")
 
@@ -385,27 +410,13 @@ def load_df_raw(faq_full_file):
     return query_list
 
 
-def load_df_processed(faq_file):
-    query_list = list()
-    this_df = pandas.read_excel(faq_file, dtype=str)
-    this_df.set_index('生成序号')
-    this_df.fillna("", inplace=True)
-    logger.info(f"this_df {this_df.shape}")
-    for idx, row in this_df.iterrows():
-        raw_q = row["生成问题"]
-        raw_a = row["生成答案"]
-        if is_valid_std_query(raw_q, raw_a):
-            l_query = StandardQuery(idx, raw_q, raw_a)
-            query_list.append(l_query)
+def load_faq(faq_filepath):
+    is_generated, this_df = check_faq_is_generated(faq_filepath)
 
-    return query_list
-
-
-def load_faq(faq_filepath, is_processed):
-    if is_processed:
-        raw_query_obj_list = load_df_processed(faq_filepath)
+    if is_generated:
+        raw_query_obj_list = load_df_generated(this_df)
     else:
-        raw_query_obj_list = load_df_raw(faq_filepath)
+        raw_query_obj_list = load_df_raw(this_df)
 
     conflict_list = list()
 

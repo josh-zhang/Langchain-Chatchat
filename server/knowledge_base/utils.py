@@ -131,21 +131,24 @@ def list_files_from_path(folder_path):
 
 LOADER_DICT = {
     "UnstructuredHTMLLoader": ['.html', '.htm'],
-    # "CustomHTMLLoader": ['.html'],
-    # "MHTMLLoader": ['.mhtml'],
     "UnstructuredMarkdownLoader": ['.md'],
     "JSONLoader": [".json"],
     "JSONLinesLoader": [".jsonl"],
     "CSVLoader": [".csv"],
-    # "FilteredCSVLoader": [".csv"], 如果使用自定义分割csv
     "RapidOCRPDFLoader": [".pdf"],
     "RapidOCRDocLoader": ['.docx'],
     "RapidOCRPPTLoader": ['.pptx', ],
     "RapidOCRLoader": ['.png', '.jpg', '.jpeg', '.bmp'],
     "UnstructuredFileLoader": ['.txt'],
+    "UnstructuredExcelLoader": ['.xlsx', '.xls'],
+    "UnstructuredTSVLoader": ['.tsv'],
+    "UnstructuredXMLLoader": ['.xml'],
+    # "UnstructuredWordDocumentLoader": ['.doc'],
+    # "CustomHTMLLoader": ['.html'],
+    # "MHTMLLoader": ['.mhtml'],
+    # "FilteredCSVLoader": [".csv"], 如果使用自定义分割csv
     # "UnstructuredEmailLoader": ['.eml', '.msg'],
     # "UnstructuredEPubLoader": ['.epub'],
-    "UnstructuredExcelLoader": ['.xlsx', '.xls'],
     # "NotebookLoader": ['.ipynb'],
     # "UnstructuredODTLoader": ['.odt'],
     # "PythonLoader": ['.py'],
@@ -153,9 +156,6 @@ LOADER_DICT = {
     # "UnstructuredRTFLoader": ['.rtf'],
     # "SRTLoader": ['.srt'],
     # "TomlLoader": ['.toml'],
-    "UnstructuredTSVLoader": ['.tsv'],
-    # "UnstructuredWordDocumentLoader": ['.doc'],
-    "UnstructuredXMLLoader": ['.xml'],
     # "UnstructuredPowerPointLoader": ['.ppt', '.pptx'],
     # "TextLoader": ['.txt'],
     # "EverNoteLoader": ['.enex'],
@@ -339,7 +339,7 @@ def make_text_splitter(
     """
     根据参数获取特定的分词器
     """
-    splitter_name = splitter_name or "SpacyTextSplitter"
+    splitter_name = splitter_name or "ChineseRecursiveTextSplitter"
     try:
         if splitter_name == "MarkdownHeaderTextSplitter":  # MarkdownHeaderTextSplitter特殊判定
             headers_to_split_on = text_splitter_dict[splitter_name]['headers_to_split_on']
@@ -411,6 +411,7 @@ class KnowledgeFile:
             filename: str,
             knowledge_base_name: str,
             loader_kwargs: Dict = {},
+            document_loader_name: str = None,
     ):
         '''
         对应知识库目录中的文件，必须是磁盘上存在的才能进行向量化等操作。
@@ -424,8 +425,16 @@ class KnowledgeFile:
         self.filepath = get_file_path(knowledge_base_name, filename)
         self.docs = None
         self.splited_docs = None
-        self.document_loader_name = get_LoaderClass(self.ext)
-        self.text_splitter_name = TEXT_SPLITTER_NAME
+
+        if document_loader_name is None or document_loader_name == "" or document_loader_name == "default":
+            self.document_loader_name = get_LoaderClass(self.ext)
+            self.text_splitter_name = TEXT_SPLITTER_NAME
+        else:
+            self.document_loader_name = document_loader_name
+            if document_loader_name == "CustomHTMLLoader":
+                self.text_splitter_name = TEXT_SPLITTER_NAME
+            else:
+                self.text_splitter_name = ""
 
     def file2docs(self, refresh: bool = False):
         if self.docs is None or refresh:

@@ -159,7 +159,9 @@ class KBService(ABC):
                         doc.metadata["source"] = str(rel_path.as_posix().strip("/"))
                 except Exception as e:
                     print(f"cannot convert absolute path ({source}) to relative path. error is : {e}")
-            self.delete_doc(kb_file)
+
+            # self.delete_doc(kb_file)
+
             doc_infos = self.do_add_doc("docs", docs, **kwargs)
             status = add_file_to_db(kb_file,
                                     custom_docs=custom_docs,
@@ -180,24 +182,25 @@ class KBService(ABC):
             os.remove(kb_file.filepath)
         return status
 
-    def add_faq(self, kb_file: KnowledgeFile, is_generated, **kwargs):
+    def add_faq(self, kb_file: KnowledgeFile, **kwargs):
         """
         向知识库添加文件
         如果指定了docs，则不再将文本向量化，并将数据库对应条目标为custom_docs=True
         """
 
         print("add_faq")
-        print(f"is_generated {is_generated}")
         print(f"kb_file.filename {kb_file.filename}")
 
         filename = kb_file.filename
 
-        label_list, std_label_list, answer_list, label_dict, as_count_list, _ = load_faq(kb_file.filepath,
-                                                                                         is_processed=is_generated)
+        label_list, std_label_list, answer_list, label_dict, as_count_list, _ = load_faq(kb_file.filepath)
 
-        self.delete_faq(kb_file, **kwargs)
+        # self.delete_faq(kb_file, **kwargs)
 
         status = add_file_to_db(kb_file)
+
+        if not status:
+            return status
 
         answer_dict = dict()
         for idx, question in enumerate(label_list):
@@ -284,14 +287,14 @@ class KBService(ABC):
                               self.embed_model, self.search_enhance)
         return status
 
-    def update_faq(self, kb_file: KnowledgeFile, is_generated, **kwargs):
+    def update_faq(self, kb_file: KnowledgeFile, **kwargs):
         """
         使用content中的文件更新向量库
         如果指定了docs，则使用自定义docs，并将数据库对应条目标为custom_docs=True
         """
         if os.path.exists(kb_file.filepath):
             self.delete_faq(kb_file, **kwargs)
-            return self.add_faq(kb_file, is_generated, **kwargs)
+            return self.add_faq(kb_file, **kwargs)
         else:
             return False
 

@@ -141,7 +141,7 @@ def gen_qa_task(knowledge_base_name, kb_info, model_name):
             shutil.move(qa_filepath, new_file_path)
 
             kb_file = KnowledgeFile(filename=file_name, knowledge_base_name=new_kb_name)
-            status = kb.update_faq(kb_file, True, not_refresh_vs_cache=False)
+            status = kb.update_faq(kb_file, not_refresh_vs_cache=False)
 
             if status:
                 count += 1
