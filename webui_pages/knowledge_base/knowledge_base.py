@@ -200,7 +200,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
             chunk_overlap = cols[1].number_input("相邻文本重合长度：", 0, chunk_size, OVERLAP_SIZE)
             cols[2].write("")
             cols[2].write("")
-            zh_title_enhance = cols[2].checkbox("开启中文标题加强（仅针对txt和doc文件）", ZH_TITLE_ENHANCE)
+            zh_title_enhance = cols[2].checkbox("开启中文标题加强", ZH_TITLE_ENHANCE)
 
         if st.button(
                 "添加文件到知识库",
@@ -219,6 +219,18 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 st.toast(msg, icon="✖")
 
         kf_files = st.file_uploader("上传客服知识库文件：", ["html"], accept_multiple_files=True)
+
+        with st.expander(
+                "客服知识库文件处理配置",
+                expanded=False,
+        ):
+            cols = st.columns(3)
+            chunk_size = cols[0].number_input("单段文本最大长度：", 1, 8000, CHUNK_SIZE)
+            chunk_overlap = cols[1].number_input("相邻文本重合长度：", 0, chunk_size, OVERLAP_SIZE)
+            cols[2].write("")
+            cols[2].write("")
+            # zh_title_enhance = cols[2].checkbox("开启中文标题加强", ZH_TITLE_ENHANCE)
+
         if st.button(
                 "添加知识库文件到知识库",
                 disabled=len(kf_files) == 0,
@@ -229,7 +241,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                                      override=True,
                                      chunk_size=chunk_size,
                                      chunk_overlap=chunk_overlap,
-                                     zh_title_enhance=zh_title_enhance)
+                                     zh_title_enhance=ZH_TITLE_ENHANCE)
             if msg := check_success_msg(ret):
                 st.toast(msg, icon="✔")
             elif msg := check_error_msg(ret):
@@ -244,9 +256,9 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                                      knowledge_base_name=this_kb_name,
                                      document_loader_name="CustomExcelLoader",
                                      override=True,
-                                     chunk_size=chunk_size,
-                                     chunk_overlap=chunk_overlap,
-                                     zh_title_enhance=zh_title_enhance)
+                                     chunk_size=CHUNK_SIZE,
+                                     chunk_overlap=OVERLAP_SIZE,
+                                     zh_title_enhance=ZH_TITLE_ENHANCE)
             if msg := check_success_msg(ret):
                 st.toast(msg, icon="✔")
             elif msg := check_error_msg(ret):
