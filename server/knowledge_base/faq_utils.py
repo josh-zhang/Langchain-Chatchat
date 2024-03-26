@@ -379,7 +379,6 @@ def load_df_raw(this_df, filename):
             # if end_dt:
             #     end_dt = str(int(float(end_dt)))
             #     l_query.end_dt = end_dt
-
             if l_cls_2:
                 l_query.cls_list.append(l_cls_2)
             if l_cls_3:
