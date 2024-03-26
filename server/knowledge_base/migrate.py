@@ -73,7 +73,7 @@ def file_to_kbfile(kb_name: str, files: List[str]) -> List[KnowledgeFile]:
     kb_files = []
     for filename in files:
         try:
-            kb_file = KnowledgeFile(filename=filename, knowledge_base_name=kb_name, document_loader_name='unknown')
+            kb_file = KnowledgeFile(filename=filename, knowledge_base_name=kb_name, document_loader_name='default')
             kb_files.append(kb_file)
         except Exception as e:
             msg = f"{e}，已跳过"
@@ -108,7 +108,7 @@ def folder2db(
             if success:
                 _, filename, docs = result
                 print(f"正在将 {kb_name}/{filename} 添加到向量库，共包含{len(docs)}条文档")
-                kb_file = KnowledgeFile(filename=filename, knowledge_base_name=kb_name, document_loader_name='unknown')
+                kb_file = KnowledgeFile(filename=filename, knowledge_base_name=kb_name, document_loader_name='default')
                 kb_file.splited_docs = docs
                 kb.add_doc(kb_file=kb_file, not_refresh_vs_cache=True)
             else:
