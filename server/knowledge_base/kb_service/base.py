@@ -197,7 +197,7 @@ class KBService(ABC):
 
         # self.delete_faq(kb_file, **kwargs)
 
-        status = add_file_to_db(kb_file)
+        status = add_file_to_db(kb_file, docs_count=len(label_list))
 
         if not status:
             return status
