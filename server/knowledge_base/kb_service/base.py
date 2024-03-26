@@ -311,7 +311,7 @@ class KBService(ABC):
 
     def exist_doc(self, file_name: str):
         return file_exists_in_db(KnowledgeFile(knowledge_base_name=self.kb_name,
-                                               filename=file_name))
+                                               filename=file_name, document_loader_name='unknown'))
 
     def list_files(self):
         return list_files_from_db(self.kb_name)

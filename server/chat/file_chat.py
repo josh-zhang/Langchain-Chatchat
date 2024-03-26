@@ -45,7 +45,7 @@ def _parse_files_in_thread(
                 os.makedirs(os.path.dirname(file_path))
             with open(file_path, "wb") as f:
                 f.write(file_content)
-            kb_file = KnowledgeFile(filename=filename, knowledge_base_name="temp")
+            kb_file = KnowledgeFile(filename=filename, knowledge_base_name="temp", document_loader_name="default")
             kb_file.filepath = file_path
             docs = kb_file.file2text(zh_title_enhance=zh_title_enhance,
                                      chunk_size=chunk_size,

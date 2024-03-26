@@ -246,7 +246,8 @@ def delete_docs(
 
         try:
             kb_file = KnowledgeFile(filename=file_name,
-                                    knowledge_base_name=knowledge_base_name)
+                                    knowledge_base_name=knowledge_base_name,
+                                    document_loader_name="unknown")
             kb.delete_doc(kb_file, delete_content, not_refresh_vs_cache=True)
         except Exception as e:
             msg = f"{file_name} 文件删除失败，错误信息：{e}"
@@ -319,7 +320,8 @@ def update_docs(
 
     if document_loader_name == "CustomExcelLoader":
         for file_name in file_names:
-            kb_file = KnowledgeFile(filename=file_name, knowledge_base_name=knowledge_base_name)
+            kb_file = KnowledgeFile(filename=file_name, knowledge_base_name=knowledge_base_name,
+                                    document_loader_name="CustomExcelLoader")
             status = kb.update_faq(kb_file, not_refresh_vs_cache=False)
             if not status:
                 failed_files[file_name] = f"加载FAQ文件 {kb_file.kb_name}/{kb_file.filename} 时出错"
@@ -351,7 +353,8 @@ def update_docs(
             if status:
                 kb_name, file_name, new_docs = result
                 kb_file = KnowledgeFile(filename=file_name,
-                                        knowledge_base_name=knowledge_base_name)
+                                        knowledge_base_name=knowledge_base_name,
+                                        document_loader_name=document_loader_name)
                 kb_file.splited_docs = new_docs
                 kb.update_doc(kb_file, not_refresh_vs_cache=True)
             else:
@@ -362,7 +365,8 @@ def update_docs(
         for file_name, v in docs.items():
             try:
                 v = [x if isinstance(x, Document) else Document(**x) for x in v]
-                kb_file = KnowledgeFile(filename=file_name, knowledge_base_name=knowledge_base_name)
+                kb_file = KnowledgeFile(filename=file_name, knowledge_base_name=knowledge_base_name,
+                                        document_loader_name=document_loader_name)
                 kb.update_doc(kb_file, docs=v, not_refresh_vs_cache=True)
             except Exception as e:
                 msg = f"为 {file_name} 添加自定义docs时出错：{e}"

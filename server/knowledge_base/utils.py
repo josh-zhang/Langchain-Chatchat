@@ -414,8 +414,8 @@ class KnowledgeFile:
             self,
             filename: str,
             knowledge_base_name: str,
+            document_loader_name: str,
             loader_kwargs: Dict = {},
-            document_loader_name: str = None,
     ):
         '''
         对应知识库目录中的文件，必须是磁盘上存在的才能进行向量化等操作。
@@ -430,9 +430,13 @@ class KnowledgeFile:
         self.docs = None
         self.splited_docs = None
 
-        if document_loader_name is None or document_loader_name == "" or document_loader_name == "default":
+        # if document_loader_name is None or document_loader_name == "" or document_loader_name == "default":
+        if document_loader_name == "default":
             self.document_loader_name = get_LoaderClass(self.ext)
             self.text_splitter_name = TEXT_SPLITTER_NAME
+        elif document_loader_name == "unknown":
+            self.document_loader_name = ""
+            self.text_splitter_name = ""
         else:
             self.document_loader_name = document_loader_name
             if document_loader_name == "CustomHTMLLoader":
@@ -532,15 +536,19 @@ def files2docs_in_thread(
     for i, file in enumerate(files):
         kwargs = {}
         try:
-            if isinstance(file, tuple) and len(file) >= 2:
+            if isinstance(file, tuple) and len(file) >= 3:
                 filename = file[0]
                 kb_name = file[1]
-                file = KnowledgeFile(filename=filename, knowledge_base_name=kb_name)
+                document_loader_name = file[2]
+                file = KnowledgeFile(filename=filename, knowledge_base_name=kb_name,
+                                     document_loader_name=document_loader_name)
             elif isinstance(file, dict):
                 filename = file.pop("filename")
                 kb_name = file.pop("kb_name")
+                document_loader_name = file.pop("document_loader_name")
                 kwargs.update(file)
-                file = KnowledgeFile(filename=filename, knowledge_base_name=kb_name)
+                file = KnowledgeFile(filename=filename, knowledge_base_name=kb_name,
+                                     document_loader_name=document_loader_name)
             kwargs["file"] = file
             kwargs["chunk_size"] = chunk_size
             kwargs["chunk_overlap"] = chunk_overlap
