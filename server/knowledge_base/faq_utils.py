@@ -369,6 +369,8 @@ def load_df_raw(this_df, filename):
             l_raw_q = raw_q
             l_attri = attri
 
+        raw_exq_type = raw_exq_type[0] if raw_exq_type else ""
+
         if "民生微信" in channel and not raw_exq_type and not sample:
             l_query = StandardQuery(l_idx, l_raw_q, raw_a)
             l_query.attri = l_attri
@@ -387,12 +389,12 @@ def load_df_raw(this_df, filename):
 
             this_query_list.append(l_query)
 
-        elif raw_exq_type == "0.0" and not sample:
+        elif raw_exq_type == "0" and not sample:
             l_query.extend_list.append(raw_exq)
 
             sample_list = list()
 
-        elif (raw_exq_type == "1.0" or raw_exq_type == "2.0") and not sample:
+        elif (raw_exq_type == "1" or raw_exq_type == "2") and not sample:
             l_query.extend_reg_dict[raw_exq] = process_sys_reg(raw_exq)
 
             sample_list = list()
