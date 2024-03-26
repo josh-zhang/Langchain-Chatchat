@@ -186,11 +186,6 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
         this_kb_agent_guide = st.text_area("知识库介绍", value=kb_dict[this_kb_name]['kb_agent_guide'], max_chars=None,
                                     key=None, help=None, on_change=None, args=None, kwargs=None, disabled=True)
 
-        files = st.file_uploader("上传文件：",
-                                 [i for ls in LOADER_DICT.values() for i in ls],
-                                 accept_multiple_files=True,
-                                 )
-
         with st.expander(
                 "文件处理配置",
                 expanded=False,
@@ -201,6 +196,11 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
             cols[2].write("")
             cols[2].write("")
             zh_title_enhance = cols[2].checkbox("开启中文标题加强", ZH_TITLE_ENHANCE)
+
+        files = st.file_uploader("上传文件：",
+                                 [i for ls in LOADER_DICT.values() for i in ls],
+                                 accept_multiple_files=True,
+                                 )
 
         if st.button(
                 "添加文件到知识库",
@@ -220,16 +220,16 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
 
         kf_files = st.file_uploader("上传客服知识库文件：", ["html"], accept_multiple_files=True)
 
-        with st.expander(
-                "客服知识库文件处理配置",
-                expanded=False,
-        ):
-            cols = st.columns(3)
-            chunk_size = cols[0].number_input("单段文本最大长度：", 1, 8000, CHUNK_SIZE)
-            chunk_overlap = cols[1].number_input("相邻文本重合长度：", 0, chunk_size, OVERLAP_SIZE)
-            cols[2].write("")
-            cols[2].write("")
-            # zh_title_enhance = cols[2].checkbox("开启中文标题加强", ZH_TITLE_ENHANCE)
+        # with st.expander(
+        #         "客服知识库文件处理配置",
+        #         expanded=False,
+        # ):
+        #     cols = st.columns(3)
+        #     chunk_size = cols[0].number_input("单段文本最大长度：", 1, 8000, CHUNK_SIZE)
+        #     chunk_overlap = cols[1].number_input("相邻文本重合长度：", 0, chunk_size, OVERLAP_SIZE)
+        #     cols[2].write("")
+        #     cols[2].write("")
+        #     # zh_title_enhance = cols[2].checkbox("开启中文标题加强", ZH_TITLE_ENHANCE)
 
         if st.button(
                 "添加知识库文件到知识库",

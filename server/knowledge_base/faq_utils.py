@@ -327,7 +327,7 @@ def load_df_generated(this_df):
     return query_list
 
 
-def load_df_raw(this_df):
+def load_df_raw(this_df, filename):
     query_list = list()
 
     # this_df = pandas.read_excel(faq_full_file, dtype=str)
@@ -372,7 +372,7 @@ def load_df_raw(this_df):
         if "民生微信" in channel and not raw_exq_type and not sample:
             l_query = StandardQuery(l_idx, l_raw_q, raw_a)
             l_query.attri = l_attri
-            l_query.ref = faq_full_file
+            l_query.ref = filename
 
             # if end_dt:
             #     end_dt = str(int(float(end_dt)))
@@ -416,7 +416,7 @@ def load_faq(faq_filepath):
     if is_generated:
         raw_query_obj_list = load_df_generated(this_df)
     else:
-        raw_query_obj_list = load_df_raw(this_df)
+        raw_query_obj_list = load_df_raw(this_df, faq_filepath)
 
     conflict_list = list()
 
