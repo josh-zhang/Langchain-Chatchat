@@ -179,7 +179,8 @@ class CustomHTMLLoader(langchain_community.document_loaders.UnstructuredFileLoad
         for ii, chapter_tuple in enumerate(chapters_list):
             chapter_number = ii + 1
 
-            chapter_title = file_name + self.delimiter + chapter_tuple[0]
+            chapter_title = "" if chapter_tuple[0] is None else chapter_tuple[0]
+            chapter_title = file_name + self.delimiter + chapter_title
             chapter_title_ele = Title(text=chapter_title, metadata=ElementMetadata(filename=file_path,
                                                                                    filetype="html",
                                                                                    page_number=chapter_number))
@@ -190,8 +191,9 @@ class CustomHTMLLoader(langchain_community.document_loaders.UnstructuredFileLoad
 
             paragraphs = chapter_tuple[1]
             for iii, paragraph_tuple in enumerate(paragraphs):
-                # paragraph_title = chapter_tuple[0] + self.delimiter + paragraph_tuple[0]
-                paragraph_title = file_name + self.delimiter + paragraph_tuple[0]
+                paragraph_title = "" if paragraph_tuple[0] is None else paragraph_tuple[0]
+                # paragraph_title = chapter_tuple[0] + self.delimiter + paragraph_title
+                paragraph_title = file_name + self.delimiter + paragraph_title
                 paragraph_text = paragraph_tuple[1]
                 sub_paragraphs = paragraph_tuple[2]
 
@@ -206,9 +208,11 @@ class CustomHTMLLoader(langchain_community.document_loaders.UnstructuredFileLoad
 
                 if sub_paragraphs:
                     for iii, sub_paragraph_tuple in enumerate(sub_paragraphs):
-                        if sub_paragraph_tuple[0]:
+                        sub_paragraph_title = "" if sub_paragraph_tuple[0] is None else sub_paragraph_tuple[0]
+
+                        if sub_paragraph_title:
                             sub_paragraph_title = file_name + self.delimiter + paragraph_tuple[0] + self.delimiter + \
-                                                  sub_paragraph_tuple[0]
+                                                  sub_paragraph_title
                         else:
                             sub_paragraph_title = file_name + self.delimiter + paragraph_tuple[0] + f" 段落{iii + 1}"
 
