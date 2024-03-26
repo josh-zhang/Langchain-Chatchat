@@ -143,7 +143,7 @@ LOADER_DICT = {
     "RapidOCRPPTLoader": ['.pptx', ],
     "RapidOCRLoader": ['.png', '.jpg', '.jpeg', '.bmp'],
     "UnstructuredFileLoader": ['.txt'],
-    "UnstructuredEmailLoader": ['.eml', '.msg'],
+    # "UnstructuredEmailLoader": ['.eml', '.msg'],
     # "UnstructuredEPubLoader": ['.epub'],
     "UnstructuredExcelLoader": ['.xlsx', '.xls'],
     # "NotebookLoader": ['.ipynb'],

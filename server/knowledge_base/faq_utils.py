@@ -144,19 +144,6 @@ def seg_text(sentence):
     return [j.strip() for j in seg_result if j.strip()]
 
 
-def seg_text_list(sentence_list, return_list_of_list=False):
-    # seg_result = lac.run(sentence_list)
-    seg_result_text = list()
-    for sentence in sentence_list:
-        i = tok_fine(sentence)
-        if return_list_of_list:
-            seg_result_text.append([j.strip() for j in i if j.strip()])
-        else:
-            text = " ".join([j.strip() for j in i if j.strip()])
-            seg_result_text.append(text)
-    return seg_result_text
-
-
 def clean_text(lbl, remove_stop=False, return_list=False):
     lbl = re.sub("[^A-Za-z0-9\u4e00-\u9fa5]", "_", lbl)
     lbl = re.sub("_+", " ", lbl)
