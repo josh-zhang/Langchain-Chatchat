@@ -120,6 +120,7 @@ class CachePool:
 
 
 class EmbeddingsPool(CachePool):
+
     def load_embeddings(self, model: str = None, device: str = None, normalize_embeddings=False) -> Embeddings:
         self.atomic.acquire()
         model = model or EMBEDDING_MODEL

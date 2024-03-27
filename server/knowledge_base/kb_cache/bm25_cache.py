@@ -89,7 +89,7 @@ class KBBM25Pool(CachePool):
         key = kb_name + "_" + retriever_name + "_" + file_md5_sum
         cache = self.get(key)
         if cache is None:
-            item = ThreadSafeBM25((kb_name, retriever_name, file_md5_sum), pool=self)
+            item = ThreadSafeBM25(key, pool=self)
             self.set(key, item)
             with item.acquire():
                 self.atomic.release()
