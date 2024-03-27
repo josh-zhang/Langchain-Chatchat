@@ -69,27 +69,9 @@ def search_docs(
     docs_data = get_total_score_sorted(docs_data, score_threshold)
 
     logger.info(f"top_k {top_k} and {len(docs_data)} docs total searched ")
-    logger.debug(docs_data)
-
-    # docs_data = docs_data[:top_k]
+    logger.info(docs_data)
 
     return docs_data
-
-
-# def update_docs_by_id(
-#         knowledge_base_name: str = Body(..., description="知识库名称", examples=["samples"]),
-#         docs: Dict[str, Document] = Body(..., description="要更新的文档内容，形如：{id: Document, ...}")
-# ) -> BaseResponse:
-#     '''
-#     按照文档 ID 更新文档内容
-#     '''
-#     kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
-#     if kb is None:
-#         return BaseResponse(code=500, msg=f"指定的知识库 {knowledge_base_name} 不存在")
-#     if kb.update_doc_by_ids(docs=docs):
-#         return BaseResponse(msg=f"文档更新成功")
-#     else:
-#         return BaseResponse(msg=f"文档更新失败")
 
 
 def list_files(
@@ -169,20 +151,6 @@ def _save_files_in_thread(files: List[UploadFile],
     params = [{"file": file, "knowledge_base_name": knowledge_base_name, "override": override} for file in files]
     for result in run_in_thread_pool(save_file, params=params):
         yield result
-
-
-# TODO: 等langchain.document_loaders支持内存文件的时候再开通
-# def files2docs(files: List[UploadFile] = File(..., description="上传文件，支持多文件"),
-#                 knowledge_base_name: str = Form(..., description="知识库名称", examples=["samples"]),
-#                 override: bool = Form(False, description="覆盖已有文件"),
-#                 save: bool = Form(True, description="是否将文件保存到知识库目录")):
-#     def save_files(files, knowledge_base_name, override):
-#         for result in _save_files_in_thread(files, knowledge_base_name=knowledge_base_name, override=override):
-#             yield json.dumps(result, ensure_ascii=False)
-
-#     def files_to_docs(files):
-#         for result in files2docs_in_thread(files):
-#             yield json.dumps(result, ensure_ascii=False)
 
 
 def upload_docs(
@@ -489,6 +457,33 @@ def get_gen_qa_result(
         FuturesAtomic.release()
         return BaseResponse(code=202, msg=f"任务正在运行中")
 
+# def files2docs(files: List[UploadFile] = File(..., description="上传文件，支持多文件"),
+#                 knowledge_base_name: str = Form(..., description="知识库名称", examples=["samples"]),
+#                 override: bool = Form(False, description="覆盖已有文件"),
+#                 save: bool = Form(True, description="是否将文件保存到知识库目录")):
+#     def save_files(files, knowledge_base_name, override):
+#         for result in _save_files_in_thread(files, knowledge_base_name=knowledge_base_name, override=override):
+#             yield json.dumps(result, ensure_ascii=False)
+
+#     def files_to_docs(files):
+#         for result in files2docs_in_thread(files):
+#             yield json.dumps(result, ensure_ascii=False)
+
+
+# def update_docs_by_id(
+#         knowledge_base_name: str = Body(..., description="知识库名称", examples=["samples"]),
+#         docs: Dict[str, Document] = Body(..., description="要更新的文档内容，形如：{id: Document, ...}")
+# ) -> BaseResponse:
+#     '''
+#     按照文档 ID 更新文档内容
+#     '''
+#     kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
+#     if kb is None:
+#         return BaseResponse(code=500, msg=f"指定的知识库 {knowledge_base_name} 不存在")
+#     if kb.update_doc_by_ids(docs=docs):
+#         return BaseResponse(msg=f"文档更新成功")
+#     else:
+#         return BaseResponse(msg=f"文档更新失败")
 # def update_info(
 #         knowledge_base_name: str = Body(..., description="知识库名称", examples=["samples"]),
 #         kb_info: str = Body(..., description="知识库介绍", examples=["这是一个知识库"]),

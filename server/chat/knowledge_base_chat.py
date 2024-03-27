@@ -199,50 +199,6 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
             callback.done),
         )
 
-        # enhanced_prompt = True
-        #
-        # if enhanced_prompt and len(docs) > 0:
-        #     prompt_template, context = generate_doc_qa(query, history, text_docs, "根据已知信息无法回答该问题")
-        #
-        #     input_msg = History(role="user", content=prompt_template).to_msg_template(False)
-        #
-        #     chat_prompt = ChatPromptTemplate.from_messages([input_msg])
-        #
-        #     chain = LLMChain(prompt=chat_prompt, llm=model)
-        #
-        #     # Begin a task that runs in the background.
-        #     task = asyncio.create_task(wrap_done(
-        #         chain.acall({"context": context, "question": query}),
-        #         callback.done),
-        #     )
-        # else:
-        #     if len(docs) == 0:  # 如果没有找到相关文档，使用empty模板
-        #         prompt_template = get_prompt_template("knowledge_base_chat", "empty")[1]
-        #     else:
-        #         prompt_template = get_prompt_template("knowledge_base_chat", prompt_name)[1]
-        #
-        #     input_msg = History(role="user", content=prompt_template).to_msg_template(False)
-        #
-        #     chat_prompt = ChatPromptTemplate.from_messages(
-        #         [i.to_msg_template() for i in history] + [input_msg])
-        #
-        #     chain = LLMChain(prompt=chat_prompt, llm=model)
-        #
-        #     header = "已知信息"
-        #     if "faq" in prompt_name:
-        #         header = "常见问答"
-        #     context = ""
-        #     index = 1
-        #     for doc in text_docs:
-        #         context += f"\n##{header}{index}##\n{doc}\n"
-        #         index += 1
-        #
-        #     # Begin a task that runs in the background.
-        #     task = asyncio.create_task(wrap_done(
-        #         chain.acall({"context": context, "question": query}),
-        #         callback.done),
-        #     )
-
         source_documents = []
         source_documents_content = []
 

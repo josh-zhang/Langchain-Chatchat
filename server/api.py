@@ -71,7 +71,6 @@ def mount_app_routes(app: FastAPI, run_mode: str = None):
              summary="返回llm模型对话评分",
              )(chat_feedback)
 
-
     # Tag: embedding
     app.post("/embed_model/list_embed_models",
              tags=["Embedding"],
@@ -255,9 +254,9 @@ def mount_knowledge_routes(app: FastAPI):
             summary="下载对应的知识文件")(download_doc)
 
     app.get("/knowledge_base/download_knowledge_base_files",
-             tags=["Download Knowledge Base Files"],
-             summary="下载知识库所有文档"
-             )(download_kb_files)
+            tags=["Download Knowledge Base Files"],
+            summary="下载知识库所有文档"
+            )(download_kb_files)
 
     # app.post("/knowledge_base/recreate_vector_store",
     #          tags=["Knowledge Base Management"],
