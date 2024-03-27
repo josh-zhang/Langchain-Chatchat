@@ -23,6 +23,7 @@ from server.chat.prompt_generator import generate_doc_qa
 def _parse_files_in_thread(
         files: List[UploadFile],
         dir: str,
+        document_loader_name: str,
         zh_title_enhance: bool,
         chunk_size: int,
         chunk_overlap: int,
@@ -45,7 +46,8 @@ def _parse_files_in_thread(
                 os.makedirs(os.path.dirname(file_path))
             with open(file_path, "wb") as f:
                 f.write(file_content)
-            kb_file = KnowledgeFile(filename=filename, knowledge_base_name="temp", document_loader_name="default")
+            kb_file = KnowledgeFile(filename=filename, knowledge_base_name="temp",
+                                    document_loader_name=document_loader_name)
             kb_file.filepath = file_path
             docs = kb_file.file2text(zh_title_enhance=zh_title_enhance,
                                      chunk_size=chunk_size,
@@ -62,6 +64,7 @@ def _parse_files_in_thread(
 
 def upload_temp_docs(
         files: List[UploadFile] = File(..., description="上传文件，支持多文件"),
+        document_loader_name: str = Form(..., description="文件加载类型"),
         prev_id: str = Form(None, description="前知识库ID"),
         chunk_size: int = Form(CHUNK_SIZE, description="知识库中单段文本最大长度"),
         chunk_overlap: int = Form(OVERLAP_SIZE, description="知识库中相邻文本重合长度"),
@@ -78,6 +81,7 @@ def upload_temp_docs(
     documents = []
     path, id = get_temp_dir(prev_id)
     for success, file, msg, docs in _parse_files_in_thread(files=files,
+                                                           document_loader_name=document_loader_name,
                                                            dir=path,
                                                            zh_title_enhance=zh_title_enhance,
                                                            chunk_size=chunk_size,
@@ -117,7 +121,8 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
     if not knowledge_content or not knowledge_content.strip():
         knowledge_content = ""
         if knowledge_id not in memo_faiss_pool.keys():
-            return BaseResponse(code=404, msg=f"未找到临时知识库 {knowledge_id}，请先上传文件，或者在参考信息文本框输入参考信息")
+            return BaseResponse(code=404,
+                                msg=f"未找到临时知识库 {knowledge_id}，请先上传文件，或者在参考信息文本框输入参考信息")
 
     history = [History.from_data(h) for h in history]
 
@@ -156,7 +161,8 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
             embed_func = EmbeddingsFunAdapter()
             embeddings = await embed_func.aembed_query(query)
             with memo_faiss_pool.acquire(knowledge_id) as vs:
-                docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k, score_threshold=1 - score_threshold)
+                docs = vs.similarity_search_with_score_by_vector(embeddings, k=top_k,
+                                                                 score_threshold=1 - score_threshold)
                 docs = [x[0] for x in docs]
                 text_docs = [doc.page_content for doc in docs]
 
@@ -227,7 +233,8 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
                 source_documents.append(text)
 
             if len(source_documents) == 0:  # 没有找到相关文档
-                source_documents.append(f"""<span style='color:red'>未找到相关文档,该回答为大模型自身能力解答！</span>""")
+                source_documents.append(
+                    f"""<span style='color:red'>未找到相关文档,该回答为大模型自身能力解答！</span>""")
 
         if stream:
             async for token in callback.aiter():

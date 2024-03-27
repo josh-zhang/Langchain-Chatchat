@@ -376,6 +376,7 @@ class ApiRequest:
     def upload_temp_docs(
             self,
             files: List[Union[str, Path, bytes]],
+            document_loader_name: str,
             knowledge_id: str = None,
             chunk_size=CHUNK_SIZE,
             chunk_overlap=OVERLAP_SIZE,
@@ -398,6 +399,7 @@ class ApiRequest:
         files = [convert_file(file) for file in files]
         data = {
             "knowledge_id": knowledge_id,
+            "document_loader_name": document_loader_name,
             "chunk_size": chunk_size,
             "chunk_overlap": chunk_overlap,
             "zh_title_enhance": zh_title_enhance,
@@ -440,9 +442,6 @@ class ApiRequest:
             "max_tokens": max_tokens,
             "prompt_name": prompt_name,
         }
-
-        # print(f"received input message:")
-        # pprint(data)
 
         response = self.post(
             "/chat/file_chat",
@@ -546,24 +545,6 @@ class ApiRequest:
         )
         return self._get_response_value(response, as_json=True)
 
-    # def update_docs_by_id(
-    #     self,
-    #     knowledge_base_name: str,
-    #     docs: Dict[str, Dict],
-    # ) -> bool:
-    #     '''
-    #     对应api.py/knowledge_base/update_docs_by_id接口
-    #     '''
-    #     data = {
-    #         "knowledge_base_name": knowledge_base_name,
-    #         "docs": docs,
-    #     }
-    #     response = self.post(
-    #         "/knowledge_base/update_docs_by_id",
-    #         json=data
-    #     )
-    #     return self._get_response_value(response)
-
     def upload_kb_docs(
             self,
             files: List[Union[str, Path, bytes]],
@@ -636,20 +617,20 @@ class ApiRequest:
         )
         return self._get_response_value(response, as_json=True)
 
-    def update_kb_info(self, knowledge_base_name, kb_info):
-        '''
-        对应api.py/knowledge_base/update_info接口
-        '''
-        data = {
-            "knowledge_base_name": knowledge_base_name,
-            "kb_info": kb_info,
-        }
-
-        response = self.post(
-            "/knowledge_base/update_info",
-            json=data,
-        )
-        return self._get_response_value(response, as_json=True)
+    # def update_kb_info(self, knowledge_base_name, kb_info):
+    #     '''
+    #     对应api.py/knowledge_base/update_info接口
+    #     '''
+    #     data = {
+    #         "knowledge_base_name": knowledge_base_name,
+    #         "kb_info": kb_info,
+    #     }
+    #
+    #     response = self.post(
+    #         "/knowledge_base/update_info",
+    #         json=data,
+    #     )
+    #     return self._get_response_value(response, as_json=True)
 
     # def update_kb_docs(
     #         self,

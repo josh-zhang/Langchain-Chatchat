@@ -97,6 +97,8 @@ class KBService(ABC):
         """
         创建知识库
         """
+        print("create_kb")
+
         if not os.path.exists(self.doc_path):
             os.makedirs(self.doc_path)
 
@@ -114,6 +116,8 @@ class KBService(ABC):
         """
         删除向量库中所有内容
         """
+        print("clear_vs")
+
         self.do_clear_vs("docs")
         self.do_clear_vs("question")
         self.do_clear_vs("answer")
@@ -126,6 +130,8 @@ class KBService(ABC):
         """
         删除知识库
         """
+        print("drop_kb")
+
         self.do_drop_kb()
         status = delete_kb_from_db(self.kb_name)
         return status
@@ -141,6 +147,8 @@ class KBService(ABC):
         向知识库添加文件
         如果指定了docs，则不再将文本向量化，并将数据库对应条目标为custom_docs=True
         """
+        print("add_doc")
+
         if docs:
             custom_docs = True
             for doc in docs:
@@ -167,7 +175,6 @@ class KBService(ABC):
                                     custom_docs=custom_docs,
                                     docs_count=len(docs),
                                     doc_infos=doc_infos)
-            print(f"add_file_to_db {kb_file.filename}")
         else:
             status = False
         return status
@@ -176,6 +183,8 @@ class KBService(ABC):
         """
         从知识库删除文件
         """
+        print("delete_doc")
+
         self.do_delete_doc("docs", kb_file, **kwargs)
         status = delete_file_from_db(kb_file)
         if delete_content and os.path.exists(kb_file.filepath):
@@ -189,7 +198,6 @@ class KBService(ABC):
         """
 
         print("add_faq")
-        print(f"kb_file.filename {kb_file.filename}")
 
         filename = kb_file.filename
 
@@ -260,6 +268,7 @@ class KBService(ABC):
         """
         从知识库删除文件
         """
+        print("delete_faq")
 
         self.do_delete_doc("answer", kb_file, **kwargs)
         self.do_delete_doc("question", kb_file, **kwargs)
@@ -269,29 +278,13 @@ class KBService(ABC):
             os.remove(kb_file.filepath)
         return status
 
-    def update_info(self, kb_info: str):
-        """
-        更新知识库介绍
-        """
-        self.kb_info = kb_info
-        status = add_kb_to_db(self.kb_name, self.kb_info, self.kb_agent_guide, self.kb_summary, self.vs_type(),
-                              self.embed_model, self.search_enhance)
-        return status
-
-    def update_agent_guide(self, kb_agent_guide: str):
-        """
-        更新知识库Agent介绍
-        """
-        self.kb_agent_guide = kb_agent_guide
-        status = add_kb_to_db(self.kb_name, self.kb_info, self.kb_agent_guide, self.kb_summary, self.vs_type(),
-                              self.embed_model, self.search_enhance)
-        return status
-
     def update_faq(self, kb_file: KnowledgeFile, **kwargs):
         """
         使用content中的文件更新向量库
         如果指定了docs，则使用自定义docs，并将数据库对应条目标为custom_docs=True
         """
+        print("update_faq")
+
         if os.path.exists(kb_file.filepath):
             self.delete_faq(kb_file, **kwargs)
             return self.add_faq(kb_file, **kwargs)
@@ -303,6 +296,8 @@ class KBService(ABC):
         使用content中的文件更新向量库
         如果指定了docs，则使用自定义docs，并将数据库对应条目标为custom_docs=True
         """
+        print("update_doc")
+
         if os.path.exists(kb_file.filepath):
             self.delete_doc(kb_file, **kwargs)
             return self.add_doc(kb_file, docs=docs, **kwargs)
@@ -320,9 +315,7 @@ class KBService(ABC):
         return count_files_from_db(self.kb_name)
 
     def merge_answers(self, answer_data: List[DocumentWithScores], answer_data_2: List[DocumentWithScores],
-                      is_max=False) -> \
-            List[
-                DocumentWithScores]:
+                      is_max=False) -> List[DocumentWithScores]:
         new_answer_data_dict = {a.metadata["raw_id"]: a.scores for a in answer_data_2}
 
         merged_answer_data = list()
@@ -593,12 +586,12 @@ class KBService(ABC):
 
     @abstractmethod
     def do_search(self,
-                       vector_name: str,
-                       query: str,
-                       top_k: int,
-                       score_threshold: float,
-                       embeddings: List[float] = None,
-                       ) -> (List[float], List[DocumentWithScores]):
+                  vector_name: str,
+                  query: str,
+                  top_k: int,
+                  score_threshold: float,
+                  embeddings: List[float] = None,
+                  ) -> (List[float], List[DocumentWithScores]):
         """
         搜索知识库子类实自己逻辑
         """
@@ -797,3 +790,21 @@ def score_threshold_process(score_threshold, k, docs):
             if cmp(similarity, score_threshold)
         ]
     return docs[:k]
+
+    # def update_info(self, kb_info: str):
+    #     """
+    #     更新知识库介绍
+    #     """
+    #     self.kb_info = kb_info
+    #     status = add_kb_to_db(self.kb_name, self.kb_info, self.kb_agent_guide, self.kb_summary, self.vs_type(),
+    #                           self.embed_model, self.search_enhance)
+    #     return status
+
+    # def update_agent_guide(self, kb_agent_guide: str):
+    #     """
+    #     更新知识库Agent介绍
+    #     """
+    #     self.kb_agent_guide = kb_agent_guide
+    #     status = add_kb_to_db(self.kb_name, self.kb_info, self.kb_agent_guide, self.kb_summary, self.vs_type(),
+    #                           self.embed_model, self.search_enhance)
+    #     return status

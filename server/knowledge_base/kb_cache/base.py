@@ -124,12 +124,12 @@ class EmbeddingsPool(CachePool):
         self.atomic.acquire()
         model = model or EMBEDDING_MODEL
         device = embedding_device()
-        key = (model, device, normalize_embeddings)
+        key = model + "_" + device + "_" + normalize_embeddings
         cache = self.get(key)
         if cache is None:
             item = ThreadSafeObject(key, pool=self)
             self.set(key, item)
-            with item.acquire(msg="初始化"):
+            with item.acquire():
                 self.atomic.release()
                 if 'bge-' in model:
                     from langchain_community.embeddings import HuggingFaceBgeEmbeddings

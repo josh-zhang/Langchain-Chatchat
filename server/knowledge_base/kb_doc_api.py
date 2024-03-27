@@ -64,9 +64,6 @@ def search_docs(
         docs_data = ks_docs_data
         qa_data = ks_qa_data
 
-    # print(f"final docs_data {docs_data}")
-    # print(f"final qa_data {qa_data}")
-
     docs_data = docs_data + qa_data
 
     docs_data = get_total_score_sorted(docs_data, score_threshold)
@@ -107,6 +104,27 @@ def list_files(
         return ListResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}", data=[])
     else:
         all_doc_names = kb.list_files()
+        return ListResponse(data=all_doc_names)
+
+
+def list_docs(
+        knowledge_base_name: str,
+        file_name: str
+) -> ListResponse:
+    if not validate_kb_name(knowledge_base_name):
+        return ListResponse(code=403, msg="Don't attack me", data=[])
+
+    knowledge_base_name = urllib.parse.unquote(knowledge_base_name)
+    kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
+    if kb is None:
+        return ListResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}", data=[])
+    else:
+        all_doc_names = kb.list_docs("docs", file_name)
+        all_question_names = kb.list_docs("question", file_name)
+        all_answer_names = kb.list_docs("answer", file_name)
+
+        all_doc_names = [all_doc_names, all_question_names, all_answer_names]
+
         return ListResponse(data=all_doc_names)
 
 
@@ -264,36 +282,6 @@ def delete_docs(
     return BaseResponse(code=200, msg=f"文件删除完成", data={"failed_files": failed_files})
 
 
-def update_info(
-        knowledge_base_name: str = Body(..., description="知识库名称", examples=["samples"]),
-        kb_info: str = Body(..., description="知识库介绍", examples=["这是一个知识库"]),
-):
-    if not validate_kb_name(knowledge_base_name):
-        return BaseResponse(code=403, msg="Don't attack me")
-
-    kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
-    if kb is None:
-        return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}")
-    kb.update_info(kb_info)
-
-    return BaseResponse(code=200, msg=f"知识库介绍修改完成", data={"kb_info": kb_info})
-
-
-def update_agent_guide(
-        knowledge_base_name: str = Body(..., description="知识库名称", examples=["samples"]),
-        kb_agent_guide: str = Body(..., description="知识库Agent介绍", examples=["这是一个知识库"]),
-):
-    if not validate_kb_name(knowledge_base_name):
-        return BaseResponse(code=403, msg="Don't attack me")
-
-    kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
-    if kb is None:
-        return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}")
-    kb.update_agent_guide(kb_agent_guide)
-
-    return BaseResponse(code=200, msg=f"知识库介绍修改完成", data={"kb_agent_guide": kb_agent_guide})
-
-
 def update_docs(
         knowledge_base_name: str = Body(..., description="知识库名称", examples=["samples"]),
         document_loader_name: str = Form(..., description="文件加载类型", examples=["default"]),
@@ -309,6 +297,7 @@ def update_docs(
     """
     更新知识库文档
     """
+
     if not validate_kb_name(knowledge_base_name):
         return BaseResponse(code=403, msg="Don't attack me")
 
@@ -460,6 +449,76 @@ def download_kb_files(
         return BaseResponse(code=500, msg=msg)
 
 
+def gen_qa_for_kb(
+        knowledge_base_name: str = Body(..., examples=["samples"]),
+        model_name: str = Body(...),
+):
+    kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
+    if not kb.exists():
+        return BaseResponse(code=404, msg=f"未找到知识库 ‘{knowledge_base_name}’")
+    else:
+        kb_info = kb.kb_info
+
+        FuturesAtomic.acquire()
+        future = JobFutures.get(knowledge_base_name)
+
+        if future is None or future.done():
+            new_future = JobExecutor.submit(gen_qa_task, knowledge_base_name, kb_info, model_name)
+            JobFutures[knowledge_base_name] = new_future
+            FuturesAtomic.release()
+            return BaseResponse(code=200, msg=f"使用{model_name}的文档问答生成任务提交成功")
+        else:
+            FuturesAtomic.release()
+            return BaseResponse(code=404, msg=f"上次任务仍在运行中，请等待任务完成后再提交新任务")
+
+
+def get_gen_qa_result(
+        knowledge_base_name: str = Body(..., examples=["samples"]),
+):
+    FuturesAtomic.acquire()
+    future = JobFutures.get(knowledge_base_name)
+
+    if future is None:
+        FuturesAtomic.release()
+        return BaseResponse(code=404, msg=f"无效的任务ID")
+    elif future.done():
+        result = future.result()
+        FuturesAtomic.release()
+        return BaseResponse(code=200, msg=f"任务已结束", json={"task_result": result})
+    else:
+        FuturesAtomic.release()
+        return BaseResponse(code=202, msg=f"任务正在运行中")
+
+# def update_info(
+#         knowledge_base_name: str = Body(..., description="知识库名称", examples=["samples"]),
+#         kb_info: str = Body(..., description="知识库介绍", examples=["这是一个知识库"]),
+# ):
+#     if not validate_kb_name(knowledge_base_name):
+#         return BaseResponse(code=403, msg="Don't attack me")
+#
+#     kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
+#     if kb is None:
+#         return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}")
+#     kb.update_info(kb_info)
+#
+#     return BaseResponse(code=200, msg=f"知识库介绍修改完成", data={"kb_info": kb_info})
+
+
+# def update_agent_guide(
+#         knowledge_base_name: str = Body(..., description="知识库名称", examples=["samples"]),
+#         kb_agent_guide: str = Body(..., description="知识库Agent介绍", examples=["这是一个知识库"]),
+# ):
+#     if not validate_kb_name(knowledge_base_name):
+#         return BaseResponse(code=403, msg="Don't attack me")
+#
+#     kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
+#     if kb is None:
+#         return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}")
+#     kb.update_agent_guide(kb_agent_guide)
+#
+#     return BaseResponse(code=200, msg=f"知识库介绍修改完成", data={"kb_agent_guide": kb_agent_guide})
+
+
 # def recreate_vector_store(
 #         knowledge_base_name: str = Body(..., examples=["samples"]),
 #         kb_info: str = Body(..., examples=["samples_introduction"]),
@@ -524,44 +583,3 @@ def download_kb_files(
 #                 kb.save_vector_store("query")
 #
 #     return EventSourceResponse(output())
-
-
-def gen_qa_for_kb(
-        knowledge_base_name: str = Body(..., examples=["samples"]),
-        model_name: str = Body(...),
-):
-    kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
-    if not kb.exists():
-        return BaseResponse(code=404, msg=f"未找到知识库 ‘{knowledge_base_name}’")
-    else:
-        kb_info = kb.kb_info
-
-        FuturesAtomic.acquire()
-        future = JobFutures.get(knowledge_base_name)
-
-        if future is None or future.done():
-            new_future = JobExecutor.submit(gen_qa_task, knowledge_base_name, kb_info, model_name)
-            JobFutures[knowledge_base_name] = new_future
-            FuturesAtomic.release()
-            return BaseResponse(code=200, msg=f"使用{model_name}的文档问答生成任务提交成功")
-        else:
-            FuturesAtomic.release()
-            return BaseResponse(code=404, msg=f"上次任务仍在运行中，请等待任务完成后再提交新任务")
-
-
-def get_gen_qa_result(
-        knowledge_base_name: str = Body(..., examples=["samples"]),
-):
-    FuturesAtomic.acquire()
-    future = JobFutures.get(knowledge_base_name)
-
-    if future is None:
-        FuturesAtomic.release()
-        return BaseResponse(code=404, msg=f"无效的任务ID")
-    elif future.done():
-        result = future.result()
-        FuturesAtomic.release()
-        return BaseResponse(code=200, msg=f"任务已结束", json={"task_result": result})
-    else:
-        FuturesAtomic.release()
-        return BaseResponse(code=202, msg=f"任务正在运行中")

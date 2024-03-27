@@ -82,7 +82,6 @@ class FaissKBService(KBService):
             if not kwargs.get("not_refresh_vs_cache"):
                 vs_path = self.get_vs_path(vector_name)
                 vs.save_local(vs_path)
-                # print(f"{len(ids)} docs saved to faiss local")
 
         doc_infos = [{"id": id, "metadata": doc.metadata} for id, doc in zip(ids, docs)]
         # torch_gc()
@@ -94,7 +93,6 @@ class FaissKBService(KBService):
             ids = [k for k, v in vs.docstore._dict.items() if v.metadata.get("source") == kb_file.filename]
             if len(ids) > 0:
                 vs.delete(ids)
-            # print(f"{len(ids)} docs deleted from faiss")
             if not kwargs.get("not_refresh_vs_cache"):
                 vs.save_local(vs_path)
         return ids

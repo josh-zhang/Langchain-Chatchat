@@ -7,12 +7,12 @@ DEFAULT_KNOWLEDGE_BASE = "samples"
 DEFAULT_VS_TYPE = "faiss"
 
 # 缓存向量库数量（针对FAISS）
-CACHED_VS_NUM = 6
+CACHED_VS_NUM = 10
 
 # 缓存向量库数量（针对BM25）
-CACHED_BM25_VS_NUM = 6
+CACHED_BM25_VS_NUM = 10
 
-# 缓存向量库数量（针对BM25）
+# 缓存向量库数量（针对EMBEDDING）
 CACHED_EMBED_NUM = 2
 
 # 缓存向量库数量（针对Reranker）
