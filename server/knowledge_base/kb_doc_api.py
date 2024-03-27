@@ -515,8 +515,6 @@ def get_gen_qa_result(
 #     kb.update_info(kb_info)
 #
 #     return BaseResponse(code=200, msg=f"知识库介绍修改完成", data={"kb_info": kb_info})
-
-
 # def update_agent_guide(
 #         knowledge_base_name: str = Body(..., description="知识库名称", examples=["samples"]),
 #         kb_agent_guide: str = Body(..., description="知识库Agent介绍", examples=["这是一个知识库"]),
