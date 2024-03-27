@@ -117,6 +117,14 @@ class FaissKBService(KBService):
         else:
             return False
 
+    def count_docs(self, vector_name: str, filename: str):
+        with self.load_vector_store(vector_name).acquire() as vs:
+            if filename:
+                count = len([k for k, v in vs.docstore._dict.items() if v.metadata.get("source") == filename])
+            else:
+                count = len(vs.docstore._dict)
+        return count
+
 
 if __name__ == '__main__':
     faissService = FaissKBService("test")

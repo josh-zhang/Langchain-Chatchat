@@ -313,7 +313,7 @@ def file_dialogue_page(api: ApiRequest):
                 support_types = [i for ls in LOADER_DICT.values() for i in ls]
                 document_loader_name = "default"
 
-            single_file = st.file_uploader("上传知识文件(将文件拖到下方区域即可)：",
+            single_file = st.file_uploader("上传文件(将文件拖到下方区域即可)：",
                                            support_types,
                                            accept_multiple_files=False)
 

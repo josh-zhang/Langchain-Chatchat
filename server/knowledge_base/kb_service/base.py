@@ -620,10 +620,14 @@ class KBService(ABC):
         pass
 
     @abstractmethod
-    def do_clear_vs(self, vector_name):
+    def do_clear_vs(self, vector_name: str):
         """
         从知识库删除全部向量子类实自己逻辑
         """
+        pass
+
+    @abstractmethod
+    def count_docs(self, vector_name: str, filename: str):
         pass
 
 

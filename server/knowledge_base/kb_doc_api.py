@@ -105,9 +105,27 @@ def list_docs(
         all_question_names = kb.list_docs("question", file_name)
         all_answer_names = kb.list_docs("answer", file_name)
 
-        all_doc_names = [all_doc_names, all_question_names, all_answer_names]
+        all_doc_names = [str(all_doc_names), str(all_question_names), str(all_answer_names)]
 
         return ListResponse(data=all_doc_names)
+
+
+def count_docs(
+        knowledge_base_name: str,
+        vector_name: str,
+        file_name: str
+) -> BaseResponse:
+    if not validate_kb_name(knowledge_base_name):
+        return BaseResponse(code=403, msg="Don't attack me")
+
+    knowledge_base_name = urllib.parse.unquote(knowledge_base_name)
+    kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
+    if kb is None:
+        return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}")
+    else:
+        count = kb.count_docs(vector_name, file_name)
+
+        return BaseResponse(code=200, data={"count": count, "file_name": file_name, "vector_name": vector_name})
 
 
 def _save_files_in_thread(files: List[UploadFile],
