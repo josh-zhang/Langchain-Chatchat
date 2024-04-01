@@ -162,12 +162,7 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
                 #     final_results.append(doc)
 
                 sentence_pairs = [[query, _doc] for _doc in _docs]
-                tokenizer, reranker_model = reranker_pool.load_reranker(RERANKER_MODEL)
-
-                with torch.no_grad():
-                    inputs = tokenizer(sentence_pairs, padding=True, truncation=True, return_tensors='pt', max_length=RERANKER_MAX_LENGTH)
-                    scores = model(**inputs, return_dict=True).logits.view(-1, ).float().tolist()
-
+                scores = reranker_pool.get_score(sentence_pairs, RERANKER_MODEL)
                 sorted_tuples = sorted([(value, index) for index, value in enumerate(scores)], key=lambda x: x[0], reverse=True)
 
                 for value, index in sorted_tuples:

@@ -3,12 +3,13 @@ from typing import List, Any, Union, Tuple, Optional
 from collections import OrderedDict
 from contextlib import contextmanager
 
+import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from langchain.embeddings.base import Embeddings
 from langchain.vectorstores.faiss import FAISS
 
 from configs import EMBEDDING_MODEL, CACHED_EMBED_NUM, logger, log_verbose, RERANKER_MODEL, MODEL_PATH, \
-    CACHED_RERANK_NUM
+    CACHED_RERANK_NUM, RERANKER_MAX_LENGTH
 from server.utils import embedding_device, get_model_path
 
 
@@ -185,15 +186,50 @@ class RerankerPool(CachePool):
                 model = AutoModelForSequenceClassification.from_pretrained(reranker_model_path)
                 model.eval()
 
-                # reranker_model = CrossEncoder(device=device,
-                #                               max_length=RERANKER_MAX_LENGTH,
-                #                               model_name=reranker_model_path)
                 item.obj = (tokenizer, model)
                 item.finish_loading()
             return (tokenizer, model)
         else:
             self.atomic.release()
             return cache.obj
+
+    def get_score(self, sentence_pairs, model: str = None):
+        model = model or RERANKER_MODEL
+        reranker_model_path = MODEL_PATH["reranker"].get(model, "/opt/projects/hf_models/bge-reranker-v2-m3")
+
+        key = model
+
+        self.atomic.acquire()
+
+        cache = self.get(key)
+
+        if cache is None:
+            item = ThreadSafeObject(key, pool=self)
+            self.set(key, item)
+            with item.acquire():
+                tokenizer = AutoTokenizer.from_pretrained(reranker_model_path)
+                model = AutoModelForSequenceClassification.from_pretrained(reranker_model_path)
+                model.eval()
+
+                item.obj = (tokenizer, model)
+                item.finish_loading()
+
+                with torch.no_grad():
+                    inputs = tokenizer(sentence_pairs, padding=True, truncation=True, return_tensors='pt',
+                                       max_length=RERANKER_MAX_LENGTH)
+                    scores = model(**inputs, return_dict=True).logits.view(-1, ).float().tolist()
+
+                self.atomic.release()
+            return scores
+        else:
+            tokenizer, model = cache.obj
+            with torch.no_grad():
+                inputs = tokenizer(sentence_pairs, padding=True, truncation=True, return_tensors='pt',
+                                   max_length=RERANKER_MAX_LENGTH)
+                scores = model(**inputs, return_dict=True).logits.view(-1, ).float().tolist()
+
+            self.atomic.release()
+            return scores
 
 
 embeddings_pool = EmbeddingsPool(cache_num=CACHED_EMBED_NUM)
