@@ -146,14 +146,12 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
             # 加入reranker
             if USE_RERANKER and len(docs) > 1:
                 doc_list = list(docs)
-                # doc_length = len(doc_list)
-
                 remain_length = RERANKER_MAX_LENGTH - len(query)
                 _docs = [d.page_content[:remain_length] for d in doc_list]
 
                 final_results = []
 
-                # results = do_rerank(_docs, this_query)
+                # results = do_rerank(_docs, query)
                 # for i in results:
                 #     idx = i['index']
                 #     value = i['relevance_score']
@@ -164,16 +162,12 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
                 sentence_pairs = [[query, _doc] for _doc in _docs]
                 scores = reranker_pool.get_score(sentence_pairs, RERANKER_MODEL)
                 sorted_tuples = sorted([(value, index) for index, value in enumerate(scores)], key=lambda x: x[0], reverse=True)
-
                 for value, index in sorted_tuples:
                     doc = doc_list[index]
                     doc.metadata["relevance_score"] = value
                     final_results.append(doc)
 
                 docs = final_results
-
-                # print("---------after rerank------------------")
-                # print(docs)
 
             docs = docs[:top_k]
             text_docs = [doc.page_content for doc in docs]

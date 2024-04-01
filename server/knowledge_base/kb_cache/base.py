@@ -179,7 +179,7 @@ class RerankerPool(CachePool):
         if cache is None:
             item = ThreadSafeObject(key, pool=self)
             self.set(key, item)
-            with item.acquire(msg="初始化"):
+            with item.acquire():
                 self.atomic.release()
 
                 tokenizer = AutoTokenizer.from_pretrained(reranker_model_path)
@@ -188,7 +188,7 @@ class RerankerPool(CachePool):
 
                 item.obj = (tokenizer, model)
                 item.finish_loading()
-            return (tokenizer, model)
+            return tokenizer, model
         else:
             self.atomic.release()
             return cache.obj
@@ -207,6 +207,8 @@ class RerankerPool(CachePool):
             item = ThreadSafeObject(key, pool=self)
             self.set(key, item)
             with item.acquire():
+                self.atomic.release()
+
                 tokenizer = AutoTokenizer.from_pretrained(reranker_model_path)
                 model = AutoModelForSequenceClassification.from_pretrained(reranker_model_path)
                 model.eval()
@@ -218,17 +220,15 @@ class RerankerPool(CachePool):
                     inputs = tokenizer(sentence_pairs, padding=True, truncation=True, return_tensors='pt',
                                        max_length=RERANKER_MAX_LENGTH)
                     scores = model(**inputs, return_dict=True).logits.view(-1, ).float().tolist()
-
-                self.atomic.release()
             return scores
         else:
+            self.atomic.release()
+
             tokenizer, model = cache.obj
             with torch.no_grad():
                 inputs = tokenizer(sentence_pairs, padding=True, truncation=True, return_tensors='pt',
                                    max_length=RERANKER_MAX_LENGTH)
                 scores = model(**inputs, return_dict=True).logits.view(-1, ).float().tolist()
-
-            self.atomic.release()
             return scores
 
 
