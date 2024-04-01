@@ -76,14 +76,15 @@ def support_iframe(ftype):
 
 
 def model_setup(api):
-    running_models = get_running_models(api)
-    available_models = get_api_running_models(api)
-    config_models = get_config_models(api)
+    # running_models = get_running_models(api)
+    # available_models = get_api_running_models(api)
+    # config_models = get_config_models(api)
+    running_models = get_api_running_models(api)
 
     # for test
-    # running_models = ['qwen']
-    # available_models = []
-    # config_models = {}
+    # running_models = []
+    available_models = []
+    config_models = {}
 
     if available_models:
         running_models.append(available_models[0])

@@ -3,6 +3,7 @@ import asyncio
 import requests
 from typing import AsyncIterable, List, Optional
 
+import torch
 from fastapi import Body, Request
 from fastapi.concurrency import run_in_threadpool
 from sse_starlette.sse import EventSourceResponse
@@ -17,7 +18,7 @@ from server.chat.utils import History
 from server.chat.prompt_generator import generate_doc_qa
 from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.knowledge_base.kb_doc_api import search_docs
-# from server.knowledge_base.kb_cache.base import reranker_pool
+from server.knowledge_base.kb_cache.base import reranker_pool
 from server.utils import BaseResponse, xinference_supervisor_address
 from configs import (LLM_MODELS,
                      VECTOR_SEARCH_TOP_K,
@@ -27,7 +28,8 @@ from configs import (LLM_MODELS,
                      USE_RERANKER,
                      RERANKER_MODEL,
                      API_SERVER_HOST_MAPPING,
-                     API_SERVER_PORT_MAPPING)
+                     API_SERVER_PORT_MAPPING,
+                     RERANKER_MAX_LENGTH)
 
 
 def do_rerank(
@@ -152,27 +154,27 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
 
                 final_results = []
 
-                results = do_rerank(_docs, this_query)
-                for i in results:
-                    idx = i['index']
-                    value = i['relevance_score']
-                    doc = doc_list[idx]
-                    doc.metadata["relevance_score"] = value
-                    final_results.append(doc)
-
-                # sentence_pairs = [[this_query, _doc] for _doc in _docs]
-                # reranker_model = reranker_pool.load_reranker(RERANKER_MODEL)
-                # results = reranker_model.predict(sentences=sentence_pairs,
-                #                                  batch_size=32,
-                #                                  num_workers=0,
-                #                                  convert_to_tensor=True)
-                #
-                # doc_length = doc_length if doc_length < len(results) else len(results)
-                # values, indices = results.topk(doc_length)
-                # for value, index in zip(values, indices):
-                #     doc = doc_list[index]
+                # results = do_rerank(_docs, this_query)
+                # for i in results:
+                #     idx = i['index']
+                #     value = i['relevance_score']
+                #     doc = doc_list[idx]
                 #     doc.metadata["relevance_score"] = value
                 #     final_results.append(doc)
+
+                sentence_pairs = [[this_query, _doc] for _doc in _docs]
+                tokenizer, reranker_model = reranker_pool.load_reranker(RERANKER_MODEL)
+
+                with torch.no_grad():
+                    inputs = tokenizer(sentence_pairs, padding=True, truncation=True, return_tensors='pt', max_length=RERANKER_MAX_LENGTH)
+                    scores = model(**inputs, return_dict=True).logits.view(-1, ).float().tolist()
+
+                sorted_tuples = sorted([(value, index) for index, value in enumerate(scores)], key=lambda x: x[0], reverse=True)
+
+                for value, index in sorted_tuples:
+                    doc = doc_list[index]
+                    doc.metadata["relevance_score"] = value
+                    final_results.append(doc)
 
                 docs = final_results
 

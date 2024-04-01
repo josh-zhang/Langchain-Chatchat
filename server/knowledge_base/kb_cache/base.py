@@ -3,10 +3,12 @@ from typing import List, Any, Union, Tuple, Optional
 from collections import OrderedDict
 from contextlib import contextmanager
 
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from langchain.embeddings.base import Embeddings
 from langchain.vectorstores.faiss import FAISS
 
-from configs import EMBEDDING_MODEL, CACHED_EMBED_NUM, logger, log_verbose
+from configs import EMBEDDING_MODEL, CACHED_EMBED_NUM, logger, log_verbose, RERANKER_MODEL, MODEL_PATH, \
+    CACHED_RERANK_NUM
 from server.utils import embedding_device, get_model_path
 
 
@@ -162,35 +164,37 @@ class EmbeddingsPool(CachePool):
             return cache.obj
 
 
-# class RerankerPool(CachePool):
-#     def load_reranker(self, model: str = None) -> CrossEncoder:
-#         model = model or RERANKER_MODEL
-#         reranker_model_path = MODEL_PATH["reranker"].get(model, "/opt/projects/hf_models/bge-reranker-large")
-#
-#         device = embedding_device()
-#         key = model
-#
-#         self.atomic.acquire()
-#
-#         cache = self.get(key)
-#
-#         if cache is None:
-#             item = ThreadSafeObject(key, pool=self)
-#             self.set(key, item)
-#             with item.acquire(msg="初始化"):
-#                 self.atomic.release()
-#
-#                 reranker_model = CrossEncoder(device=device,
-#                                               max_length=RERANKER_MAX_LENGTH,
-#                                               model_name=reranker_model_path)
-#
-#                 item.obj = reranker_model
-#                 item.finish_loading()
-#             return reranker_model
-#         else:
-#             self.atomic.release()
-#             return cache.obj
+class RerankerPool(CachePool):
+    def load_reranker(self, model: str = None):
+        model = model or RERANKER_MODEL
+        reranker_model_path = MODEL_PATH["reranker"].get(model, "/opt/projects/hf_models/bge-reranker-v2-m3")
+
+        key = model
+
+        self.atomic.acquire()
+
+        cache = self.get(key)
+
+        if cache is None:
+            item = ThreadSafeObject(key, pool=self)
+            self.set(key, item)
+            with item.acquire(msg="初始化"):
+                self.atomic.release()
+
+                tokenizer = AutoTokenizer.from_pretrained(reranker_model_path)
+                model = AutoModelForSequenceClassification.from_pretrained(reranker_model_path)
+                model.eval()
+
+                # reranker_model = CrossEncoder(device=device,
+                #                               max_length=RERANKER_MAX_LENGTH,
+                #                               model_name=reranker_model_path)
+                item.obj = (tokenizer, model)
+                item.finish_loading()
+            return (tokenizer, model)
+        else:
+            self.atomic.release()
+            return cache.obj
 
 
 embeddings_pool = EmbeddingsPool(cache_num=CACHED_EMBED_NUM)
-# reranker_pool = RerankerPool(cache_num=CACHED_RERANK_NUM)
+reranker_pool = RerankerPool(cache_num=CACHED_RERANK_NUM)

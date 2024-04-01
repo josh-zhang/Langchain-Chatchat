@@ -17,7 +17,7 @@ WEBUI_SERVER = {
     "port": 8080,
 }
 
-LLM_SERVER = "198.203.120.8:40786"
+LLM_SERVER = "198.203.120.5:40782"
 
 # api.py server
 API_SERVER = {
