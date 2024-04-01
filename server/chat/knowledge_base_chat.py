@@ -148,8 +148,7 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
                 doc_list = list(docs)
                 # doc_length = len(doc_list)
 
-                this_query = query[:200]
-                remain_length = 600 - len(this_query)
+                remain_length = RERANKER_MAX_LENGTH - len(query)
                 _docs = [d.page_content[:remain_length] for d in doc_list]
 
                 final_results = []
@@ -162,7 +161,7 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
                 #     doc.metadata["relevance_score"] = value
                 #     final_results.append(doc)
 
-                sentence_pairs = [[this_query, _doc] for _doc in _docs]
+                sentence_pairs = [[query, _doc] for _doc in _docs]
                 tokenizer, reranker_model = reranker_pool.load_reranker(RERANKER_MODEL)
 
                 with torch.no_grad():
