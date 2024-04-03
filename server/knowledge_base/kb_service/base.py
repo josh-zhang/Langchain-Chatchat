@@ -496,9 +496,9 @@ class KBService(ABC):
 
         # print(f"3 question_data {question_data}")
 
-        docs_data = [DocumentWithScores(**d.dict(), scores={"bm_doc": s}) for d, s in docs_data]
-        answer_data = [DocumentWithScores(**d.dict(), scores={"bm_ans": s}) for d, s in answer_data]
-        question_data = [DocumentWithScores(**d.dict(), scores={"bm_que": s}) for d, s in question_data]
+        docs_data = [DocumentWithScores(**d.dict(), scores={"bm_docs": s}) for d, s in docs_data]
+        answer_data = [DocumentWithScores(**d.dict(), scores={"bm_answer": s}) for d, s in answer_data]
+        question_data = [DocumentWithScores(**d.dict(), scores={"bm_question": s}) for d, s in question_data]
 
         if question_data:
             new_question_data = self.question_to_answer(question_data)

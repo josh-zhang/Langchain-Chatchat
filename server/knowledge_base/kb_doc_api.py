@@ -21,13 +21,13 @@ from configs import (DEFAULT_VS_TYPE, EMBEDDING_MODEL, VECTOR_SEARCH_TOP_K, SCOR
 
 def get_total_score_sorted(docs_data: List[DocumentWithScores], score_threshold) -> List[DocumentWithScores]:
     for ds in docs_data:
-        sbert_doc = ds.scores.get("sbert_doc", 0.0)
-        sbert_que = ds.scores.get("sbert_que", 0.0)
-        sbert_ans = ds.scores.get("sbert_ans", 0.0)
+        sbert_doc = ds.scores.get("sbert_docs", 0.0)
+        sbert_que = ds.scores.get("sbert_question", 0.0)
+        sbert_ans = ds.scores.get("sbert_answer", 0.0)
 
-        bm_doc = ds.scores.get("bm_doc", 0.0)
-        bm_que = ds.scores.get("bm_que", 0.0)
-        bm_ans = ds.scores.get("bm_ans", 0.0)
+        bm_doc = ds.scores.get("bm_docs", 0.0)
+        bm_que = ds.scores.get("bm_question", 0.0)
+        bm_ans = ds.scores.get("bm_answer", 0.0)
 
         doc = sbert_doc + bm_doc
         que = sbert_que + bm_que
