@@ -6,7 +6,7 @@ import streamlit as st
 from streamlit_chatbox import *
 from streamlit_javascript import st_javascript
 
-from configs import HISTORY_LEN, MAX_TOKENS, SUPPORT_AGENT_MODEL
+from configs import HISTORY_LEN, MAX_TOKENS, SUPPORT_AGENT_MODEL, LLM_MODELS
 from server.knowledge_base.utils import LOADER_DICT
 from server.utils import get_prompts
 from webui_pages.utils import *
@@ -101,7 +101,13 @@ def model_setup(api):
     if not running_models:
         return None, None, None
     else:
-        default_model = running_models[0]
+        default_model = None
+        for i in LLM_MODELS:
+            if i in running_models:
+                default_model = i
+                break
+        if default_model is None:
+            default_model = running_models[0]
 
     llm_models = running_models + available_models
 

@@ -184,7 +184,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
         this_kb_info = st.text_area("知识库名称", value=kb_dict[this_kb_name]['kb_info'], max_chars=None,
                                     key=None, help=None, on_change=None, args=None, kwargs=None, disabled=True)
         this_kb_agent_guide = st.text_area("知识库介绍", value=kb_dict[this_kb_name]['kb_agent_guide'], max_chars=None,
-                                    key=None, help=None, on_change=None, args=None, kwargs=None, disabled=True)
+                                           key=None, help=None, on_change=None, args=None, kwargs=None, disabled=True)
 
         doc_type = st.selectbox(
             "上传文件类型",
@@ -205,16 +205,21 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                                  support_types,
                                  accept_multiple_files=True)
 
-        with st.expander(
-                "文件处理配置",
-                expanded=False,
-        ):
-            cols = st.columns(3)
-            chunk_size = cols[0].number_input("单段文本最大长度：", 1, 8000, CHUNK_SIZE)
-            chunk_overlap = cols[1].number_input("相邻文本重合长度：", 0, chunk_size, OVERLAP_SIZE)
-            cols[2].write("")
-            cols[2].write("")
-            zh_title_enhance = cols[2].checkbox("开启中文标题加强", ZH_TITLE_ENHANCE)
+        if doc_type == "FAQ表格文件":
+            chunk_size = 0
+            chunk_overlap = 0
+            zh_title_enhance = False
+        else:
+            with st.expander(
+                    "文件处理配置",
+                    expanded=False,
+            ):
+                cols = st.columns(3)
+                chunk_size = cols[0].number_input("单段文本最大长度：", 1, 8000, CHUNK_SIZE)
+                chunk_overlap = cols[1].number_input("相邻文本重合长度：", 0, chunk_size, OVERLAP_SIZE)
+                cols[2].write("")
+                cols[2].write("")
+                zh_title_enhance = cols[2].checkbox("开启中文标题加强", ZH_TITLE_ENHANCE)
 
         if st.button(
                 "添加文件到知识库",

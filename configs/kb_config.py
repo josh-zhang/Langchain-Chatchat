@@ -13,7 +13,7 @@ CACHED_VS_NUM = 10
 CACHED_BM25_VS_NUM = 10
 
 # 缓存向量库数量（针对EMBEDDING）
-CACHED_EMBED_NUM = 2
+CACHED_EMBED_NUM = 1
 
 # 缓存向量库数量（针对Reranker）
 CACHED_RERANK_NUM = 2
@@ -22,10 +22,10 @@ CACHED_RERANK_NUM = 2
 CACHED_MEMO_VS_NUM = 10
 
 # 知识库中单段文本长度(不适用MarkdownHeaderTextSplitter)
-CHUNK_SIZE = 400
+CHUNK_SIZE = 1000
 
 # 知识库中相邻文本重合长度(不适用MarkdownHeaderTextSplitter)
-OVERLAP_SIZE = 50
+OVERLAP_SIZE = 100
 
 # 知识库匹配向量数量
 VECTOR_SEARCH_TOP_K = 5

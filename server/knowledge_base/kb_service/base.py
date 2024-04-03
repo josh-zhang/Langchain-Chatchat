@@ -680,24 +680,66 @@ class KBServiceFactory:
 def get_kb_details() -> List[Dict]:
     kbs_in_folder = list_kbs_from_folder()
     kbs_in_db = KBService.list_kbs()
+    kbs_in_db = [i[0] for i in kbs_in_db]
     result = {}
 
-    for kb in kbs_in_folder:
-        result[kb] = {
-            "kb_name": kb,
-            "vs_type": "",
-            "kb_info": "",
-            "kb_agent_guide": "",
-            "kb_summary": "",
-            "embed_model": "",
-            "file_count": 0,
-            "create_time": None,
-            "in_folder": True,
-            "in_db": False,
-        }
+    for kb_name in kbs_in_db:
+        if kb_name in kbs_in_folder:
+            result[kb_name] = {
+                "kb_name": kb_name,
+                "vs_type": "",
+                "kb_info": "",
+                "kb_agent_guide": "",
+                "kb_summary": "",
+                "embed_model": "",
+                "file_count": 0,
+                "create_time": None,
+                "in_folder": True,
+                "in_db": True,
+            }
+        else:
+            result[kb_name] = {
+                "kb_name": kb_name,
+                "vs_type": "",
+                "kb_info": "",
+                "kb_agent_guide": "",
+                "kb_summary": "",
+                "embed_model": "",
+                "file_count": 0,
+                "create_time": None,
+                "in_folder": False,
+                "in_db": True,
+            }
 
-    for kb in kbs_in_db:
-        kb_name = kb[0]
+    for kb_name in kbs_in_folder:
+        if kb_name not in kbs_in_db:
+            result[kb_name] = {
+                "kb_name": kb_name,
+                "vs_type": "",
+                "kb_info": "",
+                "kb_agent_guide": "",
+                "kb_summary": "",
+                "embed_model": "",
+                "file_count": 0,
+                "create_time": None,
+                "in_folder": True,
+                "in_db": False,
+            }
+        else:
+            result[kb_name] = {
+                "kb_name": kb_name,
+                "vs_type": "",
+                "kb_info": "",
+                "kb_agent_guide": "",
+                "kb_summary": "",
+                "embed_model": "",
+                "file_count": 0,
+                "create_time": None,
+                "in_folder": True,
+                "in_db": True,
+            }
+
+    for kb_name in kbs_in_db:
         kb_detail = get_kb_detail(kb_name)
         if kb_detail:
             kb_detail["in_db"] = True
