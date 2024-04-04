@@ -5,7 +5,7 @@ import functools
 from langchain_community.retrievers import BM25Retriever
 from langchain.schema import Document
 from server.knowledge_base.kb_cache.base import *
-from server.knowledge_base.faq_utils import lac, stopwords
+from server.knowledge_base.faq_utils import tok_fine, stopwords
 from configs import CACHED_BM25_VS_NUM
 
 
@@ -16,7 +16,8 @@ def preprocess_func(sentence: str) -> List[str]:
     sentence = re.sub(" {2,}", " ", sentence).strip()
     sentence = sentence.strip().upper()
 
-    seg_text = lac.run([sentence])[0]
+    # seg_text = lac.run([sentence])[0]
+    seg_text = tok_fine(sentence)
 
     result = list()
     for word in seg_text:
@@ -85,12 +86,12 @@ class KBBM25Pool(CachePool):
             metadata_list,
     ) -> ThreadSafeBM25:
         self.atomic.acquire()
-        key = (kb_name, retriever_name, file_md5_sum)
+        key = kb_name + "_" + retriever_name + "_" + file_md5_sum
         cache = self.get(key)
         if cache is None:
-            item = ThreadSafeBM25((kb_name, retriever_name, file_md5_sum), pool=self)
+            item = ThreadSafeBM25(key, pool=self)
             self.set(key, item)
-            with item.acquire(msg="初始化"):
+            with item.acquire():
                 self.atomic.release()
                 logger.info(f"loading retriever in '{kb_name} {retriever_name}' to memory.")
                 bm25_retriever = BM25Retriever.from_texts(docs_text_list, metadata_list,

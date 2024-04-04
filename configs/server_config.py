@@ -2,7 +2,7 @@ import sys
 from configs.model_config import LLM_DEVICE
 
 # httpx 请求默认超时时间（秒）。如果加载模型或对话较慢，出现超时错误，可以适当加大该值。
-HTTPX_DEFAULT_TIMEOUT = 300.0
+HTTPX_DEFAULT_TIMEOUT = 600.0
 
 # API 是否开启跨域，默认为False，如果需要开启，请设置为True
 # is open cross domain
@@ -17,7 +17,7 @@ WEBUI_SERVER = {
     "port": 8080,
 }
 
-LLM_SERVER = "198.203.120.8:40786"
+LLM_SERVER = "198.203.120.5:40782"
 
 # api.py server
 API_SERVER = {
@@ -26,9 +26,9 @@ API_SERVER = {
 }
 
 API_SERVER_HOST_MAPPING = {
-    "127.0.0.1": "198.203.120.5",
-    "localhost": "198.203.120.5",
-    "0.0.0.0": "198.203.120.5",
+    "127.0.0.1": "198.203.120.8",
+    "localhost": "198.203.120.8",
+    "0.0.0.0": "198.203.120.8",
 }
 
 API_SERVER_PORT_MAPPING = {

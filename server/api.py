@@ -71,7 +71,6 @@ def mount_app_routes(app: FastAPI, run_mode: str = None):
              summary="返回llm模型对话评分",
              )(chat_feedback)
 
-
     # Tag: embedding
     app.post("/embed_model/list_embed_models",
              tags=["Embedding"],
@@ -156,9 +155,9 @@ def mount_knowledge_routes(app: FastAPI):
     from server.chat.file_chat import upload_temp_docs, file_chat
     from server.chat.agent_chat import agent_chat
     from server.knowledge_base.kb_api import list_kbs, create_kb, delete_kb
-    from server.knowledge_base.kb_doc_api import (list_files, upload_docs, delete_docs, download_kb_files,
-                                                  update_docs, download_doc, recreate_vector_store, update_agent_guide,
-                                                  search_docs, DocumentWithScores, update_info, gen_qa_for_kb)
+    from server.knowledge_base.kb_doc_api import (list_files, upload_docs, delete_docs, download_kb_files, list_docs,
+                                                  download_doc, gen_qa_for_kb, search_docs, DocumentWithScores,
+                                                  count_docs)
 
     app.post("/chat/knowledge_base_chat",
              tags=["Chat"],
@@ -203,6 +202,18 @@ def mount_knowledge_routes(app: FastAPI):
             summary="获取知识库内的文件列表"
             )(list_files)
 
+    app.get("/knowledge_base/list_docs",
+            tags=["Knowledge Base Management"],
+            response_model=ListResponse,
+            summary="获取知识库内文件情况"
+            )(list_docs)
+
+    app.get("/knowledge_base/count_docs",
+            tags=["Knowledge Base Management"],
+            response_model=BaseResponse,
+            summary="获取知识库内文件情况"
+            )(count_docs)
+
     app.post("/knowledge_base/search_docs",
              tags=["Knowledge Base Management"],
              response_model=List[DocumentWithScores],
@@ -227,41 +238,37 @@ def mount_knowledge_routes(app: FastAPI):
              summary="删除知识库内指定文件"
              )(delete_docs)
 
-    app.post("/knowledge_base/update_info",
-             tags=["Knowledge Base Management"],
-             response_model=BaseResponse,
-             summary="更新知识库介绍"
-             )(update_info)
+    # app.post("/knowledge_base/update_info",
+    #          tags=["Knowledge Base Management"],
+    #          response_model=BaseResponse,
+    #          summary="更新知识库介绍"
+    #          )(update_info)
 
-    app.post("/knowledge_base/update_agent_guide",
-             tags=["Knowledge Base Management"],
-             response_model=BaseResponse,
-             summary="更新知识库Agent介绍"
-             )(update_agent_guide)
+    # app.post("/knowledge_base/update_agent_guide",
+    #          tags=["Knowledge Base Management"],
+    #          response_model=BaseResponse,
+    #          summary="更新知识库Agent介绍"
+    #          )(update_agent_guide)
 
-    app.post("/knowledge_base/update_docs",
-             tags=["Knowledge Base Management"],
-             response_model=BaseResponse,
-             summary="更新现有文件到知识库"
-             )(update_docs)
+    # app.post("/knowledge_base/update_docs",
+    #          tags=["Knowledge Base Management"],
+    #          response_model=BaseResponse,
+    #          summary="更新现有文件到知识库"
+    #          )(update_docs)
 
     app.get("/knowledge_base/download_doc",
             tags=["Knowledge Base Management"],
             summary="下载对应的知识文件")(download_doc)
 
     app.get("/knowledge_base/download_knowledge_base_files",
-             tags=["Download Knowledge Base Files"],
-             summary="下载知识库所有文档"
-             )(download_kb_files)
+            tags=["Download Knowledge Base Files"],
+            summary="下载知识库所有文档"
+            )(download_kb_files)
 
-    # app.get("/knowledge_base/download_faq",
-    #         tags=["Knowledge Base Management"],
-    #         summary="下载对应的知识文件FAQ")(download_faq)
-
-    app.post("/knowledge_base/recreate_vector_store",
-             tags=["Knowledge Base Management"],
-             summary="根据content中文档重建向量库，流式输出处理进度。"
-             )(recreate_vector_store)
+    # app.post("/knowledge_base/recreate_vector_store",
+    #          tags=["Knowledge Base Management"],
+    #          summary="根据content中文档重建向量库，流式输出处理进度。"
+    #          )(recreate_vector_store)
 
     app.post("/knowledge_base/upload_temp_docs",
              tags=["Knowledge Base Management"],

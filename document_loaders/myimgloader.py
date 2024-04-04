@@ -1,13 +1,13 @@
 from typing import List
-from langchain.document_loaders.unstructured import UnstructuredFileLoader
-from document_loaders.ocr import get_ocr
+from langchain_community.document_loaders import UnstructuredFileLoader
+from rapidocr_onnxruntime import RapidOCR
 
 
 class RapidOCRLoader(UnstructuredFileLoader):
     def _get_elements(self) -> List:
         def img2text(filepath):
             resp = ""
-            ocr = get_ocr()
+            ocr = RapidOCR()
             result, _ = ocr(filepath)
             if result:
                 ocr_result = [line[1] for line in result]
@@ -23,3 +23,4 @@ if __name__ == "__main__":
     loader = RapidOCRLoader(file_path="../tests/samples/ocr_test.jpg")
     docs = loader.load()
     print(docs)
+

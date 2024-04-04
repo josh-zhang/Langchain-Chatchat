@@ -3,6 +3,7 @@ import asyncio
 import requests
 from typing import AsyncIterable, List, Optional
 
+import torch
 from fastapi import Body, Request
 from fastapi.concurrency import run_in_threadpool
 from sse_starlette.sse import EventSourceResponse
@@ -17,7 +18,7 @@ from server.chat.utils import History
 from server.chat.prompt_generator import generate_doc_qa
 from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.knowledge_base.kb_doc_api import search_docs
-# from server.knowledge_base.kb_cache.base import reranker_pool
+from server.knowledge_base.kb_cache.base import reranker_pool
 from server.utils import BaseResponse, xinference_supervisor_address
 from configs import (LLM_MODELS,
                      VECTOR_SEARCH_TOP_K,
@@ -27,7 +28,8 @@ from configs import (LLM_MODELS,
                      USE_RERANKER,
                      RERANKER_MODEL,
                      API_SERVER_HOST_MAPPING,
-                     API_SERVER_PORT_MAPPING)
+                     API_SERVER_PORT_MAPPING,
+                     RERANKER_MAX_LENGTH)
 
 
 def do_rerank(
@@ -144,40 +146,28 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
             # 加入reranker
             if USE_RERANKER and len(docs) > 1:
                 doc_list = list(docs)
-                # doc_length = len(doc_list)
-
-                this_query = query[:200]
-                remain_length = 600 - len(this_query)
+                remain_length = RERANKER_MAX_LENGTH - len(query)
                 _docs = [d.page_content[:remain_length] for d in doc_list]
 
                 final_results = []
 
-                results = do_rerank(_docs, this_query)
-                for i in results:
-                    idx = i['index']
-                    value = i['relevance_score']
-                    doc = doc_list[idx]
-                    doc.metadata["relevance_score"] = value
-                    final_results.append(doc)
-
-                # sentence_pairs = [[this_query, _doc] for _doc in _docs]
-                # reranker_model = reranker_pool.load_reranker(RERANKER_MODEL)
-                # results = reranker_model.predict(sentences=sentence_pairs,
-                #                                  batch_size=32,
-                #                                  num_workers=0,
-                #                                  convert_to_tensor=True)
-                #
-                # doc_length = doc_length if doc_length < len(results) else len(results)
-                # values, indices = results.topk(doc_length)
-                # for value, index in zip(values, indices):
-                #     doc = doc_list[index]
+                # results = do_rerank(_docs, query)
+                # for i in results:
+                #     idx = i['index']
+                #     value = i['relevance_score']
+                #     doc = doc_list[idx]
                 #     doc.metadata["relevance_score"] = value
                 #     final_results.append(doc)
 
-                docs = final_results
+                sentence_pairs = [[query, _doc] for _doc in _docs]
+                scores = reranker_pool.get_score(sentence_pairs, RERANKER_MODEL)
+                sorted_tuples = sorted([(value, index) for index, value in enumerate(scores)], key=lambda x: x[0], reverse=True)
+                for value, index in sorted_tuples:
+                    doc = doc_list[index]
+                    doc.metadata["relevance_score"] = value
+                    final_results.append(doc)
 
-                # print("---------after rerank------------------")
-                # print(docs)
+                docs = final_results
 
             docs = docs[:top_k]
             text_docs = [doc.page_content for doc in docs]
@@ -198,50 +188,6 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
             chain.acall({"context": context, "question": query}),
             callback.done),
         )
-
-        # enhanced_prompt = True
-        #
-        # if enhanced_prompt and len(docs) > 0:
-        #     prompt_template, context = generate_doc_qa(query, history, text_docs, "根据已知信息无法回答该问题")
-        #
-        #     input_msg = History(role="user", content=prompt_template).to_msg_template(False)
-        #
-        #     chat_prompt = ChatPromptTemplate.from_messages([input_msg])
-        #
-        #     chain = LLMChain(prompt=chat_prompt, llm=model)
-        #
-        #     # Begin a task that runs in the background.
-        #     task = asyncio.create_task(wrap_done(
-        #         chain.acall({"context": context, "question": query}),
-        #         callback.done),
-        #     )
-        # else:
-        #     if len(docs) == 0:  # 如果没有找到相关文档，使用empty模板
-        #         prompt_template = get_prompt_template("knowledge_base_chat", "empty")[1]
-        #     else:
-        #         prompt_template = get_prompt_template("knowledge_base_chat", prompt_name)[1]
-        #
-        #     input_msg = History(role="user", content=prompt_template).to_msg_template(False)
-        #
-        #     chat_prompt = ChatPromptTemplate.from_messages(
-        #         [i.to_msg_template() for i in history] + [input_msg])
-        #
-        #     chain = LLMChain(prompt=chat_prompt, llm=model)
-        #
-        #     header = "已知信息"
-        #     if "faq" in prompt_name:
-        #         header = "常见问答"
-        #     context = ""
-        #     index = 1
-        #     for doc in text_docs:
-        #         context += f"\n##{header}{index}##\n{doc}\n"
-        #         index += 1
-        #
-        #     # Begin a task that runs in the background.
-        #     task = asyncio.create_task(wrap_done(
-        #         chain.acall({"context": context, "question": query}),
-        #         callback.done),
-        #     )
 
         source_documents = []
         source_documents_content = []

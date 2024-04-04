@@ -28,7 +28,7 @@ class PythonScriptExecutor:
         start_time = time.time()
 
         # Execute the script using subprocess
-        with subprocess.Popen(f"python {script_path}", stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        with subprocess.Popen(f"python3.10 {script_path}", stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                               shell=True) as process:
             for line in process.stdout:
                 logger.info(line.strip())
@@ -49,7 +49,7 @@ class PythonScriptExecutor:
         }
 
 
-def gen_qa_task(knowledge_base_name, kb_info):
+def gen_qa_task(knowledge_base_name, kb_info, model_name):
     now = datetime.datetime.now()
     now_str = now.strftime("%Y%m%d_%H%M%S")
     task_id = f"{knowledge_base_name}_{now_str}"
@@ -74,7 +74,7 @@ def gen_qa_task(knowledge_base_name, kb_info):
             total_count += 1
             title = filename[:-5]
             executor = PythonScriptExecutor()
-            script_command = f'{QA_JOB_SCRIPT_PATH} -f "{filepath}" -t "{title}" -o "{output_path}" --usetitle'
+            script_command = f'{QA_JOB_SCRIPT_PATH} -f "{filepath}" -t "{title}" --modelname "{model_name}" -o "{output_path}" --usetitle --onlinemodel'
             results = executor.execute_script(script_command)
             return_code = results['return_code']
             if return_code != 0:
@@ -140,8 +140,9 @@ def gen_qa_task(knowledge_base_name, kb_info):
 
             shutil.move(qa_filepath, new_file_path)
 
-            kb_file = KnowledgeFile(filename=file_name, knowledge_base_name=new_kb_name)
-            status = kb.update_faq(kb_file, True, not_refresh_vs_cache=False)
+            kb_file = KnowledgeFile(filename=file_name, knowledge_base_name=new_kb_name,
+                                    document_loader_name="CustomExcelLoader")
+            status = kb.update_faq(kb_file, not_refresh_vs_cache=False)
 
             if status:
                 count += 1

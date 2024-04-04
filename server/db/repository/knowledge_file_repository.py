@@ -184,7 +184,7 @@ def add_answer_to_db(session,
 def add_question_to_db(session,
                        kb_name: str,
                        file_name_list,
-                       answer_id,
+                       answer_id_list,
                        question_id_list,
                        doc_infos: List[Dict]):
     '''
@@ -195,7 +195,7 @@ def add_question_to_db(session,
     if doc_infos is None:
         print("输入的server.db.repository.knowledge_file_repository.add_question_to_db的doc_infos参数为None")
         return False
-    for d, file_name, question_id in zip(doc_infos, file_name_list, question_id_list):
+    for d, file_name, question_id, answer_id in zip(doc_infos, file_name_list, question_id_list, answer_id_list):
         obj = AnswerQuestionModel(
             kb_name=kb_name,
             file_name=file_name,
@@ -227,6 +227,11 @@ def get_answer_doc_id_by_answer_id_from_db(session,
                                            kb_name: str,
                                            raw_id: str,
                                            ):
+    files = session.query(FileAnswerModel).filter(FileAnswerModel.kb_name.ilike(kb_name)).filter_by(
+        answer_id=raw_id).all()
+
+    print(files)
+
     answer = session.query(FileAnswerModel).filter(FileAnswerModel.kb_name.ilike(kb_name)).filter_by(
         answer_id=raw_id).first()
 
@@ -278,7 +283,7 @@ def add_file_to_db(session,
                 file_ext=kb_file.ext,
                 kb_name=kb_file.kb_name,
                 document_loader_name=kb_file.document_loader_name,
-                text_splitter_name=kb_file.text_splitter_name or "SpacyTextSplitter",
+                text_splitter_name=kb_file.text_splitter_name or "ChineseRecursiveTextSplitter",
                 file_mtime=mtime,
                 file_size=size,
                 docs_count=docs_count,
@@ -286,8 +291,10 @@ def add_file_to_db(session,
             )
             kb.file_count += 1
             session.add(new_file)
-        add_docs_to_db(kb_name=kb_file.kb_name, file_name=kb_file.filename, doc_infos=doc_infos)
-    return True
+        status = add_docs_to_db(kb_name=kb_file.kb_name, file_name=kb_file.filename, doc_infos=doc_infos)
+    else:
+        status = False
+    return status
 
 
 @with_session

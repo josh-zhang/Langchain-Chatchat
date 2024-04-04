@@ -1,6 +1,8 @@
-from langchain.document_loaders.unstructured import UnstructuredFileLoader
 from typing import List
+
 import tqdm
+from langchain_community.document_loaders import UnstructuredFileLoader
+from rapidocr_onnxruntime import RapidOCR
 
 
 class RapidOCRDocLoader(UnstructuredFileLoader):
@@ -14,7 +16,7 @@ class RapidOCRDocLoader(UnstructuredFileLoader):
             from PIL import Image
             from io import BytesIO
             import numpy as np
-            from rapidocr_onnxruntime import RapidOCR
+
             ocr = RapidOCR()
             doc = Document(filepath)
             resp = ""
@@ -34,7 +36,7 @@ class RapidOCRDocLoader(UnstructuredFileLoader):
                     elif isinstance(child, CT_Tbl):
                         yield Table(child, parent)
 
-            b_unit = tqdm.tqdm(total=len(doc.paragraphs)+len(doc.tables),
+            b_unit = tqdm.tqdm(total=len(doc.paragraphs) + len(doc.tables),
                                desc="RapidOCRDocLoader block index: 0")
             for i, block in enumerate(iter_block_items(doc)):
                 b_unit.set_description(
@@ -50,13 +52,28 @@ class RapidOCRDocLoader(UnstructuredFileLoader):
                                 image = Image.open(BytesIO(part._blob))
                                 result, _ = ocr(np.array(image))
                                 if result:
+                                    resp += "===附图===\n"
                                     ocr_result = [line[1] for line in result]
                                     resp += "\n".join(ocr_result)
+                                    resp += "\n========\n"
                 elif isinstance(block, Table):
                     for row in block.rows:
                         for cell in row.cells:
                             for paragraph in cell.paragraphs:
                                 resp += paragraph.text.strip() + "\n"
+
+                                images = paragraph._element.xpath('.//pic:pic')  # 获取所有图片
+                                for image in images:
+                                    for img_id in image.xpath('.//a:blip/@r:embed'):  # 获取图片id
+                                        part = doc.part.related_parts[img_id]  # 根据图片id获取对应的图片
+                                        if isinstance(part, ImagePart):
+                                            image = Image.open(BytesIO(part._blob))
+                                            result, _ = ocr(np.array(image))
+                                            if result:
+                                                resp += "===附图===\n"
+                                                ocr_result = [line[1] for line in result]
+                                                resp += "\n".join(ocr_result)
+                                                resp += "\n========\n"
                 b_unit.update(1)
             return resp
 
@@ -68,4 +85,6 @@ class RapidOCRDocLoader(UnstructuredFileLoader):
 if __name__ == '__main__':
     loader = RapidOCRDocLoader(file_path="../tests/samples/ocr_test.docx")
     docs = loader.load()
-    print(docs)
+    print(len(docs))
+    for d in docs:
+        print(d)

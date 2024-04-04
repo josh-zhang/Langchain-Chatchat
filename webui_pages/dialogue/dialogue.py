@@ -6,7 +6,7 @@ import streamlit as st
 from streamlit_chatbox import *
 from streamlit_javascript import st_javascript
 
-from configs import HISTORY_LEN, MAX_TOKENS, SUPPORT_AGENT_MODEL
+from configs import HISTORY_LEN, MAX_TOKENS, SUPPORT_AGENT_MODEL, LLM_MODELS
 from server.knowledge_base.utils import LOADER_DICT
 from server.utils import get_prompts
 from webui_pages.utils import *
@@ -40,12 +40,12 @@ def get_messages_history(history_len: int, content_in_expander: bool = False) ->
 
 
 @st.cache_data
-def upload_temp_docs(files, _api: ApiRequest) -> str:
+def upload_temp_docs(files, document_loader_name, _api: ApiRequest) -> str:
     '''
     将文件上传到临时目录，用于文件问答
     返回临时向量库ID
     '''
-    return _api.upload_temp_docs(files).get("data", {}).get("id")
+    return _api.upload_temp_docs(files, document_loader_name).get("data", {}).get("id")
 
 
 @st.cache_data(ttl=300)
@@ -76,14 +76,15 @@ def support_iframe(ftype):
 
 
 def model_setup(api):
-    running_models = get_running_models(api)
-    available_models = get_api_running_models(api)
-    config_models = get_config_models(api)
+    # running_models = get_running_models(api)
+    # available_models = get_api_running_models(api)
+    # config_models = get_config_models(api)
+    running_models = get_api_running_models(api)
 
     # for test
-    # running_models = ['qwen']
-    # available_models = []
-    # config_models = {}
+    # running_models = []
+    available_models = []
+    config_models = {}
 
     if available_models:
         running_models.append(available_models[0])
@@ -100,7 +101,13 @@ def model_setup(api):
     if not running_models:
         return None, None, None
     else:
-        default_model = running_models[0]
+        default_model = None
+        for i in LLM_MODELS:
+            if i in running_models:
+                default_model = i
+                break
+        if default_model is None:
+            default_model = running_models[0]
 
     llm_models = running_models + available_models
 
@@ -301,8 +308,20 @@ def file_dialogue_page(api: ApiRequest):
         conversation_id = st.session_state["conversation_ids"][conversation_name]
 
         with st.expander("文件问答配置", True):
-            single_file = st.file_uploader("上传知识文件(将文件拖到下方区域即可)：",
-                                           [i for ls in LOADER_DICT.values() for i in ls],
+            doc_type = st.selectbox(
+                "上传文件类型",
+                ["普通文件", "知识库网页文件"],
+                key="doc_type")
+
+            if doc_type == "知识库网页文件":
+                support_types = ["html"]
+                document_loader_name = "CustomHTMLLoader"
+            else:
+                support_types = [i for ls in LOADER_DICT.values() for i in ls]
+                document_loader_name = "default"
+
+            single_file = st.file_uploader("上传文件(将文件拖到下方区域即可)：",
+                                           support_types,
                                            accept_multiple_files=False)
 
             if single_file:
@@ -314,7 +333,7 @@ def file_dialogue_page(api: ApiRequest):
                 st.session_state["file_chat_type"] = file_type
 
             if st.button("开始上传", disabled=not single_file):
-                st.session_state["file_chat_id"] = upload_temp_docs([single_file], api)
+                st.session_state["file_chat_id"] = upload_temp_docs([single_file], document_loader_name, api)
 
             if st.session_state["file_chat_id"]:
                 kb_top_k = st.number_input("搜索知识条数：", 1, 20, VECTOR_SEARCH_TOP_K)
@@ -353,32 +372,6 @@ def file_dialogue_page(api: ApiRequest):
 
         temperature = st.slider("生成温度：", 0.0, 1.0, TEMPERATURE, 0.05)
         history_len = st.number_input("历史对话轮数：", 0, 20, HISTORY_LEN)
-
-        # prompt_dict = get_prompts("knowledge_base_chat")
-        # prompt_templates_kb_list = list(prompt_dict.keys())
-        #
-        # if "prompt_template_select" not in st.session_state:
-        #     st.session_state.prompt_template_select = prompt_templates_kb_list[0]
-        #
-        # def prompt_change():
-        #     text = f"已切换为 {prompt_dict[st.session_state.prompt_template_select][0]} 模板。"
-        #     st.toast(text)
-        #
-        # def prompt_format_func(key):
-        #     return prompt_dict[key][0]
-        #
-        # st.selectbox(
-        #     "选择提示词模板：",
-        #     prompt_templates_kb_list,
-        #     index=0,
-        #     on_change=prompt_change,
-        #     format_func=prompt_format_func,
-        #     key="prompt_template_select",
-        # )
-        # prompt_template_name = st.session_state.prompt_template_select
-        #
-        # with st.expander("当前提示词", False):
-        #     st.text(f"{prompt_dict[prompt_template_name][1]}")
 
     col1, col2 = st.columns(spec=[1, 1], gap="small")
 
@@ -521,7 +514,6 @@ def kb_dialogue_page(api: ApiRequest):
                 kb_list = []
             kb_dict = {kb[0]: kb[1] for kb in kb_list}
             kb_name_list = [kb[0] for kb in kb_list]
-            index = len(kb_name_list) - 1
 
             def format_func(option):
                 return kb_dict[option]
@@ -529,7 +521,6 @@ def kb_dialogue_page(api: ApiRequest):
             selected_kb = st.selectbox(
                 "选择知识库：",
                 kb_name_list,
-                index=index,
                 on_change=on_kb_change,
                 format_func=format_func,
                 key="selected_kb",

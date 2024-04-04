@@ -376,6 +376,7 @@ class ApiRequest:
     def upload_temp_docs(
             self,
             files: List[Union[str, Path, bytes]],
+            document_loader_name: str,
             knowledge_id: str = None,
             chunk_size=CHUNK_SIZE,
             chunk_overlap=OVERLAP_SIZE,
@@ -398,6 +399,7 @@ class ApiRequest:
         files = [convert_file(file) for file in files]
         data = {
             "knowledge_id": knowledge_id,
+            "document_loader_name": document_loader_name,
             "chunk_size": chunk_size,
             "chunk_overlap": chunk_overlap,
             "zh_title_enhance": zh_title_enhance,
@@ -440,9 +442,6 @@ class ApiRequest:
             "max_tokens": max_tokens,
             "prompt_name": prompt_name,
         }
-
-        # print(f"received input message:")
-        # pprint(data)
 
         response = self.post(
             "/chat/file_chat",
@@ -546,27 +545,10 @@ class ApiRequest:
         )
         return self._get_response_value(response, as_json=True)
 
-    # def update_docs_by_id(
-    #     self,
-    #     knowledge_base_name: str,
-    #     docs: Dict[str, Dict],
-    # ) -> bool:
-    #     '''
-    #     对应api.py/knowledge_base/update_docs_by_id接口
-    #     '''
-    #     data = {
-    #         "knowledge_base_name": knowledge_base_name,
-    #         "docs": docs,
-    #     }
-    #     response = self.post(
-    #         "/knowledge_base/update_docs_by_id",
-    #         json=data
-    #     )
-    #     return self._get_response_value(response)
-
     def upload_kb_docs(
             self,
             files: List[Union[str, Path, bytes]],
+            document_loader_name: str,
             knowledge_base_name: str,
             override: bool = False,
             to_vector_store: bool = True,
@@ -593,6 +575,7 @@ class ApiRequest:
         files = [convert_file(file) for file in files]
         data = {
             "knowledge_base_name": knowledge_base_name,
+            "document_loader_name": document_loader_name,
             "override": override,
             "to_vector_store": to_vector_store,
             "chunk_size": chunk_size,
@@ -634,65 +617,70 @@ class ApiRequest:
         )
         return self._get_response_value(response, as_json=True)
 
-    def update_kb_info(self, knowledge_base_name, kb_info):
-        '''
-        对应api.py/knowledge_base/update_info接口
-        '''
-        data = {
-            "knowledge_base_name": knowledge_base_name,
-            "kb_info": kb_info,
-        }
+    # def update_kb_info(self, knowledge_base_name, kb_info):
+    #     '''
+    #     对应api.py/knowledge_base/update_info接口
+    #     '''
+    #     data = {
+    #         "knowledge_base_name": knowledge_base_name,
+    #         "kb_info": kb_info,
+    #     }
+    #
+    #     response = self.post(
+    #         "/knowledge_base/update_info",
+    #         json=data,
+    #     )
+    #     return self._get_response_value(response, as_json=True)
 
-        response = self.post(
-            "/knowledge_base/update_info",
-            json=data,
-        )
-        return self._get_response_value(response, as_json=True)
-
-    def update_kb_docs(
-            self,
-            knowledge_base_name: str,
-            file_names: List[str],
-            override_custom_docs: bool = False,
-            chunk_size=CHUNK_SIZE,
-            chunk_overlap=OVERLAP_SIZE,
-            zh_title_enhance=ZH_TITLE_ENHANCE,
-            docs: Dict = {},
-            not_refresh_vs_cache: bool = False,
-    ):
-        '''
-        对应api.py/knowledge_base/update_docs接口
-        '''
-        data = {
-            "knowledge_base_name": knowledge_base_name,
-            "file_names": file_names,
-            "override_custom_docs": override_custom_docs,
-            "chunk_size": chunk_size,
-            "chunk_overlap": chunk_overlap,
-            "zh_title_enhance": zh_title_enhance,
-            "docs": docs,
-            "not_refresh_vs_cache": not_refresh_vs_cache,
-        }
-
-        if isinstance(data["docs"], dict):
-            data["docs"] = json.dumps(data["docs"], ensure_ascii=False)
-
-        response = self.post(
-            "/knowledge_base/update_docs",
-            json=data,
-        )
-        return self._get_response_value(response, as_json=True)
+    # def update_kb_docs(
+    #         self,
+    #         knowledge_base_name: str,
+    #         file_names: List[str],
+    #         override_custom_docs: bool = False,
+    #         chunk_size=CHUNK_SIZE,
+    #         chunk_overlap=OVERLAP_SIZE,
+    #         zh_title_enhance=ZH_TITLE_ENHANCE,
+    #         docs: Dict = {},
+    #         not_refresh_vs_cache: bool = False,
+    # ):
+    #     '''
+    #     对应api.py/knowledge_base/update_docs接口
+    #     '''
+    #     data = {
+    #         "knowledge_base_name": knowledge_base_name,
+    #         "file_names": file_names,
+    #         "override_custom_docs": override_custom_docs,
+    #         "chunk_size": chunk_size,
+    #         "chunk_overlap": chunk_overlap,
+    #         "zh_title_enhance": zh_title_enhance,
+    #         "docs": docs,
+    #         "not_refresh_vs_cache": not_refresh_vs_cache,
+    #     }
+    #
+    #     if isinstance(data["docs"], dict):
+    #         data["docs"] = json.dumps(data["docs"], ensure_ascii=False)
+    #
+    #     response = self.post(
+    #         "/knowledge_base/update_docs",
+    #         json=data,
+    #     )
+    #     return self._get_response_value(response, as_json=True)
 
     def gen_qa_for_knowledge_base(
             self,
             knowledge_base_name: str,
+            model_name: str,
     ):
         '''
         对应api.py/knowledge_base/gen_qa_for_knowledge_base接口
         '''
+        data = {
+            "knowledge_base_name": knowledge_base_name,
+            "model_name": model_name,
+        }
         response = self.post(
             "/knowledge_base/gen_qa_for_knowledge_base",
-            json=knowledge_base_name,
+            json=data,
         )
         return self._get_response_value(response, as_json=True)
 
@@ -709,42 +697,42 @@ class ApiRequest:
         )
         return self._get_response_value(response, as_json=True)
 
-    def recreate_vector_store(
-            self,
-            knowledge_base_name: str,
-            knowledge_base_info: str,
-            knowledge_agent_guide: str,
-            allow_empty_kb: bool = True,
-            vs_type: str = DEFAULT_VS_TYPE,
-            embed_model: str = EMBEDDING_MODEL,
-            chunk_size=CHUNK_SIZE,
-            chunk_overlap=OVERLAP_SIZE,
-            zh_title_enhance=ZH_TITLE_ENHANCE,
-            search_enhance=SEARCH_ENHANCE,
-    ):
-        '''
-        对应api.py/knowledge_base/recreate_vector_store接口
-        '''
-        data = {
-            "knowledge_base_name": knowledge_base_name,
-            "kb_info": knowledge_base_info,
-            "kb_agent_guide": knowledge_agent_guide,
-            "allow_empty_kb": allow_empty_kb,
-            "vs_type": vs_type,
-            "embed_model": embed_model,
-            "chunk_size": chunk_size,
-            "chunk_overlap": chunk_overlap,
-            "zh_title_enhance": zh_title_enhance,
-            "search_enhance": search_enhance,
-        }
-
-        response = self.post(
-            "/knowledge_base/recreate_vector_store",
-            json=data,
-            stream=True,
-            timeout=None,
-        )
-        return self._httpx_stream2generator(response, as_json=True)
+    # def recreate_vector_store(
+    #         self,
+    #         knowledge_base_name: str,
+    #         knowledge_base_info: str,
+    #         knowledge_agent_guide: str,
+    #         allow_empty_kb: bool = True,
+    #         vs_type: str = DEFAULT_VS_TYPE,
+    #         embed_model: str = EMBEDDING_MODEL,
+    #         chunk_size=CHUNK_SIZE,
+    #         chunk_overlap=OVERLAP_SIZE,
+    #         zh_title_enhance=ZH_TITLE_ENHANCE,
+    #         search_enhance=SEARCH_ENHANCE,
+    # ):
+    #     '''
+    #     对应api.py/knowledge_base/recreate_vector_store接口
+    #     '''
+    #     data = {
+    #         "knowledge_base_name": knowledge_base_name,
+    #         "kb_info": knowledge_base_info,
+    #         "kb_agent_guide": knowledge_agent_guide,
+    #         "allow_empty_kb": allow_empty_kb,
+    #         "vs_type": vs_type,
+    #         "embed_model": embed_model,
+    #         "chunk_size": chunk_size,
+    #         "chunk_overlap": chunk_overlap,
+    #         "zh_title_enhance": zh_title_enhance,
+    #         "search_enhance": search_enhance,
+    #     }
+    #
+    #     response = self.post(
+    #         "/knowledge_base/recreate_vector_store",
+    #         json=data,
+    #         stream=True,
+    #         timeout=None,
+    #     )
+    #     return self._httpx_stream2generator(response, as_json=True)
 
     # LLM模型相关操作
     def list_running_models(

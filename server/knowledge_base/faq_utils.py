@@ -5,21 +5,22 @@ import functools
 from collections import Counter
 
 import pandas
-from LAC import LAC
+import hanlp
+# from LAC import LAC
 
 from configs import COMMON_PATH, logger
 
-
-lac = LAC(mode='seg')
-term_dict_file = f"{COMMON_PATH}/custom_20230720.txt"
-if not os.path.exists(term_dict_file):
-    term_dict_file = ""
-term_dictionary = list()
-if term_dict_file:
-    with open(term_dict_file) as f:
-        term_dictionary = [i.replace("\n", "")[:-4] for i in f.readlines()]
-    logger.info(f"term_dictionary len {len(term_dictionary)}")
-    lac.load_customization(term_dict_file, sep=None)
+# lac = LAC(mode='seg')
+# term_dict_file = f"{COMMON_PATH}/custom_20230720.txt"
+# if not os.path.exists(term_dict_file):
+#     term_dict_file = ""
+# term_dictionary = list()
+# if term_dict_file:
+#     with open(term_dict_file) as f:
+#         term_dictionary = [i.replace("\n", "")[:-4] for i in f.readlines()]
+#     logger.info(f"term_dictionary len {len(term_dictionary)}")
+#     lac.load_customization(term_dict_file, sep=None)
+tok_fine = hanlp.load(hanlp.pretrained.tok.FINE_ELECTRA_SMALL_ZH)
 
 stopwords_file = f"{COMMON_PATH}/stopwords.txt"
 if not os.path.exists(stopwords_file):
@@ -137,21 +138,10 @@ class StandardQuery(Query):
 
 @functools.lru_cache()
 def seg_text(sentence):
-    seg_result = lac.run([sentence])
-    seg_result = seg_result[0]
+    # seg_result = lac.run([sentence])
+    # seg_result = seg_result[0]
+    seg_result = tok_fine(sentence)
     return [j.strip() for j in seg_result if j.strip()]
-
-
-def seg_text_list(sentence_list, return_list_of_list=False):
-    seg_result = lac.run(sentence_list)
-    seg_result_text = list()
-    for i in seg_result:
-        if return_list_of_list:
-            seg_result_text.append([j.strip() for j in i if j.strip()])
-        else:
-            text = " ".join([j.strip() for j in i if j.strip()])
-            seg_result_text.append(text)
-    return seg_result_text
 
 
 def clean_text(lbl, remove_stop=False, return_list=False):
@@ -312,10 +302,35 @@ def process_sys_reg(raw_text):
     return final_list
 
 
-def load_df_raw(faq_full_file):
+def check_faq_is_generated(faq_file):
+    this_df = pandas.read_excel(faq_file, dtype=str)
+    col_names = this_df.columns.values.tolist()
+    if "生成序号" in col_names and "生成问题" in col_names:
+        return True, this_df
+    else:
+        return False, this_df
+
+
+def load_df_generated(this_df):
+    query_list = list()
+    # this_df = pandas.read_excel(faq_file, dtype=str)
+    this_df.set_index('生成序号')
+    this_df.fillna("", inplace=True)
+    logger.info(f"this_df {this_df.shape}")
+    for idx, row in this_df.iterrows():
+        raw_q = row["生成问题"]
+        raw_a = row["生成答案"]
+        if is_valid_std_query(raw_q, raw_a):
+            l_query = StandardQuery(idx, raw_q, raw_a)
+            query_list.append(l_query)
+
+    return query_list
+
+
+def load_df_raw(this_df, filename):
     query_list = list()
 
-    this_df = pandas.read_excel(faq_full_file, dtype=str)
+    # this_df = pandas.read_excel(faq_full_file, dtype=str)
     this_df.fillna("", inplace=True)
     logger.info(f"df_raw {this_df.shape}")
 
@@ -354,15 +369,16 @@ def load_df_raw(faq_full_file):
             l_raw_q = raw_q
             l_attri = attri
 
+        raw_exq_type = raw_exq_type[0] if raw_exq_type else ""
+
         if "民生微信" in channel and not raw_exq_type and not sample:
             l_query = StandardQuery(l_idx, l_raw_q, raw_a)
             l_query.attri = l_attri
-            l_query.ref = faq_full_file
+            l_query.ref = filename
 
             # if end_dt:
             #     end_dt = str(int(float(end_dt)))
             #     l_query.end_dt = end_dt
-
             if l_cls_2:
                 l_query.cls_list.append(l_cls_2)
             if l_cls_3:
@@ -372,12 +388,12 @@ def load_df_raw(faq_full_file):
 
             this_query_list.append(l_query)
 
-        elif raw_exq_type == "0.0" and not sample:
+        elif raw_exq_type == "0" and not sample:
             l_query.extend_list.append(raw_exq)
 
             sample_list = list()
 
-        elif (raw_exq_type == "1.0" or raw_exq_type == "2.0") and not sample:
+        elif (raw_exq_type == "1" or raw_exq_type == "2") and not sample:
             l_query.extend_reg_dict[raw_exq] = process_sys_reg(raw_exq)
 
             sample_list = list()
@@ -395,27 +411,13 @@ def load_df_raw(faq_full_file):
     return query_list
 
 
-def load_df_processed(faq_file):
-    query_list = list()
-    this_df = pandas.read_excel(faq_file, dtype=str)
-    this_df.set_index('生成序号')
-    this_df.fillna("", inplace=True)
-    logger.info(f"this_df {this_df.shape}")
-    for idx, row in this_df.iterrows():
-        raw_q = row["生成问题"]
-        raw_a = row["生成答案"]
-        if is_valid_std_query(raw_q, raw_a):
-            l_query = StandardQuery(idx, raw_q, raw_a)
-            query_list.append(l_query)
+def load_faq(faq_filepath):
+    is_generated, this_df = check_faq_is_generated(faq_filepath)
 
-    return query_list
-
-
-def load_faq(faq_filepath, is_processed):
-    if is_processed:
-        raw_query_obj_list = load_df_processed(faq_filepath)
+    if is_generated:
+        raw_query_obj_list = load_df_generated(this_df)
     else:
-        raw_query_obj_list = load_df_raw(faq_filepath)
+        raw_query_obj_list = load_df_raw(this_df, faq_filepath)
 
     conflict_list = list()
 

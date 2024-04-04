@@ -34,8 +34,10 @@ def list_api_running_models() -> BaseResponse:
     '''
     try:
         with get_httpx_client() as client:
-            r = client.post("http://" + LLM_SERVER + "/v1/models")
-            data = r.json()['data']
+            # r = client.post("http://" + LLM_SERVER + "/v1/models")
+            # data = r.json()['data']
+            r = client.get("http://" + LLM_SERVER + "/v1/models")
+            data = [i['id'] for i in r.json()['data']]
             return BaseResponse(data=data)
     except Exception as e:
         logger.error(f'{e.__class__.__name__}: {e}',

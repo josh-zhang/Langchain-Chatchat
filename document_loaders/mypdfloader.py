@@ -1,11 +1,11 @@
 from typing import List
-from langchain.document_loaders.unstructured import UnstructuredFileLoader
+from langchain_community.document_loaders import UnstructuredFileLoader
 import cv2
 from PIL import Image
 import numpy as np
 from configs import PDF_OCR_THRESHOLD
-from document_loaders.ocr import get_ocr
 import tqdm
+from rapidocr_onnxruntime import RapidOCR
 
 
 class RapidOCRPDFLoader(UnstructuredFileLoader):
@@ -37,7 +37,7 @@ class RapidOCRPDFLoader(UnstructuredFileLoader):
         def pdf2text(filepath):
             import fitz  # pyMuPDF里面的fitz包，不要与pip install fitz混淆
             import numpy as np
-            ocr = get_ocr()
+            ocr = RapidOCR()
             doc = fitz.open(filepath)
             resp = ""
 

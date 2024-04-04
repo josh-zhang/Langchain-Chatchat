@@ -7,13 +7,13 @@ DEFAULT_KNOWLEDGE_BASE = "samples"
 DEFAULT_VS_TYPE = "faiss"
 
 # 缓存向量库数量（针对FAISS）
-CACHED_VS_NUM = 6
+CACHED_VS_NUM = 10
 
 # 缓存向量库数量（针对BM25）
-CACHED_BM25_VS_NUM = 6
+CACHED_BM25_VS_NUM = 10
 
-# 缓存向量库数量（针对BM25）
-CACHED_EMBED_NUM = 2
+# 缓存向量库数量（针对EMBEDDING）
+CACHED_EMBED_NUM = 1
 
 # 缓存向量库数量（针对Reranker）
 CACHED_RERANK_NUM = 2
@@ -22,10 +22,10 @@ CACHED_RERANK_NUM = 2
 CACHED_MEMO_VS_NUM = 10
 
 # 知识库中单段文本长度(不适用MarkdownHeaderTextSplitter)
-CHUNK_SIZE = 400
+CHUNK_SIZE = 1000
 
 # 知识库中相邻文本重合长度(不适用MarkdownHeaderTextSplitter)
-OVERLAP_SIZE = 50
+OVERLAP_SIZE = 100
 
 # 知识库匹配向量数量
 VECTOR_SEARCH_TOP_K = 5
@@ -45,6 +45,10 @@ KB_INFO = {
     "知识库名称": "知识库介绍",
     "samples": "关于本项目issue的解答",
 }
+
+# PDF OCR 控制：只对宽高超过页面一定比例（图片宽/页面宽，图片高/页面高）的图片进行 OCR。
+# 这样可以避免 PDF 中一些小图片的干扰，提高非扫描版 PDF 处理速度
+PDF_OCR_THRESHOLD = (0.6, 0.6)
 
 # 通常情况下不需要更改以下内容
 
@@ -88,7 +92,7 @@ kbs_config = {
 text_splitter_dict = {
     "ChineseRecursiveTextSplitter": {
         "source": "huggingface",  # 选择tiktoken则使用openai的方法
-        "tokenizer_name_or_path": "/opt/projects/hf_models/qwen-14b-chat-int4",
+        "tokenizer_name_or_path": "/opt/projects/hf_models/qwen1.5-14b-chat-gptq-int4",
     },
     "SpacyTextSplitter": {
         "source": "huggingface",

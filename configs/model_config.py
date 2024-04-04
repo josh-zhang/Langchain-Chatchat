@@ -12,10 +12,10 @@ EMBEDDING_MODEL = "bge-m3-1-api"
 EMBEDDING_DEVICE = "auto"
 
 # 选用的reranker模型
-RERANKER_MODEL = "bge-reranker-large-1-api"
+RERANKER_MODEL = "bge-reranker-v2-m3"
 # 是否启用reranker模型
 USE_RERANKER = True
-# RERANKER_MAX_LENGTH = 1024
+RERANKER_MAX_LENGTH = 8192
 
 # 如果需要在 EMBEDDING_MODEL 中增加自定义的关键字时配置
 EMBEDDING_KEYWORD_FILE = "keywords.txt"
@@ -28,7 +28,7 @@ EMBEDDING_MODEL_OUTPUT_PATH = "output"
 
 # chatglm3-6b输出角色标签<|user|>及自问自答的问题详见项目wiki->常见问题->Q20.
 
-LLM_MODELS = ["通义千问1.5-72B-六千字"]
+LLM_MODELS = ["通义千问大-六千字-api"]
 
 # AgentLM模型的名称 (可以不指定，指定之后就锁定进入Agent之后的Chain的模型，不指定就是LLM_MODELS[0])
 Agent_MODEL = None
@@ -87,6 +87,7 @@ MODEL_PATH = {
     "reranker": {
         "bge-reranker-large": "/opt/projects/hf_models/bge-reranker-large",
         "bge-reranker-base": "/opt/projects/hf_models/bge-reranker-base",
+        "bge-reranker-v2-m3": "/opt/projects/hf_models/bge-reranker-v2-m3",
         # TODO 增加在线reranker，如cohere
     }
 }

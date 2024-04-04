@@ -86,19 +86,20 @@ class KBFaissPool(_FaissPool):
     ) -> ThreadSafeFaiss:
         self.atomic.acquire()
         # vector_name = vector_name or embed_model
-        key = (kb_name, vector_name)
+        key = kb_name + "_" + vector_name
         cache = self.get(key)  # 用元组比拼接字符串好一些
         if cache is None:
             item = ThreadSafeFaiss(key, pool=self)
             self.set(key, item)
-            with item.acquire(msg="初始化"):
+            with item.acquire():
                 self.atomic.release()
                 logger.info(f"loading vector store in '{kb_name}/vector_store/{vector_name}' from disk.")
                 vs_path = get_vs_path(kb_name, vector_name)
                 if os.path.isfile(os.path.join(vs_path, "index.faiss")):
                     embeddings = self.load_kb_embeddings(kb_name=kb_name, embed_device=embed_device,
                                                          default_embed_model=embed_model)
-                    vector_store = FAISS.load_local(vs_path, embeddings, normalize_L2=True)
+                    vector_store = FAISS.load_local(vs_path, embeddings, normalize_L2=True,
+                                                    allow_dangerous_deserialization=True)
                 elif create:
                     # create an empty vector store
                     if not os.path.exists(vs_path):
@@ -128,7 +129,7 @@ class MemoFaissPool(_FaissPool):
         if cache is None:
             item = ThreadSafeFaiss(kb_name, pool=self)
             self.set(kb_name, item)
-            with item.acquire(msg="初始化"):
+            with item.acquire():
                 self.atomic.release()
                 logger.info(f"loading vector store in '{kb_name}' to memory.")
                 # create an empty vector store

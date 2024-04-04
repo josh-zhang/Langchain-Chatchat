@@ -11,7 +11,6 @@ from unstructured.documents.elements import Element, Text, ElementMetadata, Titl
 from unstructured.partition.common import get_last_modified_date
 from langchain.docstore.document import Document
 from langchain.text_splitter import TextSplitter, MarkdownHeaderTextSplitter
-from transformers import AutoTokenizer, GPT2TokenizerFast
 
 from configs import (
     KB_ROOT_PATH,
@@ -130,37 +129,41 @@ def list_files_from_path(folder_path):
     return result
 
 
-LOADER_DICT = {"CustomHTMLLoader": ['.html'],
-               # "UnstructuredHTMLLoader": ['.html'],
-               # "UnstructuredMarkdownLoader": ['.md'],
-               "JSONLoader": [".json"],
-               "JSONLinesLoader": [".jsonl"],
-               # "CSVLoader": [".csv"],
-               # "FilteredCSVLoader": [".csv"], # 需要自己指定，目前还没有支持
-               "RapidOCRPDFLoader": [".pdf"],
-               # "RapidOCRLoader": ['.png', '.jpg', '.jpeg', '.bmp'],
-               # "UnstructuredEmailLoader": ['.eml', '.msg'],
-               # "UnstructuredEPubLoader": ['.epub'],
-               # "UnstructuredExcelLoader": ['.xlsx', '.xls', '.xlsd'],
-               "CustomExcelLoader": ['.xlsx'],
-               # "NotebookLoader": ['.ipynb'],
-               # "UnstructuredODTLoader": ['.odt'],
-               # "PythonLoader": ['.py'],
-               # "UnstructuredRSTLoader": ['.rst'],
-               # "UnstructuredRTFLoader": ['.rtf'],
-               # "SRTLoader": ['.srt'],
-               # "TomlLoader": ['.toml'],
-               # "UnstructuredTSVLoader": ['.tsv'],
-               "UnstructuredWordDocumentLoader": ['.docx', '.doc'],
-               # "UnstructuredXMLLoader": ['.xml'],
-               # "UnstructuredPowerPointLoader": ['.ppt', '.pptx'],
-               # "UnstructuredFileLoader": ['.txt'],
-               "TextLoader": ['.txt'],
-               }
+LOADER_DICT = {
+    "UnstructuredHTMLLoader": ['.html', '.htm'],
+    "UnstructuredMarkdownLoader": ['.md'],
+    "JSONLoader": [".json"],
+    "JSONLinesLoader": [".jsonl"],
+    "CSVLoader": [".csv"],
+    "RapidOCRPDFLoader": [".pdf"],
+    "RapidOCRDocLoader": ['.docx'],
+    "RapidOCRPPTLoader": ['.pptx', ],
+    "RapidOCRLoader": ['.png', '.jpg', '.jpeg', '.bmp'],
+    "UnstructuredFileLoader": ['.txt'],
+    "UnstructuredExcelLoader": ['.xlsx', '.xls'],
+    "UnstructuredTSVLoader": ['.tsv'],
+    "UnstructuredXMLLoader": ['.xml'],
+    # "UnstructuredWordDocumentLoader": ['.doc'],
+    # "CustomHTMLLoader": ['.html'],
+    # "MHTMLLoader": ['.mhtml'],
+    # "FilteredCSVLoader": [".csv"], 如果使用自定义分割csv
+    # "UnstructuredEmailLoader": ['.eml', '.msg'],
+    # "UnstructuredEPubLoader": ['.epub'],
+    # "NotebookLoader": ['.ipynb'],
+    # "UnstructuredODTLoader": ['.odt'],
+    # "PythonLoader": ['.py'],
+    # "UnstructuredRSTLoader": ['.rst'],
+    # "UnstructuredRTFLoader": ['.rtf'],
+    # "SRTLoader": ['.srt'],
+    # "TomlLoader": ['.toml'],
+    # "UnstructuredPowerPointLoader": ['.ppt', '.pptx'],
+    # "TextLoader": ['.txt'],
+    # "EverNoteLoader": ['.enex'],
+}
 SUPPORTED_EXTS = [ext for sublist in LOADER_DICT.values() for ext in sublist]
 
 
-class CustomHTMLLoader(langchain_community.document_loaders.unstructured.UnstructuredFileLoader):
+class CustomHTMLLoader(langchain_community.document_loaders.UnstructuredFileLoader):
     delimiter = " 之 "
 
     def load_content(self, file_path) -> List[Element]:
@@ -176,7 +179,8 @@ class CustomHTMLLoader(langchain_community.document_loaders.unstructured.Unstruc
         for ii, chapter_tuple in enumerate(chapters_list):
             chapter_number = ii + 1
 
-            chapter_title = file_name + self.delimiter + chapter_tuple[0]
+            chapter_title = "" if chapter_tuple[0] is None else chapter_tuple[0]
+            chapter_title = file_name + self.delimiter + chapter_title
             chapter_title_ele = Title(text=chapter_title, metadata=ElementMetadata(filename=file_path,
                                                                                    filetype="html",
                                                                                    page_number=chapter_number))
@@ -187,8 +191,9 @@ class CustomHTMLLoader(langchain_community.document_loaders.unstructured.Unstruc
 
             paragraphs = chapter_tuple[1]
             for iii, paragraph_tuple in enumerate(paragraphs):
-                # paragraph_title = chapter_tuple[0] + self.delimiter + paragraph_tuple[0]
-                paragraph_title = file_name + self.delimiter + paragraph_tuple[0]
+                paragraph_title = "" if paragraph_tuple[0] is None else paragraph_tuple[0]
+                # paragraph_title = chapter_tuple[0] + self.delimiter + paragraph_title
+                paragraph_title = file_name + self.delimiter + paragraph_title
                 paragraph_text = paragraph_tuple[1]
                 sub_paragraphs = paragraph_tuple[2]
 
@@ -203,9 +208,11 @@ class CustomHTMLLoader(langchain_community.document_loaders.unstructured.Unstruc
 
                 if sub_paragraphs:
                     for iii, sub_paragraph_tuple in enumerate(sub_paragraphs):
-                        if sub_paragraph_tuple[0]:
+                        sub_paragraph_title = "" if sub_paragraph_tuple[0] is None else sub_paragraph_tuple[0]
+
+                        if sub_paragraph_title:
                             sub_paragraph_title = file_name + self.delimiter + paragraph_tuple[0] + self.delimiter + \
-                                                  sub_paragraph_tuple[0]
+                                                  sub_paragraph_title
                         else:
                             sub_paragraph_title = file_name + self.delimiter + paragraph_tuple[0] + f" 段落{iii + 1}"
 
@@ -245,7 +252,7 @@ class CustomHTMLLoader(langchain_community.document_loaders.unstructured.Unstruc
 langchain_community.document_loaders.CustomHTMLLoader = CustomHTMLLoader
 
 
-class CustomExcelLoader(langchain_community.document_loaders.unstructured.UnstructuredFileLoader):
+class CustomExcelLoader(langchain_community.document_loaders.UnstructuredFileLoader):
 
     def _get_elements(self) -> List:
         """Convert given content to documents."""
@@ -292,7 +299,8 @@ def get_loader(loader_name: str, file_path: str, loader_kwargs: Dict = None):
     '''
     loader_kwargs = loader_kwargs or {}
     try:
-        if loader_name in ["RapidOCRPDFLoader", "RapidOCRLoader", "FilteredCSVLoader"]:
+        if loader_name in ["RapidOCRPDFLoader", "RapidOCRLoader", "FilteredCSVLoader",
+                           "RapidOCRDocLoader", "RapidOCRPPTLoader"]:
             document_loaders_module = importlib.import_module('document_loaders')
         else:
             document_loaders_module = importlib.import_module('langchain_community.document_loaders')
@@ -314,7 +322,6 @@ def get_loader(loader_name: str, file_path: str, loader_kwargs: Dict = None):
             if encode_detect is None:
                 encode_detect = {"encoding": "utf-8"}
             loader_kwargs["encoding"] = encode_detect["encoding"]
-        ## TODO：支持更多的自定义CSV读取逻辑
 
     elif loader_name == "JSONLoader":
         loader_kwargs.setdefault("jq_schema", ".")
@@ -336,7 +343,7 @@ def make_text_splitter(
     """
     根据参数获取特定的分词器
     """
-    splitter_name = splitter_name or "SpacyTextSplitter"
+    splitter_name = splitter_name or "ChineseRecursiveTextSplitter"
     try:
         if splitter_name == "MarkdownHeaderTextSplitter":  # MarkdownHeaderTextSplitter特殊判定
             headers_to_split_on = text_splitter_dict[splitter_name]['headers_to_split_on']
@@ -369,8 +376,10 @@ def make_text_splitter(
                     assert False, f"{splitter_name} tokenizer_name_or_path is empty"
 
                 if text_splitter_dict[splitter_name]["tokenizer_name_or_path"] == "gpt2":
+                    from transformers import GPT2TokenizerFast
                     tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
                 else:  ## 字符长度加载
+                    from transformers import AutoTokenizer
                     tokenizer = AutoTokenizer.from_pretrained(
                         text_splitter_dict[splitter_name]["tokenizer_name_or_path"],
                         trust_remote_code=True)
@@ -405,6 +414,7 @@ class KnowledgeFile:
             self,
             filename: str,
             knowledge_base_name: str,
+            document_loader_name: str,
             loader_kwargs: Dict = {},
     ):
         '''
@@ -419,8 +429,20 @@ class KnowledgeFile:
         self.filepath = get_file_path(knowledge_base_name, filename)
         self.docs = None
         self.splited_docs = None
-        self.document_loader_name = get_LoaderClass(self.ext)
-        self.text_splitter_name = TEXT_SPLITTER_NAME
+
+        # if document_loader_name is None or document_loader_name == "" or document_loader_name == "default":
+        if document_loader_name == "default":
+            self.document_loader_name = get_LoaderClass(self.ext)
+            self.text_splitter_name = TEXT_SPLITTER_NAME
+        elif document_loader_name == "unknown":
+            self.document_loader_name = ""
+            self.text_splitter_name = ""
+        else:
+            self.document_loader_name = document_loader_name
+            if document_loader_name == "CustomHTMLLoader":
+                self.text_splitter_name = TEXT_SPLITTER_NAME
+            else:
+                self.text_splitter_name = ""
 
     def file2docs(self, refresh: bool = False):
         if self.docs is None or refresh:
@@ -514,15 +536,19 @@ def files2docs_in_thread(
     for i, file in enumerate(files):
         kwargs = {}
         try:
-            if isinstance(file, tuple) and len(file) >= 2:
+            if isinstance(file, tuple) and len(file) >= 3:
                 filename = file[0]
                 kb_name = file[1]
-                file = KnowledgeFile(filename=filename, knowledge_base_name=kb_name)
+                document_loader_name = file[2]
+                file = KnowledgeFile(filename=filename, knowledge_base_name=kb_name,
+                                     document_loader_name=document_loader_name)
             elif isinstance(file, dict):
                 filename = file.pop("filename")
                 kb_name = file.pop("kb_name")
+                document_loader_name = file.pop("document_loader_name")
                 kwargs.update(file)
-                file = KnowledgeFile(filename=filename, knowledge_base_name=kb_name)
+                file = KnowledgeFile(filename=filename, knowledge_base_name=kb_name,
+                                     document_loader_name=document_loader_name)
             kwargs["file"] = file
             kwargs["chunk_size"] = chunk_size
             kwargs["chunk_overlap"] = chunk_overlap
