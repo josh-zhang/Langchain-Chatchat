@@ -514,7 +514,6 @@ def kb_dialogue_page(api: ApiRequest):
                 kb_list = []
             kb_dict = {kb[0]: kb[1] for kb in kb_list}
             kb_name_list = [kb[0] for kb in kb_list]
-            index = len(kb_name_list) - 1
 
             def format_func(option):
                 return kb_dict[option]
@@ -522,7 +521,6 @@ def kb_dialogue_page(api: ApiRequest):
             selected_kb = st.selectbox(
                 "选择知识库：",
                 kb_name_list,
-                index=index,
                 on_change=on_kb_change,
                 format_func=format_func,
                 key="selected_kb",
