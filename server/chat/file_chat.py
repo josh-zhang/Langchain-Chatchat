@@ -128,15 +128,23 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
 
     async def knowledge_base_chat_iterator() -> AsyncIterable[str]:
         nonlocal max_tokens
-        callback = AsyncIteratorCallbackHandler()
         if isinstance(max_tokens, int) and max_tokens <= 0:
             max_tokens = None
+
+        if "总行" in model_name:
+            streaming = False
+            callbacks = []
+        else:
+            callback = AsyncIteratorCallbackHandler()
+            callbacks = [callback]
+            streaming = stream
 
         model = get_ChatOpenAI(
             model_name=model_name,
             temperature=temperature,
             max_tokens=max_tokens,
-            callbacks=[callback],
+            callbacks=callbacks,
+            streaming=streaming
         )
 
         source_documents = []
@@ -150,11 +158,7 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
 
             chain = LLMChain(prompt=chat_prompt, llm=model)
 
-            # Begin a task that runs in the background.
-            task = asyncio.create_task(wrap_done(
-                chain.acall({"context": knowledge_content, "question": query}),
-                callback.done),
-            )
+            context = knowledge_content
 
             source_documents.append(f"""<span style='color:red'>大模型根据文本输入框中内容进行回答</span>""")
         else:
@@ -174,56 +178,6 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
 
             chain = LLMChain(prompt=chat_prompt, llm=model)
 
-            # Begin a task that runs in the background.
-            task = asyncio.create_task(wrap_done(
-                chain.acall({"context": context, "question": query}),
-                callback.done),
-            )
-
-            # enhanced_prompt = True
-            #
-            # if enhanced_prompt and len(docs) > 0:
-            #     prompt_template, context = generate_doc_qa(query, history, text_docs, "根据已知信息无法回答该问题")
-            #
-            #     input_msg = History(role="user", content=prompt_template).to_msg_template(False)
-            #
-            #     chat_prompt = ChatPromptTemplate.from_messages([input_msg])
-            #
-            #     chain = LLMChain(prompt=chat_prompt, llm=model)
-            #
-            #     # Begin a task that runs in the background.
-            #     task = asyncio.create_task(wrap_done(
-            #         chain.acall({"context": context, "question": query}),
-            #         callback.done),
-            #     )
-            # else:
-            #     if len(docs) == 0:  # 如果没有找到相关文档，使用empty模板
-            #         prompt_template = get_prompt_template("knowledge_base_chat", "empty")[1]
-            #     else:
-            #         prompt_template = get_prompt_template("knowledge_base_chat", prompt_name)[1]
-            #
-            #     input_msg = History(role="user", content=prompt_template).to_msg_template(False)
-            #
-            #     chat_prompt = ChatPromptTemplate.from_messages(
-            #         [i.to_msg_template() for i in history] + [input_msg])
-            #
-            #     chain = LLMChain(prompt=chat_prompt, llm=model)
-            #
-            #     header = "已知信息"
-            #     if "faq" in prompt_name:
-            #         header = "常见问答"
-            #     context = ""
-            #     index = 1
-            #     for doc in text_docs:
-            #         context += f"\n##{header}{index}##\n{doc}\n"
-            #         index += 1
-            #
-            #     # Begin a task that runs in the background.
-            #     task = asyncio.create_task(wrap_done(
-            #         chain.acall({"context": context, "question": query}),
-            #         callback.done),
-            #     )
-
             for inum, doc in enumerate(docs):
                 filename = doc.metadata.get("source")
                 text = ""
@@ -236,18 +190,23 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
                 source_documents.append(
                     f"""<span style='color:red'>未找到相关文档,该回答为大模型自身能力解答！</span>""")
 
-        if stream:
+        if streaming:
+            task = asyncio.create_task(wrap_done(
+                chain.acall({"context": context, "question": query}),
+                callback.done),
+            )
+
             async for token in callback.aiter():
                 # Use server-sent-events to stream the response
                 yield json.dumps({"answer": token}, ensure_ascii=False)
             yield json.dumps({"docs": source_documents}, ensure_ascii=False)
+
+            await task
         else:
-            answer = ""
-            async for token in callback.aiter():
-                answer += token
+            answer = await chain.ainvoke({"context": context, "question": query})
+
             yield json.dumps({"answer": answer,
                               "docs": source_documents},
                              ensure_ascii=False)
-        await task
 
     return EventSourceResponse(knowledge_base_chat_iterator())

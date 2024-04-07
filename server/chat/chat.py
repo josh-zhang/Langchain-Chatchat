@@ -36,8 +36,15 @@ async def chat(query: str = Body(..., description="用户输入", examples=["恼
                ):
     async def chat_iterator() -> AsyncIterable[str]:
         nonlocal history, max_tokens
-        callback = AsyncIteratorCallbackHandler()
-        callbacks = [callback]
+
+        if "总行" in model_name:
+            streaming = False
+            callbacks = []
+        else:
+            callback = AsyncIteratorCallbackHandler()
+            callbacks = [callback]
+            streaming = stream
+
         memory = None
 
         # 负责保存llm response到message db
@@ -54,6 +61,7 @@ async def chat(query: str = Body(..., description="用户输入", examples=["恼
             temperature=temperature,
             max_tokens=max_tokens,
             callbacks=callbacks,
+            streaming=streaming
         )
 
         if history:  # 优先使用前端传入的历史消息
@@ -77,26 +85,25 @@ async def chat(query: str = Body(..., description="用户输入", examples=["恼
 
         chain = LLMChain(prompt=chat_prompt, llm=model, memory=memory)
 
-        # Begin a task that runs in the background.
-        task = asyncio.create_task(wrap_done(
-            chain.acall({"input": query}),
-            callback.done),
-        )
+        if streaming:
+            # Begin a task that runs in the background.
+            task = asyncio.create_task(wrap_done(
+                chain.acall({"input": query}),
+                callback.done),
+            )
 
-        if stream:
             async for token in callback.aiter():
                 # Use server-sent-events to stream the response
                 yield json.dumps(
                     {"text": token, "message_id": message_id},
                     ensure_ascii=False)
+
+            await task
         else:
-            answer = ""
-            async for token in callback.aiter():
-                answer += token
+            answer = await chain.ainvoke({"input": query})
+
             yield json.dumps(
                 {"text": answer, "message_id": message_id},
                 ensure_ascii=False)
-
-        await task
 
     return EventSourceResponse(chat_iterator())

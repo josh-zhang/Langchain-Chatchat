@@ -122,16 +122,25 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
             model_name: str = model_name,
             prompt_name: str = prompt_name,
     ) -> AsyncIterable[str]:
+
         nonlocal max_tokens
-        callback = AsyncIteratorCallbackHandler()
         if isinstance(max_tokens, int) and max_tokens <= 0:
             max_tokens = None
+
+        if "总行" in model_name:
+            streaming = False
+            callbacks = []
+        else:
+            callback = AsyncIteratorCallbackHandler()
+            callbacks = [callback]
+            streaming = stream
 
         model = get_ChatOpenAI(
             model_name=model_name,
             temperature=temperature,
             max_tokens=max_tokens,
-            callbacks=[callback],
+            callbacks=callbacks,
+            streaming=streaming
         )
 
         final_search_type = "继续问答" if search_type == "继续问答" and source else "重新搜索"
@@ -183,12 +192,6 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
 
         chain = LLMChain(prompt=chat_prompt, llm=model)
 
-        # Begin a task that runs in the background.
-        task = asyncio.create_task(wrap_done(
-            chain.acall({"context": context, "question": query}),
-            callback.done),
-        )
-
         source_documents = []
         source_documents_content = []
 
@@ -205,23 +208,29 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
                 source_documents.append(text)
                 source_documents_content.append(doc.page_content)
 
-        if stream:
+        if streaming:
+            # Begin a task that runs in the background.
+            task = asyncio.create_task(wrap_done(
+                chain.acall({"context": context, "question": query}),
+                callback.done),
+            )
+
             async for token in callback.aiter():
                 # Use server-sent-events to stream the response
                 yield json.dumps({"answer": token}, ensure_ascii=False)
             yield json.dumps({"docs": source_documents,
                               "docs_content": source_documents_content,
                               "search_type": final_search_type}, ensure_ascii=False)
+
+            await task
         else:
-            answer = ""
-            async for token in callback.aiter():
-                answer += token
+            answer = await chain.ainvoke({"context": context, "question": query})
+
             yield json.dumps({"answer": answer,
                               "docs": source_documents,
                               "docs_content": source_documents_content,
                               "search_type": final_search_type},
                              ensure_ascii=False)
-        await task
 
     return EventSourceResponse(
         knowledge_base_chat_iterator(query, search_type, top_k, history, source, model_name, prompt_name))
