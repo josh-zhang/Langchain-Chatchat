@@ -4,7 +4,7 @@ import operator
 from abc import ABC, abstractmethod
 
 import os
-
+import asyncio
 import hashlib
 import numpy as np
 
@@ -31,7 +31,7 @@ from server.knowledge_base.faq_utils import load_faq
 
 from typing import List, Union, Dict, Optional
 
-from server.embeddings_api import embed_texts, embed_documents, aembed_texts
+from server.embeddings_api import embed_texts, embed_documents, aembed_texts, aembed_documents_api
 from server.knowledge_base.model.kb_document_model import DocumentWithVSId
 from server.knowledge_base.kb_cache.bm25_cache import kb_bm25_pool, ThreadSafeBM25, get_score
 
@@ -136,11 +136,14 @@ class KBService(ABC):
         status = delete_kb_from_db(self.kb_name)
         return status
 
-    def _docs_to_embeddings(self, docs: List[Document]) -> Dict:
+    def _docs_to_embeddings(self, docs: List[Document], use_async=False) -> Dict:
         '''
         将 List[Document] 转化为 VectorStore.add_embeddings 可以接受的参数
         '''
-        return embed_documents(docs=docs, embed_model=self.embed_model, to_query=False)
+        if use_async:
+            return asyncio.run(aembed_documents_api(docs, self.embed_model))
+        else:
+            return embed_documents(docs=docs, embed_model=self.embed_model, to_query=False)
 
     def add_doc(self, kb_file: KnowledgeFile, docs: List[Document] = [], **kwargs):
         """

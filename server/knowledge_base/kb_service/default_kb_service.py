@@ -13,7 +13,7 @@ class DefaultKBService(KBService):
     def do_drop_kb(self):
         pass
 
-    def do_add_doc(self, docs: List[Document]):
+    def do_add_doc(self, vector_name, docs: List[Document]):
         pass
 
     def do_clear_vs(self):

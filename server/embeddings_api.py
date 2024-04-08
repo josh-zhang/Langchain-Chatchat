@@ -1,5 +1,7 @@
 from typing import Dict, List
 
+import aiohttp
+import asyncio
 import requests
 from langchain.docstore.document import Document
 from fastapi import Body
@@ -113,6 +115,42 @@ def embed_documents(
         }
     else:
         raise ValueError("embed_documents error")
+
+
+async def post_request(session, url, embed_model, text, metadata):
+    async with session.post(url, json={"model": embed_model, "input": [text]}) as response:
+        res = await response.json()
+        embedding = res["data"]["embedding"][0]
+        return text, embedding, metadata
+
+
+async def aembed_documents_api(docs, embed_model):
+    if not embed_model.endswith("-api"):
+        raise ValueError("aembed_documents_api error")
+
+    embed_model = embed_model[:-4]
+    supervisor_address = f"{LITELLM_SERVER}/v1/embeddings" if LITELLM_SERVER.startswith(
+        "http") else f"http://{LITELLM_SERVER}/v1/embeddings"
+
+    async with aiohttp.ClientSession() as session:
+        tasks = []
+        for doc in docs:
+            tasks.append(post_request(session, supervisor_address, embed_model, doc.page_content, doc.metadata))
+        results = await asyncio.gather(*tasks)
+
+        texts = []
+        metadatas = []
+        embeddings = []
+        for text, embedding, metadata in results:
+            texts.append(text)
+            metadatas.append(metadata)
+            embeddings.append(embedding)
+
+        return {
+            "texts": texts,
+            "embeddings": embeddings,
+            "metadatas": metadatas,
+        }
 
 # def embed_texts_endpoint(
 #         texts: List[str] = Body(..., description="要嵌入的文本列表", examples=[["hello", "world"]]),
