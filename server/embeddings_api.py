@@ -117,14 +117,20 @@ def embed_documents(
         raise ValueError("embed_documents error")
 
 
-async def post_request(session, url, embed_model, text, metadata):
-    async with session.post(url, json={"model": embed_model, "input": [text]}) as response:
-        res = await response.json()
-        embedding = res["data"]["embedding"][0]
-        return text, embedding, metadata
+async def post_request(semaphore, session, url, embed_model, docs):
+    texts = [x.page_content for x in docs]
+    metadatas = [x.metadata for x in docs]
+
+    async with semaphore:  # This will block if the semaphore count is 0
+        async with session.post(url, json={"model": embed_model, "input": texts}) as response:
+            res = await response.json()
+            embeddings = [i["embedding"] for i in res["data"]]
+            return texts, embeddings, metadatas
 
 
-async def aembed_documents_api(docs, embed_model):
+async def aembed_documents_api(docs, embed_model, concurrency=3):
+    semaphore = asyncio.Semaphore(concurrency)
+
     if not embed_model.endswith("-api"):
         raise ValueError("aembed_documents_api error")
 
@@ -132,19 +138,28 @@ async def aembed_documents_api(docs, embed_model):
     supervisor_address = f"{LITELLM_SERVER}/v1/embeddings" if LITELLM_SERVER.startswith(
         "http") else f"http://{LITELLM_SERVER}/v1/embeddings"
 
+    def split_into_sublists(lst, chunk_size=10):
+        """Splits a list into sublists each with length of chunk_size or less."""
+        sublists = []
+        for i in range(0, len(lst), chunk_size):
+            sublists.append(lst[i:i + chunk_size])
+        return sublists
+
+    sublists = split_into_sublists(docs, 10)
+
     async with aiohttp.ClientSession() as session:
         tasks = []
-        for doc in docs:
-            tasks.append(post_request(session, supervisor_address, embed_model, doc.page_content, doc.metadata))
+        for docs in sublists:
+            tasks.append(post_request(semaphore, session, supervisor_address, embed_model, docs))
         results = await asyncio.gather(*tasks)
 
         texts = []
-        metadatas = []
         embeddings = []
-        for text, embedding, metadata in results:
-            texts.append(text)
-            metadatas.append(metadata)
-            embeddings.append(embedding)
+        metadatas = []
+        for this_texts, this_embeddings, this_metadatas in results:
+            texts += this_texts
+            embeddings += this_embeddings
+            metadatas += this_metadatas
 
         return {
             "texts": texts,
