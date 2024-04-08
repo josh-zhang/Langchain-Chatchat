@@ -52,11 +52,10 @@ def embed_texts(
     try:
         if embed_model.endswith("-api"):
             supervisor_address = LITELLM_SERVER
-            supervisor_address = f"{supervisor_address}/model/info" if supervisor_address.startswith(
-                "http") else f"http://{supervisor_address}/model/info"
+            supervisor_address = f"{supervisor_address}/v1/embeddings" if supervisor_address.startswith(
+                "http") else f"http://{supervisor_address}/v1/embeddings"
 
-            response = requests.post(f"{supervisor_address}/v1/embeddings",
-                                     json={"model": embed_model[:-4], "input": texts})
+            response = requests.post(supervisor_address, json={"model": embed_model[:-4], "input": texts})
             data = [i["embedding"] for i in response.json()["data"]]
             return BaseResponse(data=data)
         else:
@@ -79,12 +78,10 @@ async def aembed_texts(
     '''
     try:
         if embed_model.endswith("-api"):
-            supervisor_address = LITELLM_SERVER
-            supervisor_address = f"{supervisor_address}/model/info" if supervisor_address.startswith(
-                "http") else f"http://{supervisor_address}/model/info"
+            supervisor_address = f"{LITELLM_SERVER}/v1/embeddings" if LITELLM_SERVER.startswith(
+                "http") else f"http://{LITELLM_SERVER}/v1/embeddings"
 
-            response = requests.post(f"{supervisor_address}/v1/embeddings",
-                                     json={"model": embed_model[:-4], "input": texts})
+            response = requests.post(supervisor_address, json={"model": embed_model[:-4], "input": texts})
             data = [i["embedding"] for i in response.json()["data"]]
             return BaseResponse(data=data)
         else:
@@ -95,17 +92,6 @@ async def aembed_texts(
     except Exception as e:
         logger.error(e)
         return BaseResponse(code=500, msg=f"文本向量化过程中出现错误：{e}")
-
-
-# def embed_texts_endpoint(
-#         texts: List[str] = Body(..., description="要嵌入的文本列表", examples=[["hello", "world"]]),
-#         embed_model: str = Body(EMBEDDING_MODEL, description=f"使用的嵌入模型，除了本地部署的Embedding模型。"),
-#         to_query: bool = Body(False, description="向量是否用于查询。有些模型如Minimax对存储/查询的向量进行了区分优化。"),
-# ) -> BaseResponse:
-#     '''
-#     对文本进行向量化，返回 BaseResponse(data=List[List[float]])
-#     '''
-#     return embed_texts(texts=texts, embed_model=embed_model, to_query=to_query)
 
 
 def embed_documents(
@@ -125,3 +111,15 @@ def embed_documents(
             "embeddings": embeddings,
             "metadatas": metadatas,
         }
+    else:
+        raise ValueError("embed_documents error")
+
+# def embed_texts_endpoint(
+#         texts: List[str] = Body(..., description="要嵌入的文本列表", examples=[["hello", "world"]]),
+#         embed_model: str = Body(EMBEDDING_MODEL, description=f"使用的嵌入模型，除了本地部署的Embedding模型。"),
+#         to_query: bool = Body(False, description="向量是否用于查询。有些模型如Minimax对存储/查询的向量进行了区分优化。"),
+# ) -> BaseResponse:
+#     '''
+#     对文本进行向量化，返回 BaseResponse(data=List[List[float]])
+#     '''
+#     return embed_texts(texts=texts, embed_model=embed_model, to_query=to_query)
