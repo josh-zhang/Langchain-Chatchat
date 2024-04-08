@@ -205,7 +205,7 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
         else:
             answer = await chain.ainvoke({"context": context, "question": query})
 
-            yield json.dumps({"answer": answer,
+            yield json.dumps({"answer": answer["text"],
                               "docs": source_documents},
                              ensure_ascii=False)
 

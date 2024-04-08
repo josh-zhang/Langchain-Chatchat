@@ -226,7 +226,7 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
         else:
             answer = await chain.ainvoke({"context": context, "question": query})
 
-            yield json.dumps({"answer": answer,
+            yield json.dumps({"answer": answer["text"],
                               "docs": source_documents,
                               "docs_content": source_documents_content,
                               "search_type": final_search_type},

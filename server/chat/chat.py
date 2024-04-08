@@ -103,7 +103,7 @@ async def chat(query: str = Body(..., description="用户输入", examples=["恼
             answer = await chain.ainvoke({"input": query})
 
             yield json.dumps(
-                {"text": answer, "message_id": message_id},
+                {"text": answer["text"], "message_id": message_id},
                 ensure_ascii=False)
 
     return EventSourceResponse(chat_iterator())
