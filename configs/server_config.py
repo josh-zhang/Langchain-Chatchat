@@ -17,7 +17,7 @@ WEBUI_SERVER = {
     "port": 8080,
 }
 
-LLM_SERVER = "198.203.120.5:40782"
+LITELLM_SERVER = "198.203.120.5:40782"
 
 # api.py server
 API_SERVER = {
@@ -55,18 +55,13 @@ FSCHAT_CONTROLLER = {
     "dispatch_method": "shortest_queue",
 }
 
-QA_JOB_SCRIPT_PATH = "/opt/projects/qabot-be/deploy/main.py"
-
 # xinference server
-XINFERENCE_API = {
-    "host": DEFAULT_BIND_HOST,
-    "port": 30002,
-}
-
-# LLM_SERVER = {
+# XINFERENCE_API = {
 #     "host": DEFAULT_BIND_HOST,
-#     "port": 30000,
+#     "port": 30002,
 # }
+
+QA_JOB_SCRIPT_PATH = "/opt/projects/qabot-be/deploy/main.py"
 
 # fastchat model_worker server
 # 这些模型必须是在model_config.MODEL_PATH或ONLINE_MODEL中正确配置的。

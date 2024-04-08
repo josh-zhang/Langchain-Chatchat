@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from langchain_openai import ChatOpenAI
 
 from configs import (LLM_DEVICE, EMBEDDING_DEVICE, MODEL_PATH, MODEL_ROOT_PATH, logger, log_verbose,
-                     HTTPX_DEFAULT_TIMEOUT, ONLINE_LLM_MODEL, prompt_config, LLM_SERVER)
+                     HTTPX_DEFAULT_TIMEOUT, ONLINE_LLM_MODEL, prompt_config, LITELLM_SERVER)
 
 
 async def wrap_done(fn: Awaitable, event: asyncio.Event):
@@ -62,7 +62,7 @@ def get_ChatOpenAI(
             callbacks=callbacks,
             openai_api_key="EMPTY",
             # openai_api_base=f"http://{LLM_SERVER}/v3",
-            openai_api_base=f"http://{LLM_SERVER}",
+            openai_api_base=f"http://{LITELLM_SERVER}",
             model_name=model_name,
             temperature=temperature,
             max_tokens=max_tokens,
@@ -383,14 +383,14 @@ def fschat_openai_api_address() -> str:
     return f"http://{host}:{port}/v1"
 
 
-def xinference_supervisor_address() -> str:
-    from configs.server_config import XINFERENCE_API
-
-    host = XINFERENCE_API["host"]
-    if host == "0.0.0.0":
-        host = "127.0.0.1"
-    port = XINFERENCE_API["port"]
-    return f"http://{host}:{port}"
+# def xinference_supervisor_address() -> str:
+#     from configs.server_config import XINFERENCE_API
+#
+#     host = XINFERENCE_API["host"]
+#     if host == "0.0.0.0":
+#         host = "127.0.0.1"
+#     port = XINFERENCE_API["port"]
+#     return f"http://{host}:{port}"
 
 
 def api_address() -> str:

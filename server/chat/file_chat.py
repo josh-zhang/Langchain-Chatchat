@@ -132,6 +132,7 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
             max_tokens = None
 
         if "总行" in model_name:
+            callback = None
             streaming = False
             callbacks = []
         else:

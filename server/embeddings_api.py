@@ -4,31 +4,36 @@ import requests
 from langchain.docstore.document import Document
 from fastapi import Body
 
-from configs import EMBEDDING_MODEL, logger, log_verbose, MODEL_PATH
-from server.utils import BaseResponse, xinference_supervisor_address
+from configs import EMBEDDING_MODEL, logger, log_verbose, MODEL_PATH, LITELLM_SERVER
+from server.utils import BaseResponse
 
 
 def list_embed_models(
-        supervisor_address: str = Body(None, description="Fastchat controller服务器地址"),
+        supervisor_address: str = Body(LITELLM_SERVER, description="litellm服务器地址"),
         placeholder: str = Body(None, description="该参数未使用，占位用"),
 ) -> BaseResponse:
     '''
     从fastchat controller获取已加载模型列表及其配置项
     '''
     local_embed_models = list(MODEL_PATH["embed_model"])
-    supervisor_address = supervisor_address or xinference_supervisor_address()
+    supervisor_address = supervisor_address or LITELLM_SERVER
+    supervisor_address = f"{supervisor_address}/model/info" if supervisor_address.startswith(
+        "http") else f"http://{supervisor_address}/model/info"
 
     try:
-        from xinference_client import RESTfulClient
+        # from xinference_client import RESTfulClient
+        # client = RESTfulClient(supervisor_address)
+        # models = client.list_models()
+        # models = [k for k, v in models.items() if v["model_type"] == 'embedding']
+        res = requests.get(supervisor_address, headers={"Content-Type": "application/json"})
+        res = res.json()['data']
+        model_list = [i['model_name'] for i in res if
+                      'mode' in i['model_info'] and i['model_info']['mode'] == 'embedding']
+        model_list = [f"{i}-api" for i in model_list]
 
-        client = RESTfulClient(supervisor_address)
+        model_list += local_embed_models
 
-        models = client.list_models()
-        models = [k for k, v in models.items() if v["model_type"] == 'embedding']
-        models = [f"{i}-api" for i in models]
-        models += local_embed_models
-
-        return BaseResponse(data=models)
+        return BaseResponse(data=model_list)
     except Exception as e:
         logger.error(f'{e.__class__.__name__}: {e}',
                      exc_info=e if log_verbose else None)
@@ -46,7 +51,10 @@ def embed_texts(
     '''
     try:
         if embed_model.endswith("-api"):
-            supervisor_address = xinference_supervisor_address()
+            supervisor_address = LITELLM_SERVER
+            supervisor_address = f"{supervisor_address}/model/info" if supervisor_address.startswith(
+                "http") else f"http://{supervisor_address}/model/info"
+
             response = requests.post(f"{supervisor_address}/v1/embeddings",
                                      json={"model": embed_model[:-4], "input": texts})
             data = [i["embedding"] for i in response.json()["data"]]
@@ -71,7 +79,10 @@ async def aembed_texts(
     '''
     try:
         if embed_model.endswith("-api"):
-            supervisor_address = xinference_supervisor_address()
+            supervisor_address = LITELLM_SERVER
+            supervisor_address = f"{supervisor_address}/model/info" if supervisor_address.startswith(
+                "http") else f"http://{supervisor_address}/model/info"
+
             response = requests.post(f"{supervisor_address}/v1/embeddings",
                                      json={"model": embed_model[:-4], "input": texts})
             data = [i["embedding"] for i in response.json()["data"]]
@@ -86,35 +97,15 @@ async def aembed_texts(
         return BaseResponse(code=500, msg=f"文本向量化过程中出现错误：{e}")
 
 
-def embed_texts_endpoint(
-        texts: List[str] = Body(..., description="要嵌入的文本列表", examples=[["hello", "world"]]),
-        embed_model: str = Body(EMBEDDING_MODEL, description=f"使用的嵌入模型，除了本地部署的Embedding模型。"),
-        to_query: bool = Body(False, description="向量是否用于查询。有些模型如Minimax对存储/查询的向量进行了区分优化。"),
-) -> BaseResponse:
-    '''
-    对文本进行向量化，返回 BaseResponse(data=List[List[float]])
-    '''
-    return embed_texts(texts=texts, embed_model=embed_model, to_query=to_query)
-
-
-# def embed_texts_simi_endpoint(
-#         text_a: str = Body(..., description="要计算的文本一", examples=["hello world"]),
-#         text_b: str = Body(..., description="要计算的文本二", examples=["hi world"]),
+# def embed_texts_endpoint(
+#         texts: List[str] = Body(..., description="要嵌入的文本列表", examples=[["hello", "world"]]),
+#         embed_model: str = Body(EMBEDDING_MODEL, description=f"使用的嵌入模型，除了本地部署的Embedding模型。"),
+#         to_query: bool = Body(False, description="向量是否用于查询。有些模型如Minimax对存储/查询的向量进行了区分优化。"),
 # ) -> BaseResponse:
 #     '''
-#     计算两个文本相似度，返回 BaseResponse(data=List[float]])
+#     对文本进行向量化，返回 BaseResponse(data=List[List[float]])
 #     '''
-#     from server.utils import load_local_embeddings
-#
-#     embeddings = load_local_embeddings(model="bge-base-zh", normalize_embeddings=True)
-#     embedding_a = embeddings.embed_documents([text_a])[0]
-#     embedding_b = embeddings.embed_documents([text_b])[0]
-#     query_embed_2d_a = np.reshape(embedding_a, (1, -1))
-#     query_embed_2d_b = np.reshape(embedding_b, (1, -1))
-#
-#     similarity = (query_embed_2d_a @ query_embed_2d_b.T).tolist()[0]
-#
-#     return BaseResponse(data=similarity)
+#     return embed_texts(texts=texts, embed_model=embed_model, to_query=to_query)
 
 
 def embed_documents(

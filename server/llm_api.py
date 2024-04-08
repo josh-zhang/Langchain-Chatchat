@@ -1,7 +1,7 @@
 from typing import List
 
 from fastapi import Body
-from configs import logger, log_verbose, LLM_SERVER
+from configs import logger, log_verbose, LITELLM_SERVER
 from server.utils import BaseResponse, get_httpx_client, fschat_controller_address, list_config_llm_models
 
 
@@ -34,18 +34,18 @@ def list_api_running_models() -> BaseResponse:
     '''
     try:
         with get_httpx_client() as client:
-            # r = client.post("http://" + LLM_SERVER + "/v1/models")
-            # data = r.json()['data']
-            r = client.get("http://" + LLM_SERVER + "/v1/models")
-            data = [i['id'] for i in r.json()['data']]
-            return BaseResponse(data=data)
+            r = client.get("http://" + LITELLM_SERVER + "/model/info")
+            res = r.json()['data']
+            model_list = [i['model_name'] for i in res if 'mode' not in i['model_info'] or (
+                        'mode' in i['model_info'] and i['model_info']['mode'] != 'embedding')]
+            return BaseResponse(data=model_list)
     except Exception as e:
         logger.error(f'{e.__class__.__name__}: {e}',
                      exc_info=e if log_verbose else None)
         return BaseResponse(
             code=500,
             data={},
-            msg=f"failed to get available models from LLM_SERVER: {LLM_SERVER}。错误信息是： {e}")
+            msg=f"failed to get available models from LLM_SERVER: {LITELLM_SERVER}。错误信息是： {e}")
 
 
 def list_config_models(
@@ -60,7 +60,6 @@ def list_config_models(
         if type in types:
             data[type] = models
     return BaseResponse(data=data)
-
 
 # def get_model_config(
 #         model_name: str = Body(description="配置中LLM模型的名称"),

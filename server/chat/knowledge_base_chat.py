@@ -19,7 +19,8 @@ from server.chat.prompt_generator import generate_doc_qa
 from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.knowledge_base.kb_doc_api import search_docs
 from server.knowledge_base.kb_cache.base import reranker_pool
-from server.utils import BaseResponse, xinference_supervisor_address
+from server.utils import BaseResponse
+# from server.utils import xinference_supervisor_address
 from configs import (LLM_MODELS,
                      VECTOR_SEARCH_TOP_K,
                      SCORE_THRESHOLD,
@@ -32,29 +33,29 @@ from configs import (LLM_MODELS,
                      RERANKER_MAX_LENGTH)
 
 
-def do_rerank(
-        documents: List[str],
-        query: str,
-        top_n: Optional[int] = None,
-        max_chunks_per_doc: Optional[int] = None,
-        return_documents: Optional[bool] = None,
-        model_name: str = RERANKER_MODEL,
-):
-    model_uid = model_name[:-4] if model_name.endswith("-api") else model_name
-    url = f"{xinference_supervisor_address()}/v1/rerank"
-    request_body = {
-        "model": model_uid,
-        "documents": documents,
-        "query": query,
-        "top_n": top_n,
-        "max_chunks_per_doc": max_chunks_per_doc,
-        "return_documents": return_documents,
-    }
-    response = requests.post(url, json=request_body)
-    if response.status_code != 200:
-        return []
-    response_data = response.json()['results']
-    return response_data
+# def do_rerank(
+#         documents: List[str],
+#         query: str,
+#         top_n: Optional[int] = None,
+#         max_chunks_per_doc: Optional[int] = None,
+#         return_documents: Optional[bool] = None,
+#         model_name: str = RERANKER_MODEL,
+# ):
+#     model_uid = model_name[:-4] if model_name.endswith("-api") else model_name
+#     url = f"{xinference_supervisor_address()}/v1/rerank"
+#     request_body = {
+#         "model": model_uid,
+#         "documents": documents,
+#         "query": query,
+#         "top_n": top_n,
+#         "max_chunks_per_doc": max_chunks_per_doc,
+#         "return_documents": return_documents,
+#     }
+#     response = requests.post(url, json=request_body)
+#     if response.status_code != 200:
+#         return []
+#     response_data = response.json()['results']
+#     return response_data
 
 
 async def knowledge_base_chat(query: str = Body(..., description="用户输入", examples=["你好"]),
@@ -128,6 +129,7 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
             max_tokens = None
 
         if "总行" in model_name:
+            callback = None
             streaming = False
             callbacks = []
         else:
