@@ -128,7 +128,7 @@ async def post_request(semaphore, session, url, embed_model, docs):
             return texts, embeddings, metadatas
 
 
-async def aembed_documents_api(docs, embed_model, concurrency=3):
+async def aembed_documents_api(docs, embed_model, concurrency=3, chunk_size=10):
     semaphore = asyncio.Semaphore(concurrency)
 
     if not embed_model.endswith("-api"):
@@ -138,19 +138,14 @@ async def aembed_documents_api(docs, embed_model, concurrency=3):
     supervisor_address = f"{LITELLM_SERVER}/v1/embeddings" if LITELLM_SERVER.startswith(
         "http") else f"http://{LITELLM_SERVER}/v1/embeddings"
 
-    def split_into_sublists(lst, chunk_size=10):
-        """Splits a list into sublists each with length of chunk_size or less."""
-        sublists = []
-        for i in range(0, len(lst), chunk_size):
-            sublists.append(lst[i:i + chunk_size])
-        return sublists
-
-    sublists = split_into_sublists(docs, 10)
+    sublists = []
+    for i in range(0, len(docs), chunk_size):
+        sublists.append(docs[i:i + chunk_size])
 
     async with aiohttp.ClientSession() as session:
         tasks = []
-        for docs in sublists:
-            tasks.append(post_request(semaphore, session, supervisor_address, embed_model, docs))
+        for i in sublists:
+            tasks.append(post_request(semaphore, session, supervisor_address, embed_model, i))
         results = await asyncio.gather(*tasks)
 
         texts = []

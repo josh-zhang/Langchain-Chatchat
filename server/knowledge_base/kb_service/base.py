@@ -136,12 +136,12 @@ class KBService(ABC):
         status = delete_kb_from_db(self.kb_name)
         return status
 
-    def _docs_to_embeddings(self, docs: List[Document], use_async=False) -> Dict:
+    def _docs_to_embeddings(self, docs: List[Document], use_async_thres=20) -> Dict:
         '''
         将 List[Document] 转化为 VectorStore.add_embeddings 可以接受的参数
         '''
-        if use_async:
-            return asyncio.run(aembed_documents_api(docs, self.embed_model))
+        if len(docs) > use_async_thres * 2:
+            return asyncio.run(aembed_documents_api(docs, self.embed_model, use_async_thres))
         else:
             return embed_documents(docs=docs, embed_model=self.embed_model, to_query=False)
 
