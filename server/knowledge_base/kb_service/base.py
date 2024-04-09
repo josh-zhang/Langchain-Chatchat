@@ -458,12 +458,12 @@ class KBService(ABC):
 
         for file_name, document_loader_name in file_infos:
             if document_loader_name != "CustomExcelLoader":
-                file_names.append(file_name)
+                file_names.append(f"{file_name}_{document_loader_name}")
                 documentWithVSIds = self.list_docs("docs", file_name=file_name)
                 docs_text_list += [i.page_content for i in documentWithVSIds]
                 docs_metadata_list += [i.metadata for i in documentWithVSIds]
             else:
-                faq_names.append(file_name)
+                faq_names.append(f"{file_name}_{document_loader_name}")
                 documentWithVSIds = self.list_docs("answer", file_name=file_name)
                 questions_text_list += [i.page_content for i in documentWithVSIds]
                 questions_metadata_list += [i.metadata for i in documentWithVSIds]
