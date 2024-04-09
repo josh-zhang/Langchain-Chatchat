@@ -95,12 +95,6 @@ def get_prompt(fallback: str, history: List[History], context: str) -> str:
     else:
         prompt_template = "你是AI助手。你严格按照回答要求来回答用户问题。"
 
-    if chat_history:
-        prompt_template += f"""
-### 聊天历史 ###
-{chat_history}
-"""
-
     prompt_template += """
 ### 用户问题 ###
 {{ question }}
@@ -131,6 +125,12 @@ def get_prompt(fallback: str, history: List[History], context: str) -> str:
     prompt_template += f"""
 ### 回答要求 ###
 {answer_prompts}
+"""
+
+    if chat_history:
+        prompt_template += f"""
+### 聊天历史 ###
+{chat_history}
 """
 
     return prompt_template
