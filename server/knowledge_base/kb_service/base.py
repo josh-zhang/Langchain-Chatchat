@@ -19,7 +19,7 @@ from server.db.repository.knowledge_file_repository import (
     add_file_to_db, delete_file_from_db, delete_files_from_db, file_exists_in_db,
     count_files_from_db, list_files_from_db, get_file_detail, list_docs_from_db, list_question_from_db,
     list_answer_from_db, add_answer_to_db, add_question_to_db, get_answer_id_by_question_raw_id_from_db,
-    get_answer_doc_id_by_answer_id_from_db
+    get_answer_doc_id_by_answer_id_from_db, delete_docs_from_db, delete_answer_from_db, delete_question_from_db
 )
 
 from configs import (kbs_config, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, EMBEDDING_MODEL, SEARCH_ENHANCE)
@@ -189,10 +189,14 @@ class KBService(ABC):
         print("delete_doc")
 
         self.do_delete_doc("docs", kb_file, **kwargs)
-        status = delete_file_from_db(kb_file)
+
+        delete_docs_from_db(kb_name=kb_file.kb_name, file_name=kb_file.filename)
+        delete_answer_from_db(kb_name=kb_file.kb_name, file_name=kb_file.filename)
+        delete_question_from_db(kb_name=kb_file.kb_name, file_name=kb_file.filename)
+        delete_file_from_db(kb_name=kb_file.kb_name, file_name=kb_file.filename)
+
         if delete_content and os.path.exists(kb_file.filepath):
             os.remove(kb_file.filepath)
-        return status
 
     def add_faq(self, kb_file: KnowledgeFile, **kwargs):
         """
@@ -276,10 +280,13 @@ class KBService(ABC):
         self.do_delete_doc("answer", kb_file, **kwargs)
         self.do_delete_doc("question", kb_file, **kwargs)
 
-        status = delete_file_from_db(kb_file)
+        delete_docs_from_db(kb_name=kb_file.kb_name, file_name=kb_file.filename)
+        delete_answer_from_db(kb_name=kb_file.kb_name, file_name=kb_file.filename)
+        delete_question_from_db(kb_name=kb_file.kb_name, file_name=kb_file.filename)
+        delete_file_from_db(kb_name=kb_file.kb_name, file_name=kb_file.filename)
+
         if delete_content and os.path.exists(kb_file.filepath):
             os.remove(kb_file.filepath)
-        return status
 
     def update_faq(self, kb_file: KnowledgeFile, **kwargs):
         """

@@ -29,9 +29,13 @@ def list_docs_from_db(session,
     列出某知识库某文件对应的所有Document。
     返回形式：[{"id": str, "metadata": dict}, ...]
     '''
-    docs = session.query(FileDocModel).filter(FileDocModel.kb_name.ilike(kb_name))
+
     if file_name:
-        docs = docs.filter(FileDocModel.file_name.ilike(file_name))
+        docs = session.query(FileDocModel).filter(FileDocModel.kb_name.ilike(kb_name),
+                                                  FileDocModel.file_name.ilike(file_name))
+    else:
+        docs = session.query(FileDocModel).filter(FileDocModel.kb_name.ilike(kb_name))
+
     for k, v in metadata.items():
         docs = docs.filter(FileDocModel.meta_data[k].as_string() == str(v))
 
@@ -48,9 +52,13 @@ def list_answer_from_db(session,
     列出某知识库某文件对应的所有Answer。
     返回形式：[{"id": str, "metadata": dict}, ...]
     '''
-    docs = session.query(FileAnswerModel).filter(FileAnswerModel.kb_name.ilike(kb_name))
+
     if file_name:
-        docs = docs.filter(FileAnswerModel.file_name.ilike(file_name))
+        docs = session.query(FileAnswerModel).filter(FileAnswerModel.kb_name.ilike(kb_name),
+                                                     FileAnswerModel.file_name.ilike(file_name))
+    else:
+        docs = session.query(FileAnswerModel).filter(FileAnswerModel.kb_name.ilike(kb_name))
+
     for k, v in metadata.items():
         docs = docs.filter(FileAnswerModel.meta_data[k].as_string() == str(v))
 
@@ -67,9 +75,12 @@ def list_question_from_db(session,
     列出某知识库某文件对应的所有question。
     返回形式：[{"id": str, "metadata": dict}, ...]
     '''
-    docs = session.query(AnswerQuestionModel).filter(AnswerQuestionModel.kb_name.ilike(kb_name))
     if file_name:
-        docs = docs.filter(AnswerQuestionModel.file_name.ilike(file_name))
+        docs = session.query(AnswerQuestionModel).filter(AnswerQuestionModel.kb_name.ilike(kb_name),
+                                                         AnswerQuestionModel.file_name.ilike(file_name))
+    else:
+        docs = session.query(AnswerQuestionModel).filter(AnswerQuestionModel.kb_name.ilike(kb_name))
+
     for k, v in metadata.items():
         docs = docs.filter(FileDocModel.meta_data[k].as_string() == str(v))
 
@@ -80,18 +91,93 @@ def list_question_from_db(session,
 def delete_docs_from_db(session,
                         kb_name: str,
                         file_name: str = None,
-                        ) -> List[Dict]:
+                        ):
     '''
-    删除某知识库某文件对应的所有Document，并返回被删除的Document。
-    返回形式：[{"id": str, "metadata": dict}, ...]
+    删除某知识库某文件对应的所有Document
     '''
-    docs = list_docs_from_db(kb_name=kb_name, file_name=file_name)
-    query = session.query(FileDocModel).filter(FileDocModel.kb_name.ilike(kb_name))
     if file_name:
-        query = query.filter(FileDocModel.file_name.ilike(file_name))
-    query.delete(synchronize_session=False)
+        query = session.query(FileDocModel).filter(FileDocModel.kb_name.ilike(kb_name),
+                                                   FileDocModel.file_name.ilike(file_name))
+    else:
+        query = session.query(FileDocModel).filter(FileDocModel.kb_name.ilike(kb_name))
+
+    query.delete()
     session.commit()
-    return docs
+
+
+@with_session
+def delete_answer_from_db(session,
+                          kb_name: str,
+                          file_name: str = None,
+                          ):
+    '''
+    删除某知识库某文件对应的所有Answer
+    '''
+    if file_name:
+        query = session.query(FileAnswerModel).filter(FileAnswerModel.kb_name.ilike(kb_name),
+                                                      FileAnswerModel.file_name.ilike(file_name))
+    else:
+        query = session.query(FileAnswerModel).filter(FileAnswerModel.kb_name.ilike(kb_name))
+
+    query.delete()
+    session.commit()
+
+
+@with_session
+def delete_question_from_db(session,
+                            kb_name: str,
+                            file_name: str = None,
+                            ):
+    '''
+    删除某知识库某文件对应的所有question
+    '''
+
+    if file_name:
+        query = session.query(AnswerQuestionModel).filter(AnswerQuestionModel.kb_name.ilike(kb_name),
+                                                          AnswerQuestionModel.file_name.ilike(file_name))
+    else:
+        query = session.query(AnswerQuestionModel).filter(AnswerQuestionModel.kb_name.ilike(kb_name))
+
+    query.delete()
+    session.commit()
+
+
+@with_session
+def delete_file_from_db(session, kb_name: str, file_name: str):
+    existing_file = (session.query(KnowledgeFileModel)
+                     .filter(KnowledgeFileModel.file_name.ilike(file_name), KnowledgeFileModel.kb_name.ilike(kb_name))
+                     .first())
+    if existing_file:
+        session.delete(existing_file)
+        session.commit()
+
+        kb = session.query(KnowledgeBaseModel).filter(KnowledgeBaseModel.kb_name.ilike(kb_name)).first()
+        if kb:
+            kb.file_count -= 1
+            session.commit()
+        return True
+    else:
+        return False
+
+
+@with_session
+def delete_files_from_db(session, knowledge_base_name: str):
+    session.query(KnowledgeFileModel).filter(KnowledgeFileModel.kb_name.ilike(knowledge_base_name)).delete(
+        synchronize_session='fetch')
+    session.query(FileDocModel).filter(FileDocModel.kb_name.ilike(knowledge_base_name)).delete(
+        synchronize_session='fetch')
+    session.query(FileAnswerModel).filter(FileAnswerModel.kb_name.ilike(knowledge_base_name)).delete(
+        synchronize_session='fetch')
+    session.query(AnswerQuestionModel).filter(AnswerQuestionModel.kb_name.ilike(knowledge_base_name)).delete(
+        synchronize_session='fetch')
+    session.commit()
+
+    kb = session.query(KnowledgeBaseModel).filter(KnowledgeBaseModel.kb_name.ilike(knowledge_base_name)).first()
+    if kb:
+        kb.file_count = 0
+    session.commit()
+
+    return True
 
 
 @with_session
@@ -115,43 +201,8 @@ def add_docs_to_db(session,
             meta_data=d["metadata"],
         )
         session.add(obj)
+    session.commit()
     return True
-
-
-@with_session
-def delete_answer_from_db(session,
-                          kb_name: str,
-                          file_name: str = None,
-                          ) -> List[Dict]:
-    '''
-    删除某知识库某文件对应的所有Answer，并返回被删除的Answer。
-    返回形式：[{"id": str, "metadata": dict}, ...]
-    '''
-    docs = list_answer_from_db(kb_name=kb_name, file_name=file_name)
-    query = session.query(FileAnswerModel).filter(FileAnswerModel.kb_name.ilike(kb_name))
-    if file_name:
-        query = query.filter(FileAnswerModel.file_name.ilike(file_name))
-    query.delete(synchronize_session=False)
-    session.commit()
-    return docs
-
-
-@with_session
-def delete_question_from_db(session,
-                            kb_name: str,
-                            file_name: str = None,
-                            ) -> List[Dict]:
-    '''
-    删除某知识库某文件对应的所有question，并返回被删除的question。
-    返回形式：[{"id": str, "metadata": dict}, ...]
-    '''
-    docs = list_question_from_db(kb_name=kb_name, file_name=file_name)
-    query = session.query(AnswerQuestionModel).filter(AnswerQuestionModel.kb_name.ilike(kb_name))
-    if file_name:
-        query = query.filter(AnswerQuestionModel.file_name.ilike(file_name))
-    query.delete(synchronize_session=False)
-    session.commit()
-    return docs
 
 
 @with_session
@@ -177,6 +228,7 @@ def add_answer_to_db(session,
             meta_data=d["metadata"],
         )
         session.add(obj)
+    session.commit()
     return True
 
 
@@ -205,6 +257,7 @@ def add_question_to_db(session,
             meta_data=d["metadata"],
         )
         session.add(obj)
+    session.commit()
     return True
 
 
@@ -291,48 +344,11 @@ def add_file_to_db(session,
             )
             kb.file_count += 1
             session.add(new_file)
+            session.commit()
         status = add_docs_to_db(kb_name=kb_file.kb_name, file_name=kb_file.filename, doc_infos=doc_infos)
     else:
         status = False
     return status
-
-
-@with_session
-def delete_file_from_db(session, kb_file: KnowledgeFile):
-    existing_file = (session.query(KnowledgeFileModel)
-                     .filter(KnowledgeFileModel.file_name.ilike(kb_file.filename),
-                             KnowledgeFileModel.kb_name.ilike(kb_file.kb_name))
-                     .first())
-    if existing_file:
-        session.delete(existing_file)
-        delete_docs_from_db(kb_name=kb_file.kb_name, file_name=kb_file.filename)
-        delete_answer_from_db(kb_name=kb_file.kb_name, file_name=kb_file.filename)
-        delete_question_from_db(kb_name=kb_file.kb_name, file_name=kb_file.filename)
-        session.commit()
-
-        kb = session.query(KnowledgeBaseModel).filter(KnowledgeBaseModel.kb_name.ilike(kb_file.kb_name)).first()
-        if kb:
-            kb.file_count -= 1
-            session.commit()
-    return True
-
-
-@with_session
-def delete_files_from_db(session, knowledge_base_name: str):
-    session.query(KnowledgeFileModel).filter(KnowledgeFileModel.kb_name.ilike(knowledge_base_name)).delete(
-        synchronize_session=False)
-    session.query(FileDocModel).filter(FileDocModel.kb_name.ilike(knowledge_base_name)).delete(
-        synchronize_session=False)
-    session.query(FileAnswerModel).filter(FileAnswerModel.kb_name.ilike(knowledge_base_name)).delete(
-        synchronize_session=False)
-    session.query(AnswerQuestionModel).filter(AnswerQuestionModel.kb_name.ilike(knowledge_base_name)).delete(
-        synchronize_session=False)
-    kb = session.query(KnowledgeBaseModel).filter(KnowledgeBaseModel.kb_name.ilike(knowledge_base_name)).first()
-    if kb:
-        kb.file_count = 0
-
-    session.commit()
-    return True
 
 
 @with_session
