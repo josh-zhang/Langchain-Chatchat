@@ -302,7 +302,18 @@ def count_files_from_db(session, kb_name: str) -> int:
 @with_session
 def list_files_from_db(session, kb_name):
     files = session.query(KnowledgeFileModel).filter(KnowledgeFileModel.kb_name.ilike(kb_name)).all()
-    docs = [f.file_name for f in files]
+    docs = [(f.file_name, f.create_time) for f in files]
+    docs = sorted(docs, key=lambda element: element[1], reverse=True)
+    docs = [doc[0] for doc in docs]
+    return docs
+
+
+@with_session
+def list_files_info_from_db(session, kb_name):
+    files = session.query(KnowledgeFileModel).filter(KnowledgeFileModel.kb_name.ilike(kb_name)).all()
+    docs = [(f.file_name, f.document_loader_name, f.create_time) for f in files]
+    docs = sorted(docs, key=lambda element: element[2], reverse=True)
+    docs = [(doc[0], doc[1]) for doc in docs]
     return docs
 
 

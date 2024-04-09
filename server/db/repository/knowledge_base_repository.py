@@ -25,7 +25,7 @@ def list_kbs_from_db(session, min_file_count: int = -1):
     kbs = session.query(KnowledgeBaseModel).filter(KnowledgeBaseModel.file_count > min_file_count).all()
     kbs = [[kb.kb_name, kb.kb_info, kb.create_time] for kb in kbs]
     kbs = sorted(kbs, key=lambda element: element[2], reverse=True)
-    kbs = [[kb[0], kb[1]] for kb in kbs]
+    kbs = [(kb[0], kb[1]) for kb in kbs]
     return kbs
 
 

@@ -1,5 +1,6 @@
 import time
 import datetime
+import re
 
 import pandas as pd
 import streamlit as st
@@ -14,6 +15,18 @@ from webui_pages.utils import *
 # SENTENCE_SIZE = 100
 
 cell_renderer = JsCode("""function(params) {if(params.value==true){return '✓'}else{return '×'}}""")
+
+
+# Function to validate and clean the input
+def validate_and_clean_input(user_input):
+    # Regular expression for matching allowed characters
+    pattern = re.compile('^[a-zA-Z0-9_]+$')
+    if pattern.match(user_input):
+        return user_input, True  # Input is valid
+    else:
+        # Replace disallowed characters with an empty string
+        cleaned_input = re.sub('[^a-zA-Z0-9_]', '', user_input)
+        return cleaned_input, False  # Input was invalid, but cleaned
 
 
 def config_aggrid(
@@ -107,12 +120,19 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
             suggested_name = f"{now_str}源文件"
 
             new_kb_name = st.text_input(
-                "新建知识库ID",
-                placeholder="新知识库ID，不支持中文命名",
+                "新建知识库ID (仅支持英文字母、数字和下划线)",
+                placeholder="新知识库ID (仅支持英文字母、数字和下划线)",
                 key="kb_name",
                 value=suggested_id,
                 max_chars=50,
             )
+
+            # Validate the input
+            cleaned_input, is_valid = validate_and_clean_input(new_kb_name)
+
+            if not is_valid:
+                st.warning("新建知识库ID中仅支持包含英文字母、数字和下划线")
+
             new_kb_info = st.text_input(
                 "知识库名称",
                 placeholder="知识库名称",
@@ -149,7 +169,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
 
             submit_create_kb = st.form_submit_button(
                 "新建",
-                # disabled=not bool(kb_name),
+                disabled=not is_valid,
                 use_container_width=True,
             )
 
@@ -241,7 +261,18 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
 
         # 知识库详情
         # st.info("请选择文件，点击按钮进行操作。")
-        doc_details = pd.DataFrame(get_kb_file_details(this_kb_name))
+        kb_file_details = get_kb_file_details(this_kb_name)
+
+        for kb_file_detail in kb_file_details:
+            loader = kb_file_detail['document_loader']
+            if loader == "CustomExcelLoader":
+                kb_file_detail['file_type'] = "FAQ表格文件"
+            elif loader == "CustomHTMLLoader":
+                kb_file_detail['file_type'] = "知识库网页文件"
+            else:
+                kb_file_detail['file_type'] = "普通文件"
+
+        doc_details = pd.DataFrame(kb_file_details)
 
         if not len(doc_details):
             st.info(f"知识库【`{this_kb_info}`】 中暂无文件")
@@ -259,12 +290,13 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 {
                     ("No", "序号"): {},
                     ("file_name", "文档名称"): {},
+                    ("file_type", "文档类型"): {},
                     # ("file_ext", "文档类型"): {},
                     # ("file_version", "文档版本"): {},
-                    ("document_loader", "文档加载器"): {},
                     ("docs_count", "文档数量"): {},
+                    ("create_time", "创建时间"): {},
+                    ("document_loader", "文档加载器"): {},
                     ("text_splitter", "分词器"): {},
-                    # ("create_time", "创建时间"): {},
                     ("in_folder", "源文件"): {"cellRenderer": cell_renderer},
                     ("in_db", "向量库"): {"cellRenderer": cell_renderer},
                 },
