@@ -82,6 +82,7 @@ class ApiRequest:
             json: Dict = None,
             retry: int = 3,
             stream: bool = False,
+            timeout=None,
             **kwargs: Any
     ) -> Union[httpx.Response, Iterator[httpx.Response], None]:
         while retry > 0:
@@ -90,7 +91,10 @@ class ApiRequest:
                 if stream:
                     return self.client.stream("POST", url, data=data, json=json, **kwargs)
                 else:
-                    return self.client.post(url, data=data, json=json, **kwargs)
+                    if timeout is not None:
+                        return self.client.post(url, data=data, json=json, timeout=timeout, **kwargs)
+                    else:
+                        return self.client.post(url, data=data, json=json, **kwargs)
             except Exception as e:
                 msg = f"error when post {url}: {e}"
                 logger.error(f'{e.__class__.__name__}: {msg}',
@@ -591,6 +595,8 @@ class ApiRequest:
             "/knowledge_base/upload_docs",
             data=data,
             files=[("files", (filename, file)) for filename, file in files],
+            retry=1,
+            timeout=1800,
         )
         return self._get_response_value(response, as_json=True)
 

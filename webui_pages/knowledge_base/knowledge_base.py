@@ -94,7 +94,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
 
     def format_selected_kb(kb_name: str) -> str:
         if kb := kb_dict.get(kb_name):
-            return f"{kb_name} ({kb['vs_type']} @ {kb['embed_model']})"
+            return f"{kb['kb_info']} ({kb['vs_type']} @ {kb['embed_model']})"
         else:
             return kb_name
 
@@ -128,10 +128,10 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
             )
 
             # Validate the input
-            cleaned_input, is_valid = validate_and_clean_input(new_kb_name)
+            _, is_valid = validate_and_clean_input(new_kb_name)
 
             if not is_valid:
-                st.warning("新建知识库ID中仅支持包含英文字母、数字和下划线")
+                st.error("新建知识库ID中仅支持包含英文字母、数字和下划线")
 
             new_kb_info = st.text_input(
                 "知识库名称",
@@ -169,13 +169,16 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
 
             submit_create_kb = st.form_submit_button(
                 "新建",
-                disabled=not is_valid,
+                # disabled=not is_valid,
                 use_container_width=True,
             )
 
-        if submit_create_kb:
+        if submit_create_kb and is_valid:
+            _, is_valid = validate_and_clean_input(new_kb_name)
             if not new_kb_name or not new_kb_name.strip():
                 st.error(f"知识库ID不能为空！")
+            elif not is_valid:
+                st.error("新建知识库ID中仅支持包含英文字母、数字和下划线")
             elif new_kb_name in kb_dict:
                 st.error(f"ID为 {new_kb_name} 的知识库已经存在，请直接使用。如需重新创建，请先删除现有同ID知识库！")
             else:
