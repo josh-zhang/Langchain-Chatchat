@@ -598,6 +598,7 @@ class ApiRequest:
             self,
             knowledge_base_name: str,
             file_names: List[str],
+            document_loaders: List[str],
             delete_content: bool = False,
             not_refresh_vs_cache: bool = False,
     ):
@@ -607,6 +608,7 @@ class ApiRequest:
         data = {
             "knowledge_base_name": knowledge_base_name,
             "file_names": file_names,
+            "document_loaders": document_loaders,
             "delete_content": delete_content,
             "not_refresh_vs_cache": not_refresh_vs_cache,
         }

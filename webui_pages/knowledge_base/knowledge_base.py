@@ -347,7 +347,8 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                     use_container_width=True,
             ):
                 file_names = [row["file_name"] for row in selected_rows]
-                api.delete_kb_docs(this_kb_name, file_names=file_names)
+                document_loaders = [row["document_loader"] for row in selected_rows]
+                api.delete_kb_docs(this_kb_name, file_names=file_names, document_loaders=document_loaders)
                 st.rerun()
 
             if cols[2].button(
@@ -356,7 +357,9 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                     use_container_width=True,
             ):
                 file_names = [row["file_name"] for row in selected_rows]
-                api.delete_kb_docs(this_kb_name, file_names=file_names, delete_content=True)
+                document_loaders = [row["document_loader"] for row in selected_rows]
+                api.delete_kb_docs(this_kb_name, file_names=file_names, document_loaders=document_loaders,
+                                   delete_content=True)
                 st.rerun()
 
         st.divider()

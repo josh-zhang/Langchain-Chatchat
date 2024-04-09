@@ -1,16 +1,15 @@
 import os
 import urllib
-import json
 from typing import List
 
 from fastapi.responses import FileResponse
 from fastapi import File, Form, Body, Query, UploadFile
 from langchain.docstore.document import Document
-from sse_starlette import EventSourceResponse
 from pydantic import Json
 
 from server.knowledge_base.kb_service.base import KBServiceFactory
-from server.db.repository.knowledge_file_repository import get_file_detail
+from server.db.repository.knowledge_file_repository import get_file_detail, list_docs_from_db, list_answer_from_db, \
+    list_question_from_db
 from server.utils import BaseResponse, ListResponse, run_in_thread_pool
 from server.knowledge_base.kb_job.gen_qa import gen_qa_task, JobExecutor, JobFutures, FuturesAtomic
 from server.knowledge_base.utils import (validate_kb_name, list_files_from_folder, get_file_path, files2docs_in_thread,
@@ -119,13 +118,24 @@ def count_docs(
         return BaseResponse(code=403, msg="Don't attack me")
 
     knowledge_base_name = urllib.parse.unquote(knowledge_base_name)
+
+    if vector_name == "docs":
+        doc_infos = list_docs_from_db(kb_name=knowledge_base_name, file_name=file_name)
+    elif vector_name == "question":
+        doc_infos = list_question_from_db(kb_name=knowledge_base_name, file_name=file_name)
+    elif vector_name == "answer":
+        doc_infos = list_answer_from_db(kb_name=knowledge_base_name, file_name=file_name)
+    else:
+        assert False
+
     kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
     if kb is None:
         return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}")
     else:
         count = kb.count_docs(vector_name, file_name)
 
-        return BaseResponse(code=200, data={"count": count, "file_name": file_name, "vector_name": vector_name})
+        return BaseResponse(code=200, data={"vector_count": count, "db_count": len(doc_infos), "file_name": file_name,
+                                            "vector_name": vector_name})
 
 
 def _save_files_in_thread(files: List[UploadFile],
@@ -232,6 +242,7 @@ def upload_docs(
 def delete_docs(
         knowledge_base_name: str = Body(..., examples=["samples"]),
         file_names: List[str] = Body(..., examples=[["file_name.md", "test.txt"]]),
+        document_loaders: List[str] = Body(...),
         delete_content: bool = Body(False),
         not_refresh_vs_cache: bool = Body(False, description="暂不保存向量库（用于FAISS）"),
 ) -> BaseResponse:
@@ -244,15 +255,19 @@ def delete_docs(
         return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}")
 
     failed_files = {}
-    for file_name in file_names:
+    for file_name, document_loader_name in zip(file_names, document_loaders):
         if not kb.exist_doc(file_name):
             failed_files[file_name] = f"未找到文件 {file_name}"
 
         try:
             kb_file = KnowledgeFile(filename=file_name,
                                     knowledge_base_name=knowledge_base_name,
-                                    document_loader_name="unknown")
-            kb.delete_doc(kb_file, delete_content, not_refresh_vs_cache=True)
+                                    document_loader_name=document_loader_name)
+
+            if document_loader_name == "CustomExcelLoader":
+                kb.delete_faq(kb_file, delete_content, not_refresh_vs_cache=True)
+            else:
+                kb.delete_doc(kb_file, delete_content, not_refresh_vs_cache=True)
         except Exception as e:
             msg = f"{file_name} 文件删除失败，错误信息：{e}"
             logger.error(f'{e.__class__.__name__}: {msg}',
