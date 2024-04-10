@@ -14,7 +14,7 @@ from server.utils import BaseResponse, ListResponse, run_in_thread_pool
 from server.knowledge_base.kb_job.gen_qa import gen_qa_task, JobExecutor, JobFutures, FuturesAtomic
 from server.knowledge_base.utils import (validate_kb_name, list_files_from_folder, get_file_path, files2docs_in_thread,
                                          KnowledgeFile, DocumentWithScores, get_doc_path, create_compressed_archive)
-from configs import (DEFAULT_VS_TYPE, EMBEDDING_MODEL, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, BM_25_FACTOR,
+from configs import (EMBEDDING_MODEL, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, BM_25_FACTOR, LITELLM_SERVER,
                      CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE, SEARCH_ENHANCE, logger, log_verbose, BASE_TEMP_DIR)
 
 
@@ -464,7 +464,7 @@ def gen_qa_for_kb(
         future = JobFutures.get(knowledge_base_name)
 
         if future is None or future.done():
-            new_future = JobExecutor.submit(gen_qa_task, knowledge_base_name, kb_info, model_name)
+            new_future = JobExecutor.submit(gen_qa_task, knowledge_base_name, kb_info, model_name, LITELLM_SERVER, 3)
             JobFutures[knowledge_base_name] = new_future
             FuturesAtomic.release()
             return BaseResponse(code=200, msg=f"使用{model_name}的文档问答生成任务提交成功")
