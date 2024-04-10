@@ -22,7 +22,7 @@ CACHED_RERANK_NUM = 2
 CACHED_MEMO_VS_NUM = 10
 
 # 知识库中单段文本长度(不适用MarkdownHeaderTextSplitter)
-CHUNK_SIZE = 1000
+CHUNK_SIZE = 800
 
 # 知识库中相邻文本重合长度(不适用MarkdownHeaderTextSplitter)
 OVERLAP_SIZE = 100
@@ -65,27 +65,27 @@ SQLALCHEMY_DATABASE_URI = f"sqlite:///{DB_ROOT_PATH}"
 kbs_config = {
     "faiss": {
     },
-    "milvus": {
-        "host": "127.0.0.1",
-        "port": "19530",
-        "user": "",
-        "password": "",
-        "secure": False,
-    },
-    "pg": {
-        "connection_uri": "postgresql://postgres:postgres@127.0.0.1:5432/langchain_chatchat",
-    },
-    "es": {
-        "host": "127.0.0.1",
-        "port": "9200",
-        "index_name": "test_index",
-        "user": "",
-        "password": ""
-    },
-    "milvus_kwargs": {
-        "search_params": {"metric_type": "L2"},  # 在此处增加search_params
-        "index_params": {"metric_type": "L2", "index_type": "HNSW"}  # 在此处增加index_params
-    }
+    # "milvus": {
+    #     "host": "127.0.0.1",
+    #     "port": "19530",
+    #     "user": "",
+    #     "password": "",
+    #     "secure": False,
+    # },
+    # "pg": {
+    #     "connection_uri": "postgresql://postgres:postgres@127.0.0.1:5432/langchain_chatchat",
+    # },
+    # "es": {
+    #     "host": "127.0.0.1",
+    #     "port": "9200",
+    #     "index_name": "test_index",
+    #     "user": "",
+    #     "password": ""
+    # },
+    # "milvus_kwargs": {
+    #     "search_params": {"metric_type": "L2"},  # 在此处增加search_params
+    #     "index_params": {"metric_type": "L2", "index_type": "HNSW"}  # 在此处增加index_params
+    # }
 }
 
 # TextSplitter配置项，如果你不明白其中的含义，就不要修改。
