@@ -74,7 +74,6 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
     selected_kb_index = 0
     kb_details = get_kb_details()
     kb_name_dict = {x["kb_name"]: x for x in kb_details}
-    kb_info_dict = {x["kb_info"]: x["kb_name"] for x in kb_details}
     exist_kb_names = list(kb_name_dict.keys())
     exist_kb_infos = [x["kb_info"] for x in kb_details]
 
@@ -96,7 +95,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
             return kb_name
 
     selected_kb = st.selectbox(
-        "请选择知识库（或新建）：",
+        "请选择知识库（或新建）",
         exist_kb_names + ["创建新的知识库"],
         format_func=format_selected_kb,
         index=selected_kb_index
@@ -199,10 +198,10 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                     st.rerun()
 
     elif selected_kb:
-        this_kb_info = selected_kb
-        this_kb_name = kb_info_dict[selected_kb]
+        this_kb_name = selected_kb
+        this_kb_info = kb_name_dict[this_kb_name]['kb_info']
         # st.session_state["selected_kb_info"] = kb_dict[kb]['kb_info']
-        st.text_input("知识库ID", value=kb_name_dict[this_kb_name]['kb_name'], max_chars=None,
+        st.text_input("知识库ID", value=this_kb_name, max_chars=None,
                       key=None, help=None, on_change=None, args=None, kwargs=None, disabled=True)
         st.text_area("知识库介绍", value=kb_name_dict[this_kb_name]['kb_agent_guide'], max_chars=None,
                      key=None, help=None, on_change=None, args=None, kwargs=None, disabled=True)
@@ -389,7 +388,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
         cols[0].link_button(
             "下载知识库中所有文件",
             f"{get_api_address_from_client()}/knowledge_base/download_knowledge_base_files?knowledge_base_name={this_kb_name}",
-            disabled=count_kb_files > 0,
+            disabled=count_kb_files == 0,
             use_container_width=True,
         )
 
