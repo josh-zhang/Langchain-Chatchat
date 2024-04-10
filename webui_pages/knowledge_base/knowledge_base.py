@@ -144,24 +144,24 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 max_chars=200,
             )
 
-            cols = st.columns(3)
-
-            search_enhance = cols[0].checkbox("开启向量库检索加强", True)
+            cols = st.columns(2)
 
             vs_types = list(kbs_config.keys())
-            vs_type = cols[1].selectbox(
+            vs_type = cols[0].selectbox(
                 "向量库类型",
                 vs_types,
                 index=vs_types.index(DEFAULT_VS_TYPE),
                 key="vs_type",
             )
 
-            embed_model = cols[2].selectbox(
+            embed_model = cols[1].selectbox(
                 "向量库模型",
                 embed_models,
                 index=0,
                 key="embed_model",
             )
+
+            search_enhance = st.checkbox("开启向量库检索加强", True)
 
             submit_create_kb = st.form_submit_button(
                 "新建",
@@ -205,124 +205,6 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                       key=None, help=None, on_change=None, args=None, kwargs=None, disabled=True)
         st.text_area("知识库介绍", value=kb_name_dict[this_kb_name]['kb_agent_guide'], max_chars=None,
                      key=None, help=None, on_change=None, args=None, kwargs=None, disabled=True)
-
-        # 知识库详情
-        st.divider()
-
-        # st.info("请选择文件，点击按钮进行操作。")
-        kb_file_details = get_kb_file_details(this_kb_name)
-        count_kb_files = len(kb_file_details)
-        has_kf_html = False
-
-        for kb_file_detail in kb_file_details:
-            loader = kb_file_detail['document_loader']
-            if loader == "CustomExcelLoader":
-                kb_file_detail['file_type'] = "FAQ表格文件"
-            elif loader == "CustomHTMLLoader":
-                kb_file_detail['file_type'] = "知识库网页文件"
-                has_kf_html = True
-            else:
-                kb_file_detail['file_type'] = "普通文件"
-
-        doc_details = pd.DataFrame(kb_file_details)
-
-        if not len(doc_details):
-            st.info(f"知识库【`{this_kb_info}`】 中暂无文件")
-        else:
-            st.write(f"知识库【`{this_kb_info}`】中已包含 {count_kb_files} 个文件")
-
-            # st.info("知识库中包含源文件与向量库，请从下表中选择文件后操作")
-            doc_details.drop(columns=["kb_name"], inplace=True)
-            doc_details = doc_details[[
-                "No", "file_name", "file_type", "docs_count", "create_time", "in_folder", "in_db", "document_loader"
-            ]]
-            # doc_details["in_folder"] = doc_details["in_folder"].replace(True, "✓").replace(False, "×")
-            # doc_details["in_db"] = doc_details["in_db"].replace(True, "✓").replace(False, "×")
-            gb = config_aggrid(
-                doc_details,
-                {
-                    ("No", "序号"): {},
-                    ("file_name", "文件名称"): {},
-                    ("file_type", "文件类型"): {},
-                    # ("file_ext", "文件类型"): {},
-                    # ("file_version", "文件版本"): {},
-                    ("docs_count", "文件段落数量"): {},
-                    ("create_time", "上传知识库时间"): {},
-                    ("in_folder", "文件可下载"): {"cellRenderer": cell_renderer},
-                    ("in_db", "文件可检索"): {"cellRenderer": cell_renderer},
-                    ("document_loader", "文件加载器"): {},
-                    # ("text_splitter", "分词器"): {},
-                },
-                "multiple",
-            )
-
-            doc_grid = AgGrid(
-                doc_details,
-                gb.build(),
-                columns_auto_size_mode="FIT_CONTENTS",
-                theme="alpine",
-                custom_css={
-                    "#gridToolBar": {"display": "none"},
-                },
-                allow_unsafe_jscode=True,
-                enable_enterprise_modules=False
-            )
-
-            selected_rows = doc_grid.get("selected_rows", [])
-
-            cols = st.columns(3)
-
-            # file_name, file_path = file_exists(this_kb_name, selected_rows)
-            # if file_path:
-            #     with open(file_path, "rb") as fp:
-            #         cols[0].download_button(
-            #             "下载选中文档",
-            #             fp,
-            #             file_name=file_name,
-            #             use_container_width=True, )
-            # else:
-            #     cols[0].download_button(
-            #         "下载选中文档",
-            #         "",
-            #         disabled=True,
-            #         use_container_width=True, )
-            if not selected_rows:
-                cols[0].link_button(
-                    "下载选中文件",
-                    "",
-                    use_container_width=True,
-                    disabled=True,
-                )
-            else:
-                selected_file_name = selected_rows[0]["file_name"]
-                cols[0].link_button(
-                    "下载选中文件",
-                    f"{get_api_address_from_client()}/knowledge_base/download_doc?knowledge_base_name={this_kb_name}&file_name={selected_file_name}",
-                    use_container_width=True,
-                    disabled=False,
-                )
-
-            # 将文件从向量库中删除，但不删除文件本身。
-            if cols[1].button(
-                    "检索时忽略选中文件",
-                    disabled=not (selected_rows and selected_rows[0]["in_db"]),
-                    use_container_width=True,
-            ):
-                file_names = [row["file_name"] for row in selected_rows]
-                document_loaders = [row["document_loader"] for row in selected_rows]
-                api.delete_kb_docs(this_kb_name, file_names=file_names, document_loaders=document_loaders)
-                st.rerun()
-
-            if cols[2].button(
-                    "从知识库中删除选中文件",
-                    disabled=not selected_rows,
-                    use_container_width=True,
-            ):
-                file_names = [row["file_name"] for row in selected_rows]
-                document_loaders = [row["document_loader"] for row in selected_rows]
-                api.delete_kb_docs(this_kb_name, file_names=file_names, document_loaders=document_loaders,
-                                   delete_content=True)
-                st.rerun()
 
         # 上传文件
         st.divider()
@@ -380,6 +262,128 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
             elif msg := check_error_msg(ret):
                 st.toast(msg, icon="✖")
 
+        # 知识库详情
+        st.divider()
+
+        # st.info("请选择文件，点击按钮进行操作。")
+        kb_file_details = get_kb_file_details(this_kb_name)
+        file_loader_dict = dict()
+        count_kb_files = len(kb_file_details)
+        has_kf_html = False
+
+        for kb_file_detail in kb_file_details:
+            file_name = kb_file_detail['file_name']
+            loader = kb_file_detail['document_loader']
+            file_loader_dict[file_name] = loader
+            if loader == "CustomExcelLoader":
+                kb_file_detail['file_type'] = "FAQ表格文件"
+            elif loader == "CustomHTMLLoader":
+                kb_file_detail['file_type'] = "知识库网页文件"
+                has_kf_html = True
+            else:
+                kb_file_detail['file_type'] = "普通文件"
+
+        doc_details = pd.DataFrame(kb_file_details)
+
+        if not len(doc_details):
+            st.info(f"知识库【`{this_kb_info}`】 中暂无文件")
+        else:
+            st.write(f"知识库【`{this_kb_info}`】中已包含 {count_kb_files} 个文件")
+
+            # st.info("知识库中包含源文件与向量库，请从下表中选择文件后操作")
+            doc_details.drop(columns=["kb_name"], inplace=True)
+            doc_details = doc_details[[
+                "No", "file_name", "file_type", "docs_count", "create_time", "in_folder", "in_db"
+            ]]
+            # doc_details["in_folder"] = doc_details["in_folder"].replace(True, "✓").replace(False, "×")
+            # doc_details["in_db"] = doc_details["in_db"].replace(True, "✓").replace(False, "×")
+            gb = config_aggrid(
+                doc_details,
+                {
+                    ("No", "序号"): {},
+                    ("file_name", "文件名称"): {},
+                    ("file_type", "文件类型"): {},
+                    # ("file_ext", "文件类型"): {},
+                    # ("file_version", "文件版本"): {},
+                    ("docs_count", "文件段落数量"): {},
+                    ("create_time", "上传知识库时间"): {},
+                    ("in_folder", "文件可下载"): {"cellRenderer": cell_renderer},
+                    ("in_db", "文件可检索"): {"cellRenderer": cell_renderer},
+                    # ("document_loader", "文件加载器"): {},
+                    # ("text_splitter", "分词器"): {},
+                },
+                "multiple",
+            )
+
+            doc_grid = AgGrid(
+                doc_details,
+                gb.build(),
+                columns_auto_size_mode="FIT_CONTENTS",
+                theme="alpine",
+                custom_css={
+                    "#gridToolBar": {"display": "none"},
+                },
+                allow_unsafe_jscode=True,
+                enable_enterprise_modules=False
+            )
+
+            selected_rows = doc_grid.get("selected_rows", [])
+
+            cols = st.columns(3)
+
+            # file_name, file_path = file_exists(this_kb_name, selected_rows)
+            # if file_path:
+            #     with open(file_path, "rb") as fp:
+            #         cols[0].download_button(
+            #             "下载选中文档",
+            #             fp,
+            #             file_name=file_name,
+            #             use_container_width=True, )
+            # else:
+            #     cols[0].download_button(
+            #         "下载选中文档",
+            #         "",
+            #         disabled=True,
+            #         use_container_width=True, )
+            if not selected_rows:
+                cols[0].link_button(
+                    "下载选中文件",
+                    "",
+                    use_container_width=True,
+                    disabled=True,
+                )
+            else:
+                selected_file_name = selected_rows[0]["file_name"]
+                cols[0].link_button(
+                    "下载选中文件",
+                    f"{get_api_address_from_client()}/knowledge_base/download_doc?knowledge_base_name={this_kb_name}&file_name={selected_file_name}",
+                    use_container_width=True,
+                    disabled=False,
+                )
+
+            selected_file_names = [row["file_name"] for row in selected_rows]
+            selected_document_loaders = [file_loader_dict[file_name] for file_name in selected_file_names]
+
+            # 将文件从向量库中删除，但不删除文件本身。
+            if cols[1].button(
+                    "检索时忽略选中文件",
+                    disabled=not (selected_rows and selected_rows[0]["in_db"]),
+                    use_container_width=True,
+            ):
+                api.delete_kb_docs(this_kb_name, file_names=selected_file_names,
+                                   document_loaders=selected_document_loaders)
+                st.rerun()
+
+            if cols[2].button(
+                    "从知识库中删除选中文件",
+                    disabled=not selected_rows,
+                    use_container_width=True,
+            ):
+                api.delete_kb_docs(this_kb_name, file_names=selected_file_names,
+                                   document_loaders=selected_document_loaders,
+                                   delete_content=True)
+                st.rerun()
+
         st.divider()
 
         cols = st.columns(3)
@@ -388,6 +392,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
             "下载知识库中所有文件",
             f"{get_api_address_from_client()}/knowledge_base/download_knowledge_base_files?knowledge_base_name={this_kb_name}",
             disabled=count_kb_files == 0,
+            type="primary",
             use_container_width=True,
         )
 
@@ -395,6 +400,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 "为知识库中'知识库网页文件'生成问答",
                 use_container_width=True,
                 disabled=not has_kf_html,
+                type="primary",
         ):
             # st.toast(f"为知识库{this_kb_name}生成问答")
             ret = api.gen_qa_for_knowledge_base(this_kb_name, LLM_MODELS[0])
@@ -423,6 +429,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
 
         if cols[2].button(
                 "删除知识库",
+                type="primary",
                 use_container_width=True,
         ):
             ret = api.delete_knowledge_base(this_kb_name)
