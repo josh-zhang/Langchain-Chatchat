@@ -133,7 +133,7 @@ class KBService(ABC):
         status = delete_kb_from_db(self.kb_name)
         return status
 
-    def _docs_to_embeddings(self, docs: List[Document], use_async_thres=20) -> Dict:
+    def _docs_to_embeddings(self, docs: List[Document], use_async_thres=50) -> Dict:
         '''
         将 List[Document] 转化为 VectorStore.add_embeddings 可以接受的参数
         '''
@@ -464,11 +464,11 @@ class KBService(ABC):
                 docs_metadata_list += [i.metadata for i in documentWithVSIds]
             else:
                 faq_names.append(f"{file_name}_{document_loader_name}")
-                documentWithVSIds = self.list_docs("answer", file_name=file_name)
+                documentWithVSIds = self.list_docs("question", file_name=file_name)
                 questions_text_list += [i.page_content for i in documentWithVSIds]
                 questions_metadata_list += [i.metadata for i in documentWithVSIds]
 
-                documentWithVSIds = self.list_docs("question", file_name=file_name)
+                documentWithVSIds = self.list_docs("answer", file_name=file_name)
                 answers_text_list += [i.page_content for i in documentWithVSIds]
                 answers_metadata_list += [i.metadata for i in documentWithVSIds]
 

@@ -90,18 +90,18 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
 
     def format_selected_kb(kb_name: str) -> str:
         if kb := kb_name_dict.get(kb_name):
-            return f"{kb['kb_info']} ({kb['vs_type']} @ {kb['embed_model']})"
+            return kb['kb_info']
         else:
             return kb_name
 
     selected_kb = st.selectbox(
         "请选择知识库（或新建）",
-        exist_kb_names + ["创建新的知识库"],
+        exist_kb_names + ["- 创建新的知识库 -"],
         format_func=format_selected_kb,
         index=selected_kb_index
     )
 
-    if selected_kb == "创建新的知识库":
+    if selected_kb == "- 创建新的知识库 -":
         embed_models = get_embed_models(api)
 
         if not embed_models:
