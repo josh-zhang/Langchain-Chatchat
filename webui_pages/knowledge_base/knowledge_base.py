@@ -316,7 +316,6 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
             if cols[2].button(
                     "从知识库中删除选中文件",
                     disabled=not selected_rows,
-                    type="danger",
                     use_container_width=True,
             ):
                 file_names = [row["file_name"] for row in selected_rows]
@@ -424,7 +423,6 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
 
         if cols[2].button(
                 "删除知识库",
-                type="danger",
                 use_container_width=True,
         ):
             ret = api.delete_knowledge_base(this_kb_name)
