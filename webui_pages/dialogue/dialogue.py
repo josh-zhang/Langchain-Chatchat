@@ -532,7 +532,9 @@ def kb_dialogue_page(api: ApiRequest):
             score_threshold = st.slider(f"搜索门槛 (门槛越高相似度要求越高，默认为{SCORE_THRESHOLD})：", 0.0, 1.0,
                                         float(SCORE_THRESHOLD), 0.01)
 
-            kb_search_type = st.radio('问答搜索方式', ['重新搜索', '继续问答'],
+            has_source = 0 if st.session_state["cur_source_docs"] else 1
+            kb_search_type = st.radio('问答搜索方式', ['继续问答', '重新搜索'],
+                                      index=has_source,
                                       captions=["AI根据新的输入重新搜索知识库进行问答",
                                                 "AI根据上方搜索结果进行问答"])
 

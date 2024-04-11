@@ -38,6 +38,7 @@ def list_api_running_models() -> BaseResponse:
             res = r.json()['data']
             model_list = [i['model_name'] for i in res if 'mode' not in i['model_info'] or (
                         'mode' in i['model_info'] and i['model_info']['mode'] != 'embedding')]
+            model_list = list(set(model_list))
             return BaseResponse(data=model_list)
     except Exception as e:
         logger.error(f'{e.__class__.__name__}: {e}',
