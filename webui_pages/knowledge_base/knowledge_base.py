@@ -123,12 +123,6 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 max_chars=50,
             )
 
-            # Validate the input
-            _, is_valid = validate_and_clean_input(new_kb_name)
-
-            if not is_valid:
-                st.error("新建知识库ID中仅支持包含英文字母、数字和下划线")
-
             new_kb_info = st.text_input(
                 "知识库名称",
                 placeholder="知识库名称",
@@ -169,7 +163,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 use_container_width=True,
             )
 
-        if submit_create_kb and is_valid:
+        if submit_create_kb:
             _, is_valid = validate_and_clean_input(new_kb_name)
 
             if not new_kb_name or not new_kb_name.strip():
