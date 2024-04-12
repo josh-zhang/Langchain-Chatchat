@@ -111,8 +111,8 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
         with st.form("新建知识库"):
 
             now = datetime.datetime.now()
-            now_str = now.strftime('%Y%m%d_%H%M')
-            suggested_id = f"{now_str}_html"
+            now_str = now.strftime('%Y%m%d_%H%M%S')
+            suggested_id = f"{now_str}"
             suggested_name = f"{now_str}源文件"
 
             new_kb_name = st.text_input(
@@ -127,7 +127,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 "知识库名称",
                 placeholder="知识库名称",
                 key="kb_info",
-                value=suggested_name,
+                value="",
                 max_chars=100,
             )
             new_kb_agent_guide = st.text_area(
