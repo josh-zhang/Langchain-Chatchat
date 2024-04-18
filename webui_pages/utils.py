@@ -743,25 +743,25 @@ class ApiRequest:
     #     return self._httpx_stream2generator(response, as_json=True)
 
     # LLM模型相关操作
-    def list_running_models(
-            self,
-            controller_address: str = None,
-    ):
-        '''
-        获取Fastchat中正运行的模型列表
-        '''
-        data = {
-            "controller_address": controller_address,
-        }
-
-        if log_verbose:
-            logger.info(f'{self.__class__.__name__}:data: {data}')
-
-        response = self.post(
-            "/llm_model/list_running_models",
-            json=data,
-        )
-        return self._get_response_value(response, as_json=True, value_func=lambda r: r.get("data", []))
+    # def list_running_models(
+    #         self,
+    #         controller_address: str = None,
+    # ):
+    #     '''
+    #     获取Fastchat中正运行的模型列表
+    #     '''
+    #     data = {
+    #         "controller_address": controller_address,
+    #     }
+    #
+    #     if log_verbose:
+    #         logger.info(f'{self.__class__.__name__}:data: {data}')
+    #
+    #     response = self.post(
+    #         "/llm_model/list_running_models",
+    #         json=data,
+    #     )
+    #     return self._get_response_value(response, as_json=True, value_func=lambda r: r.get("data", []))
 
     # LLM模型相关操作
     def list_embed_models(
@@ -797,51 +797,51 @@ class ApiRequest:
         )
         return self._get_response_value(response, as_json=True, value_func=lambda r: r.get("data", []))
 
-    def get_default_llm_model(self, local_first: bool = True) -> Tuple[str, bool]:
-        '''
-        从服务器上获取当前运行的LLM模型。
-        当 local_first=True 时，优先返回运行中的本地模型，否则优先按LLM_MODELS配置顺序返回。
-        返回类型为（model_name, is_local_model）
-        '''
-
-        def ret_sync():
-            running_models = self.list_running_models()
-
-            if not running_models:
-                return "", False
-
-            model = list(running_models)[0]
-
-            is_local = True
-            return model, is_local
-
-        async def ret_async():
-            running_models = await self.list_running_models()
-            if not running_models:
-                return "", False
-
-            model = ""
-            is_local = True
-
-            for m in LLM_MODELS:
-                if m not in running_models:
-                    continue
-
-                if local_first and not is_local:
-                    continue
-                else:
-                    model = m
-                    break
-
-            if not model:  # LLM_MODELS中配置的模型都不在running_models里
-                model = list(running_models)[0]
-
-            return model, is_local
-
-        if self._use_async:
-            return ret_async()
-        else:
-            return ret_sync()
+    # def get_default_llm_model(self, local_first: bool = True) -> Tuple[str, bool]:
+    #     '''
+    #     从服务器上获取当前运行的LLM模型。
+    #     当 local_first=True 时，优先返回运行中的本地模型，否则优先按LLM_MODELS配置顺序返回。
+    #     返回类型为（model_name, is_local_model）
+    #     '''
+    #
+    #     def ret_sync():
+    #         running_models = self.list_running_models()
+    #
+    #         if not running_models:
+    #             return "", False
+    #
+    #         model = list(running_models)[0]
+    #
+    #         is_local = True
+    #         return model, is_local
+    #
+    #     async def ret_async():
+    #         running_models = await self.list_running_models()
+    #         if not running_models:
+    #             return "", False
+    #
+    #         model = ""
+    #         is_local = True
+    #
+    #         for m in LLM_MODELS:
+    #             if m not in running_models:
+    #                 continue
+    #
+    #             if local_first and not is_local:
+    #                 continue
+    #             else:
+    #                 model = m
+    #                 break
+    #
+    #         if not model:  # LLM_MODELS中配置的模型都不在running_models里
+    #             model = list(running_models)[0]
+    #
+    #         return model, is_local
+    #
+    #     if self._use_async:
+    #         return ret_async()
+    #     else:
+    #         return ret_sync()
 
     def list_config_models(
             self,

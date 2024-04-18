@@ -3,7 +3,7 @@ import asyncio
 
 from fastapi import Body
 from sse_starlette.sse import EventSourceResponse
-from configs import LLM_MODELS, TEMPERATURE, HISTORY_LEN
+from configs import LLM_MODEL, TEMPERATURE, HISTORY_LEN
 
 from langchain.chains import LLMChain
 from langchain.memory import ConversationBufferWindowMemory
@@ -28,7 +28,7 @@ async def agent_chat(query: str = Body(..., description="用户输入", examples
                                                         "content": "使用天气查询工具查询到今天北京多云，10-14摄氏度，东北风2级，易感冒"}]]
                                                    ),
                      stream: bool = Body(False, description="流式输出"),
-                     model_name: str = Body(LLM_MODELS[0], description="LLM 模型名称。"),
+                     model_name: str = Body(LLM_MODEL, description="LLM 模型名称。"),
                      temperature: float = Body(TEMPERATURE, description="LLM 采样温度", ge=0.0, le=1.0),
                      max_tokens: Optional[int] = Body(None, description="限制LLM生成Token数量，默认None代表模型最大值"),
                      prompt_name: str = Body("default",

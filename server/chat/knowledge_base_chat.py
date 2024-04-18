@@ -17,10 +17,10 @@ from server.chat.utils import History
 from server.chat.prompt_generator import generate_doc_qa
 from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.knowledge_base.kb_doc_api import search_docs
-from server.knowledge_base.kb_cache.base import reranker_pool
+# from server.knowledge_base.kb_cache.base import reranker_pool
 from server.utils import BaseResponse
 from server.utils import xinference_supervisor_address
-from configs import (LLM_MODELS,
+from configs import (LLM_MODEL,
                      VECTOR_SEARCH_TOP_K,
                      SCORE_THRESHOLD,
                      BM_25_FACTOR,
@@ -28,8 +28,7 @@ from configs import (LLM_MODELS,
                      USE_RERANKER,
                      RERANKER_MODEL,
                      API_SERVER_HOST_MAPPING,
-                     API_SERVER_PORT_MAPPING,
-                     RERANKER_MAX_LENGTH)
+                     API_SERVER_PORT_MAPPING)
 
 
 def do_rerank(
@@ -40,10 +39,9 @@ def do_rerank(
         return_documents: Optional[bool] = None,
         model_name: str = RERANKER_MODEL,
 ):
-    model_uid = model_name[:-4] if model_name.endswith("-api") else model_name
     url = f"{xinference_supervisor_address()}/v1/rerank"
     request_body = {
-        "model": model_uid,
+        "model": model_name,
         "documents": documents,
         "query": query,
         "top_n": top_n,
@@ -82,7 +80,7 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
                                   examples=["引用正文1", "引用正文2"]
                               ),
                               stream: bool = Body(False, description="流式输出"),
-                              model_name: str = Body(LLM_MODELS[0], description="LLM 模型名称。"),
+                              model_name: str = Body(LLM_MODEL, description="LLM 模型名称。"),
                               temperature: float = Body(TEMPERATURE, description="LLM 采样温度", ge=0.0, le=1.0),
                               max_tokens: Optional[int] = Body(
                                   None,

@@ -15,7 +15,7 @@ def list_embed_models(
         placeholder: str = Body(None, description="该参数未使用，占位用"),
 ) -> BaseResponse:
     '''
-    从fastchat controller获取已加载模型列表及其配置项
+    从LITELLM_SERVER获取已加载模型列表及其配置项
     '''
     local_embed_models = list(MODEL_PATH["embed_model"])
     supervisor_address = supervisor_address or LITELLM_SERVER

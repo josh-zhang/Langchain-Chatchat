@@ -9,7 +9,7 @@ from langchain.prompts.chat import ChatPromptTemplate
 from langchain.chains import LLMChain
 from langchain.callbacks import AsyncIteratorCallbackHandler
 
-from configs import (LLM_MODELS, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, TEMPERATURE,
+from configs import (LLM_MODEL, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, TEMPERATURE,
                      CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE)
 from server.utils import (wrap_done, BaseResponse, get_prompt_template, get_temp_dir, run_in_thread_pool,
                           get_ChatOpenAI)
@@ -112,7 +112,7 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
                                                        "content": "虎头虎脑"}]]
                                                   ),
                     stream: bool = Body(False, description="流式输出"),
-                    model_name: str = Body(LLM_MODELS[0], description="LLM 模型名称。"),
+                    model_name: str = Body(LLM_MODEL, description="LLM 模型名称。"),
                     temperature: float = Body(TEMPERATURE, description="LLM 采样温度", ge=0.0, le=1.0),
                     max_tokens: Optional[int] = Body(None, description="限制LLM生成Token数量，默认None代表模型最大值"),
                     prompt_name: str = Body("default",
