@@ -16,7 +16,7 @@ CACHED_BM25_VS_NUM = 20
 CACHED_EMBED_NUM = 1
 
 # 缓存向量库数量（针对Reranker）
-CACHED_RERANK_NUM = 2
+CACHED_RERANK_NUM = 1
 
 # 缓存临时向量库数量（针对FAISS），用于文件对话
 CACHED_MEMO_VS_NUM = 10

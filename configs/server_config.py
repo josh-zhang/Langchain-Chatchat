@@ -42,24 +42,24 @@ API_SERVER_PORT_MAPPING = {
     30002: 40788
 }
 
-# fastchat openai_api server
-FSCHAT_OPENAI_API = {
-    "host": DEFAULT_BIND_HOST,
-    "port": 30002,
-}
-
-# fastchat controller server
-FSCHAT_CONTROLLER = {
-    "host": DEFAULT_BIND_HOST,
-    "port": 4141,
-    "dispatch_method": "shortest_queue",
-}
-
-# xinference server
-# XINFERENCE_API = {
+# # fastchat openai_api server
+# FSCHAT_OPENAI_API = {
 #     "host": DEFAULT_BIND_HOST,
 #     "port": 30002,
 # }
+#
+# # fastchat controller server
+# FSCHAT_CONTROLLER = {
+#     "host": DEFAULT_BIND_HOST,
+#     "port": 4141,
+#     "dispatch_method": "shortest_queue",
+# }
+
+# xinference server
+XINFERENCE_API = {
+    "host": "198.203.120.8",
+    "port": 40778,
+}
 
 QA_JOB_SCRIPT_PATH = "/opt/projects/qabot-be/deploy/main.py"
 

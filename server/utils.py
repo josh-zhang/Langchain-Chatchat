@@ -383,14 +383,14 @@ def fschat_openai_api_address() -> str:
     return f"http://{host}:{port}/v1"
 
 
-# def xinference_supervisor_address() -> str:
-#     from configs.server_config import XINFERENCE_API
-#
-#     host = XINFERENCE_API["host"]
-#     if host == "0.0.0.0":
-#         host = "127.0.0.1"
-#     port = XINFERENCE_API["port"]
-#     return f"http://{host}:{port}"
+def xinference_supervisor_address() -> str:
+    from configs.server_config import XINFERENCE_API
+
+    host = XINFERENCE_API["host"]
+    if host == "0.0.0.0":
+        host = "127.0.0.1"
+    port = XINFERENCE_API["port"]
+    return f"http://{host}:{port}"
 
 
 def api_address() -> str:
