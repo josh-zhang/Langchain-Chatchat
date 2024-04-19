@@ -8,7 +8,7 @@ from pathlib import Path
 from configs import (
     EMBEDDING_MODEL,
     DEFAULT_VS_TYPE,
-    LLM_MODELS,
+    LLM_MODEL,
     TEMPERATURE,
     SCORE_THRESHOLD,
     CHUNK_SIZE,
@@ -278,7 +278,7 @@ class ApiRequest:
             history_len: int = -1,
             history: List[Dict] = [],
             stream: bool = True,
-            model: str = LLM_MODELS[0],
+            model: str = LLM_MODEL,
             temperature: float = TEMPERATURE,
             max_tokens: int = None,
             prompt_name: str = "default",
@@ -310,7 +310,7 @@ class ApiRequest:
             query: str,
             history: List[Dict] = [],
             stream: bool = True,
-            model: str = LLM_MODELS[0],
+            model: str = LLM_MODEL,
             temperature: float = TEMPERATURE,
             max_tokens: int = None,
             prompt_name: str = "default",
@@ -344,7 +344,7 @@ class ApiRequest:
             history: List[Dict] = [],
             source: List = [],
             stream: bool = True,
-            model: str = LLM_MODELS[0],
+            model: str = LLM_MODEL,
             temperature: float = TEMPERATURE,
             max_tokens: int = None,
             prompt_name: str = "default",
@@ -425,7 +425,7 @@ class ApiRequest:
             score_threshold: float = SCORE_THRESHOLD,
             history: List[Dict] = [],
             stream: bool = True,
-            model: str = LLM_MODELS[0],
+            model: str = LLM_MODEL,
             temperature: float = TEMPERATURE,
             max_tokens: int = None,
             prompt_name: str = "default",
@@ -843,21 +843,21 @@ class ApiRequest:
     #     else:
     #         return ret_sync()
 
-    def list_config_models(
-            self,
-            types: List[str] = ["online"],
-    ) -> Dict[str, Dict]:
-        '''
-        获取服务器configs中配置的模型列表，返回形式为{"type": {model_name: config}, ...}。
-        '''
-        data = {
-            "types": types,
-        }
-        response = self.post(
-            "/llm_model/list_config_models",
-            json=data,
-        )
-        return self._get_response_value(response, as_json=True, value_func=lambda r: r.get("data", {}))
+    # def list_config_models(
+    #         self,
+    #         types: List[str] = ["online"],
+    # ) -> Dict[str, Dict]:
+    #     '''
+    #     获取服务器configs中配置的模型列表，返回形式为{"type": {model_name: config}, ...}。
+    #     '''
+    #     data = {
+    #         "types": types,
+    #     }
+    #     response = self.post(
+    #         "/llm_model/list_config_models",
+    #         json=data,
+    #     )
+    #     return self._get_response_value(response, as_json=True, value_func=lambda r: r.get("data", {}))
 
     def get_model_config(
             self,

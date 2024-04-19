@@ -397,7 +397,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 type="primary",
         ):
             # st.toast(f"为知识库{this_kb_name}生成问答")
-            ret = api.gen_qa_for_knowledge_base(this_kb_name, LLM_MODELS[0])
+            ret = api.gen_qa_for_knowledge_base(this_kb_name, LLM_MODEL)
             st.toast(ret.get("msg", " "))
             time.sleep(1)
             st.rerun()

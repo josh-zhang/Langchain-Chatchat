@@ -4,7 +4,7 @@ from streamlit_option_menu import option_menu
 from webui_pages.dialogue.dialogue import dialogue_page
 from webui_pages.dialogue.dialogue import file_dialogue_page
 from webui_pages.dialogue.dialogue import kb_dialogue_page
-from webui_pages.dialogue.dialogue import agent_dialogue_page
+# from webui_pages.dialogue.dialogue import agent_dialogue_page
 from webui_pages.knowledge_base.knowledge_base import knowledge_base_page
 import os
 import sys

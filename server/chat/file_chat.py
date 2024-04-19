@@ -11,8 +11,7 @@ from langchain.callbacks import AsyncIteratorCallbackHandler
 
 from configs import (LLM_MODEL, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, TEMPERATURE,
                      CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE)
-from server.utils import (wrap_done, BaseResponse, get_prompt_template, get_temp_dir, run_in_thread_pool,
-                          get_ChatOpenAI)
+from server.utils import (wrap_done, BaseResponse, get_temp_dir, run_in_thread_pool, get_ChatOpenAI)
 from server.chat.utils import History
 from server.knowledge_base.kb_cache.faiss_cache import memo_faiss_pool
 from server.knowledge_base.kb_service.base import EmbeddingsFunAdapter

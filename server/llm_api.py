@@ -1,6 +1,3 @@
-from typing import List
-
-from fastapi import Body
 from configs import logger, log_verbose, LITELLM_SERVER
 from server.utils import BaseResponse, get_httpx_client
 
@@ -14,7 +11,7 @@ def list_api_running_models() -> BaseResponse:
             r = client.get("http://" + LITELLM_SERVER + "/model/info")
             res = r.json()['data']
             model_list = [i['model_name'] for i in res if 'mode' not in i['model_info'] or (
-                        'mode' in i['model_info'] and i['model_info']['mode'] != 'embedding')]
+                    'mode' in i['model_info'] and i['model_info']['mode'] != 'embedding')]
             model_list = list(set(model_list))
             return BaseResponse(data=model_list)
     except Exception as e:
@@ -24,7 +21,6 @@ def list_api_running_models() -> BaseResponse:
             code=500,
             data={},
             msg=f"failed to get available models from LLM_SERVER: {LITELLM_SERVER}。错误信息是： {e}")
-
 
 # def list_config_models(
 #         types: List[str] = Body(["local", "online"], description="模型配置项类别，如local, online, worker"),

@@ -6,7 +6,7 @@ import streamlit as st
 from streamlit_chatbox import *
 from streamlit_javascript import st_javascript
 
-from configs import HISTORY_LEN, MAX_TOKENS, SUPPORT_AGENT_MODEL, LLM_MODEL
+from configs import HISTORY_LEN, MAX_TOKENS, SUPPORT_AGENT_MODEL
 from server.knowledge_base.utils import LOADER_DICT
 from server.utils import get_prompts
 from webui_pages.utils import *
@@ -54,9 +54,9 @@ def get_api_running_models(_api):
     return available_models
 
 
-@st.cache_data(ttl=300)
-def get_config_models(_api):
-    return _api.list_config_models(["online"])
+# @st.cache_data(ttl=300)
+# def get_config_models(_api):
+#     return _api.list_config_models(["online"])
 
 
 @st.cache_data(ttl=60)

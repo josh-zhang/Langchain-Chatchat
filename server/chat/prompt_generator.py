@@ -13,33 +13,33 @@ def get_prompt(fallback: str, history: List[History], context: str) -> str:
         chat_history += f"{his.role}: {his.content}\n"
 
     if context and chat_history:
-        prompt_template = """你用严谨的风格，根据下面的参考信息和聊天历史，严格按照下面的回答要求回答用户问题。
+        prompt_template = """你用严谨风格，根据下面的参考信息和聊天历史，严格按照下面的回答要求回答用户问题。
 
 ### 参考信息 ###
 {{ context }}"""
 
     elif context and not chat_history:
-        prompt_template = """你用严谨的风格，根据下面的参考信息，严格按照下面的回答要求回答用户问题。
+        prompt_template = """你用严谨风格，根据下面的参考信息，严格按照下面的回答要求回答用户问题。
 
 ### 参考信息 ###
 {{ context }}"""
 
     elif not context and chat_history:
-        prompt_template = "你用严谨的风格，根据下面的聊天历史，严格按照下面的回答要求回答用户问题。"
+        prompt_template = "你用严谨风格，根据下面的聊天历史，严格按照下面的回答要求回答用户问题。"
     else:
-        prompt_template = "你用严谨的风格，严格按照下面的回答要求回答用户问题。"
+        prompt_template = "你用严谨风格，严格按照下面的回答要求回答用户问题。"
 
     if context:
-        answer_prompts = ["1. 你只能根据上面参考信息中给出的事实信息来回答用户问题，不要胡编乱造。",
+        answer_prompts = ["1. 你只能根据上面参考信息中给出的事实来回答用户问题，不要胡编乱造。",
                           "2. 如果向用户提出澄清问题有助于回答问题，可以尝试提问。"]
         index = 3
         if len(fallback) > 0:
             answer_prompts.append(
-                str(index) + ". " + """如果参考信息中的信息不足以回答用户问题，请直接回答："{fallback}"，并给出简单解释。""".format(
+                str(index) + ". " + """如果参考信息不足以回答用户问题，请直接回答："{fallback}"，并给出简单解释。""".format(
                     fallback=fallback))
             index += 1
 
-        citation_prompt = "如果你给出的答案里引用了上面参考信息中的内容，请在答案的结尾处添加你引用的Source_id，引用的Source_id值来自于参考信息中，并用两个方括号括起来。示例：[[出处1]]、[[出处2]]"
+        citation_prompt = "如果你给出的答案里引用了上面参考信息中的内容，请在答案结尾处添加你引用的Source_id，引用的Source_id值来自于参考信息中，并用两个方括号括起来。示例：[[出处1]]、[[出处2]]"
         answer_prompts.append(str(index) + ". " + citation_prompt)
         index += 1
     else:
