@@ -6,13 +6,13 @@ import os
 MODEL_ROOT_PATH = "/opt/projects/hf_models"
 
 # 选用的 Embedding 名称
-EMBEDDING_MODEL = "bge-m3"
+EMBEDDING_MODEL = "bge-m3-api"
 
 # Embedding 模型运行设备。设为"auto"会自动检测，也可手动设定为"cuda","mps","cpu"其中之一。
 EMBEDDING_DEVICE = "auto"
 
 # 选用的reranker模型
-RERANKER_MODEL = "bge-reranker-v2-m3"
+RERANKER_MODEL = "bge-reranker-v2-m3-1"
 # 是否启用reranker模型
 USE_RERANKER = True
 RERANKER_MAX_LENGTH = 8192

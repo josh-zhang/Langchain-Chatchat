@@ -31,6 +31,7 @@ def list_embed_models(
         res = res.json()['data']
         model_list = [i['model_name'] for i in res if
                       'mode' in i['model_info'] and i['model_info']['mode'] == 'embedding']
+        model_list = list(set(model_list))
         model_list = [f"{i}-api" for i in model_list]
 
         model_list += local_embed_models

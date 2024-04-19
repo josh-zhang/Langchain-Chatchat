@@ -152,7 +152,7 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
                                            score_threshold=score_threshold)
 
             # 加入reranker
-            if USE_RERANKER and len(docs) > 1:
+            if USE_RERANKER and len(docs) > top_k:
                 doc_list = list(docs)
                 _docs = [d.page_content for d in doc_list]
 
