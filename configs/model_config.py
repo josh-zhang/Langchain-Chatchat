@@ -12,7 +12,7 @@ EMBEDDING_MODEL = "bge-m3-api"
 EMBEDDING_DEVICE = "auto"
 
 # 选用的reranker模型
-RERANKER_MODEL = "bge-reranker-v2-m3-1"
+RERANKER_MODEL = "bge-reranker-v2-m3"
 # 是否启用reranker模型
 USE_RERANKER = True
 RERANKER_MAX_LENGTH = 8192
