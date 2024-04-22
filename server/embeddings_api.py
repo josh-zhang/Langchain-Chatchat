@@ -7,7 +7,7 @@ from langchain.docstore.document import Document
 from fastapi import Body
 
 from configs import EMBEDDING_MODEL, logger, log_verbose, MODEL_PATH, LITELLM_SERVER
-from server.utils import BaseResponse
+from server.utils import BaseResponse, xinference_supervisor_address
 
 
 def list_embed_models(
@@ -18,22 +18,30 @@ def list_embed_models(
     从LITELLM_SERVER获取已加载模型列表及其配置项
     '''
     local_embed_models = list(MODEL_PATH["embed_model"])
-    supervisor_address = supervisor_address or LITELLM_SERVER
-    supervisor_address = f"{supervisor_address}/model/info" if supervisor_address.startswith(
-        "http") else f"http://{supervisor_address}/model/info"
+
+    # supervisor_address = supervisor_address or LITELLM_SERVER
+    # supervisor_address = f"{supervisor_address}/model/info" if supervisor_address.startswith(
+    #     "http") else f"http://{supervisor_address}/model/info"
+
+    supervisor_address = xinference_supervisor_address()
+    supervisor_address = f"{supervisor_address}/v1/models"
 
     try:
         # from xinference_client import RESTfulClient
         # client = RESTfulClient(supervisor_address)
         # models = client.list_models()
         # models = [k for k, v in models.items() if v["model_type"] == 'embedding']
-        res = requests.get(supervisor_address, headers={"Content-Type": "application/json"})
-        res = res.json()['data']
-        model_list = [i['model_name'] for i in res if
-                      'mode' in i['model_info'] and i['model_info']['mode'] == 'embedding']
-        model_list = list(set(model_list))
-        model_list = [f"{i}-api" for i in model_list]
 
+        # res = requests.get(supervisor_address, headers={"Content-Type": "application/json"})
+        # res = res.json()['data']
+        # model_list = [i['model_name'] for i in res if
+        #               'mode' in i['model_info'] and i['model_info']['mode'] == 'embedding']
+        # model_list = list(set(model_list))
+
+        res = requests.get(supervisor_address)
+        res = res.json()['data']
+        model_list = [i['model_name'] for i in res if i['model_type'] == 'embedding']
+        model_list = [f"{i}-api" for i in model_list]
         model_list += local_embed_models
 
         return BaseResponse(data=model_list)
@@ -54,9 +62,11 @@ def embed_texts(
     '''
     try:
         if embed_model.endswith("-api"):
-            supervisor_address = LITELLM_SERVER
-            supervisor_address = f"{supervisor_address}/v1/embeddings" if supervisor_address.startswith(
-                "http") else f"http://{supervisor_address}/v1/embeddings"
+            # supervisor_address = LITELLM_SERVER
+            # supervisor_address = f"{supervisor_address}/v1/embeddings" if supervisor_address.startswith(
+            #     "http") else f"http://{supervisor_address}/v1/embeddings"
+            supervisor_address = xinference_supervisor_address()
+            supervisor_address = f"{supervisor_address}/v1/embeddings"
 
             response = requests.post(supervisor_address, json={"model": embed_model[:-4], "input": texts})
             data = [i["embedding"] for i in response.json()["data"]]
@@ -81,8 +91,10 @@ async def aembed_texts(
     '''
     try:
         if embed_model.endswith("-api"):
-            supervisor_address = f"{LITELLM_SERVER}/v1/embeddings" if LITELLM_SERVER.startswith(
-                "http") else f"http://{LITELLM_SERVER}/v1/embeddings"
+            # supervisor_address = f"{LITELLM_SERVER}/v1/embeddings" if LITELLM_SERVER.startswith(
+            #     "http") else f"http://{LITELLM_SERVER}/v1/embeddings"
+            supervisor_address = xinference_supervisor_address()
+            supervisor_address = f"{supervisor_address}/v1/embeddings"
 
             response = requests.post(supervisor_address, json={"model": embed_model[:-4], "input": texts})
             data = [i["embedding"] for i in response.json()["data"]]
@@ -136,8 +148,11 @@ async def aembed_documents_api(docs, embed_model, concurrency=3, chunk_size=10):
         raise ValueError("aembed_documents_api error")
 
     embed_model = embed_model[:-4]
-    supervisor_address = f"{LITELLM_SERVER}/v1/embeddings" if LITELLM_SERVER.startswith(
-        "http") else f"http://{LITELLM_SERVER}/v1/embeddings"
+
+    # supervisor_address = f"{LITELLM_SERVER}/v1/embeddings" if LITELLM_SERVER.startswith(
+    #     "http") else f"http://{LITELLM_SERVER}/v1/embeddings"
+    supervisor_address = xinference_supervisor_address()
+    supervisor_address = f"{supervisor_address}/v1/embeddings"
 
     sublists = []
     for i in range(0, len(docs), chunk_size):
