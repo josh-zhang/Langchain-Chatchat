@@ -238,4 +238,4 @@ class RerankerPool(CachePool):
 
 
 embeddings_pool = EmbeddingsPool(cache_num=CACHED_EMBED_NUM)
-reranker_pool = RerankerPool(cache_num=CACHED_RERANK_NUM)
+# reranker_pool = RerankerPool(cache_num=CACHED_RERANK_NUM)
