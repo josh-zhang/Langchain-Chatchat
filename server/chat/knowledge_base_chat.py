@@ -3,7 +3,6 @@ import asyncio
 import requests
 from typing import AsyncIterable, List, Optional
 
-import torch
 from fastapi import Body, Request
 from fastapi.concurrency import run_in_threadpool
 from sse_starlette.sse import EventSourceResponse
@@ -13,14 +12,15 @@ from urllib.parse import urlparse
 from langchain.chains import LLMChain
 from langchain.callbacks import AsyncIteratorCallbackHandler
 
-from server.utils import BaseResponse, get_prompt_template, wrap_done, get_ChatOpenAI
+from server.utils import wrap_done, get_ChatOpenAI
 from server.chat.utils import History
 from server.chat.prompt_generator import generate_doc_qa
 from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.knowledge_base.kb_doc_api import search_docs
-from server.knowledge_base.kb_cache.base import reranker_pool
-from server.utils import BaseResponse, xinference_supervisor_address
-from configs import (LLM_MODELS,
+# from server.knowledge_base.kb_cache.base import reranker_pool
+from server.utils import BaseResponse
+from server.utils import xinference_supervisor_address
+from configs import (LLM_MODEL,
                      VECTOR_SEARCH_TOP_K,
                      SCORE_THRESHOLD,
                      BM_25_FACTOR,
@@ -28,8 +28,7 @@ from configs import (LLM_MODELS,
                      USE_RERANKER,
                      RERANKER_MODEL,
                      API_SERVER_HOST_MAPPING,
-                     API_SERVER_PORT_MAPPING,
-                     RERANKER_MAX_LENGTH)
+                     API_SERVER_PORT_MAPPING)
 
 
 def do_rerank(
@@ -40,10 +39,9 @@ def do_rerank(
         return_documents: Optional[bool] = None,
         model_name: str = RERANKER_MODEL,
 ):
-    model_uid = model_name[:-4] if model_name.endswith("-api") else model_name
     url = f"{xinference_supervisor_address()}/v1/rerank"
     request_body = {
-        "model": model_uid,
+        "model": model_name,
         "documents": documents,
         "query": query,
         "top_n": top_n,
@@ -82,7 +80,7 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
                                   examples=["引用正文1", "引用正文2"]
                               ),
                               stream: bool = Body(False, description="流式输出"),
-                              model_name: str = Body(LLM_MODELS[0], description="LLM 模型名称。"),
+                              model_name: str = Body(LLM_MODEL, description="LLM 模型名称。"),
                               temperature: float = Body(TEMPERATURE, description="LLM 采样温度", ge=0.0, le=1.0),
                               max_tokens: Optional[int] = Body(
                                   None,
@@ -122,16 +120,26 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
             model_name: str = model_name,
             prompt_name: str = prompt_name,
     ) -> AsyncIterable[str]:
+
         nonlocal max_tokens
-        callback = AsyncIteratorCallbackHandler()
         if isinstance(max_tokens, int) and max_tokens <= 0:
             max_tokens = None
+
+        if "总行" in model_name:
+            callback = None
+            streaming = False
+            callbacks = []
+        else:
+            callback = AsyncIteratorCallbackHandler()
+            callbacks = [callback]
+            streaming = stream
 
         model = get_ChatOpenAI(
             model_name=model_name,
             temperature=temperature,
             max_tokens=max_tokens,
-            callbacks=[callback],
+            callbacks=callbacks,
+            streaming=streaming
         )
 
         final_search_type = "继续问答" if search_type == "继续问答" and source else "重新搜索"
@@ -144,28 +152,29 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
                                            score_threshold=score_threshold)
 
             # 加入reranker
-            if USE_RERANKER and len(docs) > 1:
+            if USE_RERANKER and len(docs) > top_k:
                 doc_list = list(docs)
-                remain_length = RERANKER_MAX_LENGTH - len(query)
-                _docs = [d.page_content[:remain_length] for d in doc_list]
+                _docs = [d.page_content for d in doc_list]
 
                 final_results = []
-
-                # results = do_rerank(_docs, query)
-                # for i in results:
-                #     idx = i['index']
-                #     value = i['relevance_score']
-                #     doc = doc_list[idx]
-                #     doc.metadata["relevance_score"] = value
-                #     final_results.append(doc)
-
-                sentence_pairs = [[query, _doc] for _doc in _docs]
-                scores = reranker_pool.get_score(sentence_pairs, RERANKER_MODEL)
-                sorted_tuples = sorted([(value, index) for index, value in enumerate(scores)], key=lambda x: x[0], reverse=True)
-                for value, index in sorted_tuples:
-                    doc = doc_list[index]
+                results = do_rerank(_docs, query)
+                for i in results:
+                    idx = i['index']
+                    value = i['relevance_score']
+                    doc = doc_list[idx]
                     doc.metadata["relevance_score"] = value
                     final_results.append(doc)
+
+                # remain_length = RERANKER_MAX_LENGTH - len(query)
+                # _docs = [d.page_content[:remain_length] for d in doc_list]
+                # sentence_pairs = [[query, _doc] for _doc in _docs]
+
+                # scores = reranker_pool.get_score(sentence_pairs, RERANKER_MODEL)
+                # sorted_tuples = sorted([(value, index) for index, value in enumerate(scores)], key=lambda x: x[0], reverse=True)
+                # for value, index in sorted_tuples:
+                #     doc = doc_list[index]
+                #     doc.metadata["relevance_score"] = value
+                #     final_results.append(doc)
 
                 docs = final_results
 
@@ -183,12 +192,6 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
 
         chain = LLMChain(prompt=chat_prompt, llm=model)
 
-        # Begin a task that runs in the background.
-        task = asyncio.create_task(wrap_done(
-            chain.acall({"context": context, "question": query}),
-            callback.done),
-        )
-
         source_documents = []
         source_documents_content = []
 
@@ -205,23 +208,29 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
                 source_documents.append(text)
                 source_documents_content.append(doc.page_content)
 
-        if stream:
+        if streaming:
+            # Begin a task that runs in the background.
+            task = asyncio.create_task(wrap_done(
+                chain.acall({"context": context, "question": query}),
+                callback.done),
+            )
+
             async for token in callback.aiter():
                 # Use server-sent-events to stream the response
                 yield json.dumps({"answer": token}, ensure_ascii=False)
             yield json.dumps({"docs": source_documents,
                               "docs_content": source_documents_content,
                               "search_type": final_search_type}, ensure_ascii=False)
+
+            await task
         else:
-            answer = ""
-            async for token in callback.aiter():
-                answer += token
-            yield json.dumps({"answer": answer,
+            answer = await chain.ainvoke({"context": context, "question": query})
+
+            yield json.dumps({"answer": answer["text"],
                               "docs": source_documents,
                               "docs_content": source_documents_content,
                               "search_type": final_search_type},
                              ensure_ascii=False)
-        await task
 
     return EventSourceResponse(
         knowledge_base_chat_iterator(query, search_type, top_k, history, source, model_name, prompt_name))

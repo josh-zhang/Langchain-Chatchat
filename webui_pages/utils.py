@@ -8,7 +8,7 @@ from pathlib import Path
 from configs import (
     EMBEDDING_MODEL,
     DEFAULT_VS_TYPE,
-    LLM_MODELS,
+    LLM_MODEL,
     TEMPERATURE,
     SCORE_THRESHOLD,
     CHUNK_SIZE,
@@ -82,6 +82,7 @@ class ApiRequest:
             json: Dict = None,
             retry: int = 3,
             stream: bool = False,
+            timeout=None,
             **kwargs: Any
     ) -> Union[httpx.Response, Iterator[httpx.Response], None]:
         while retry > 0:
@@ -90,7 +91,10 @@ class ApiRequest:
                 if stream:
                     return self.client.stream("POST", url, data=data, json=json, **kwargs)
                 else:
-                    return self.client.post(url, data=data, json=json, **kwargs)
+                    if timeout is not None:
+                        return self.client.post(url, data=data, json=json, timeout=timeout, **kwargs)
+                    else:
+                        return self.client.post(url, data=data, json=json, **kwargs)
             except Exception as e:
                 msg = f"error when post {url}: {e}"
                 logger.error(f'{e.__class__.__name__}: {msg}',
@@ -274,7 +278,7 @@ class ApiRequest:
             history_len: int = -1,
             history: List[Dict] = [],
             stream: bool = True,
-            model: str = LLM_MODELS[0],
+            model: str = LLM_MODEL,
             temperature: float = TEMPERATURE,
             max_tokens: int = None,
             prompt_name: str = "default",
@@ -306,7 +310,7 @@ class ApiRequest:
             query: str,
             history: List[Dict] = [],
             stream: bool = True,
-            model: str = LLM_MODELS[0],
+            model: str = LLM_MODEL,
             temperature: float = TEMPERATURE,
             max_tokens: int = None,
             prompt_name: str = "default",
@@ -340,7 +344,7 @@ class ApiRequest:
             history: List[Dict] = [],
             source: List = [],
             stream: bool = True,
-            model: str = LLM_MODELS[0],
+            model: str = LLM_MODEL,
             temperature: float = TEMPERATURE,
             max_tokens: int = None,
             prompt_name: str = "default",
@@ -421,7 +425,7 @@ class ApiRequest:
             score_threshold: float = SCORE_THRESHOLD,
             history: List[Dict] = [],
             stream: bool = True,
-            model: str = LLM_MODELS[0],
+            model: str = LLM_MODEL,
             temperature: float = TEMPERATURE,
             max_tokens: int = None,
             prompt_name: str = "default",
@@ -591,6 +595,8 @@ class ApiRequest:
             "/knowledge_base/upload_docs",
             data=data,
             files=[("files", (filename, file)) for filename, file in files],
+            retry=1,
+            timeout=1800,
         )
         return self._get_response_value(response, as_json=True)
 
@@ -598,6 +604,7 @@ class ApiRequest:
             self,
             knowledge_base_name: str,
             file_names: List[str],
+            document_loaders: List[str],
             delete_content: bool = False,
             not_refresh_vs_cache: bool = False,
     ):
@@ -607,6 +614,7 @@ class ApiRequest:
         data = {
             "knowledge_base_name": knowledge_base_name,
             "file_names": file_names,
+            "document_loaders": document_loaders,
             "delete_content": delete_content,
             "not_refresh_vs_cache": not_refresh_vs_cache,
         }
@@ -735,25 +743,25 @@ class ApiRequest:
     #     return self._httpx_stream2generator(response, as_json=True)
 
     # LLM模型相关操作
-    def list_running_models(
-            self,
-            controller_address: str = None,
-    ):
-        '''
-        获取Fastchat中正运行的模型列表
-        '''
-        data = {
-            "controller_address": controller_address,
-        }
-
-        if log_verbose:
-            logger.info(f'{self.__class__.__name__}:data: {data}')
-
-        response = self.post(
-            "/llm_model/list_running_models",
-            json=data,
-        )
-        return self._get_response_value(response, as_json=True, value_func=lambda r: r.get("data", []))
+    # def list_running_models(
+    #         self,
+    #         controller_address: str = None,
+    # ):
+    #     '''
+    #     获取Fastchat中正运行的模型列表
+    #     '''
+    #     data = {
+    #         "controller_address": controller_address,
+    #     }
+    #
+    #     if log_verbose:
+    #         logger.info(f'{self.__class__.__name__}:data: {data}')
+    #
+    #     response = self.post(
+    #         "/llm_model/list_running_models",
+    #         json=data,
+    #     )
+    #     return self._get_response_value(response, as_json=True, value_func=lambda r: r.get("data", []))
 
     # LLM模型相关操作
     def list_embed_models(
@@ -789,67 +797,67 @@ class ApiRequest:
         )
         return self._get_response_value(response, as_json=True, value_func=lambda r: r.get("data", []))
 
-    def get_default_llm_model(self, local_first: bool = True) -> Tuple[str, bool]:
-        '''
-        从服务器上获取当前运行的LLM模型。
-        当 local_first=True 时，优先返回运行中的本地模型，否则优先按LLM_MODELS配置顺序返回。
-        返回类型为（model_name, is_local_model）
-        '''
+    # def get_default_llm_model(self, local_first: bool = True) -> Tuple[str, bool]:
+    #     '''
+    #     从服务器上获取当前运行的LLM模型。
+    #     当 local_first=True 时，优先返回运行中的本地模型，否则优先按LLM_MODELS配置顺序返回。
+    #     返回类型为（model_name, is_local_model）
+    #     '''
+    #
+    #     def ret_sync():
+    #         running_models = self.list_running_models()
+    #
+    #         if not running_models:
+    #             return "", False
+    #
+    #         model = list(running_models)[0]
+    #
+    #         is_local = True
+    #         return model, is_local
+    #
+    #     async def ret_async():
+    #         running_models = await self.list_running_models()
+    #         if not running_models:
+    #             return "", False
+    #
+    #         model = ""
+    #         is_local = True
+    #
+    #         for m in LLM_MODELS:
+    #             if m not in running_models:
+    #                 continue
+    #
+    #             if local_first and not is_local:
+    #                 continue
+    #             else:
+    #                 model = m
+    #                 break
+    #
+    #         if not model:  # LLM_MODELS中配置的模型都不在running_models里
+    #             model = list(running_models)[0]
+    #
+    #         return model, is_local
+    #
+    #     if self._use_async:
+    #         return ret_async()
+    #     else:
+    #         return ret_sync()
 
-        def ret_sync():
-            running_models = self.list_running_models()
-
-            if not running_models:
-                return "", False
-
-            model = list(running_models)[0]
-
-            is_local = True
-            return model, is_local
-
-        async def ret_async():
-            running_models = await self.list_running_models()
-            if not running_models:
-                return "", False
-
-            model = ""
-            is_local = True
-
-            for m in LLM_MODELS:
-                if m not in running_models:
-                    continue
-
-                if local_first and not is_local:
-                    continue
-                else:
-                    model = m
-                    break
-
-            if not model:  # LLM_MODELS中配置的模型都不在running_models里
-                model = list(running_models)[0]
-
-            return model, is_local
-
-        if self._use_async:
-            return ret_async()
-        else:
-            return ret_sync()
-
-    def list_config_models(
-            self,
-            types: List[str] = ["online"],
-    ) -> Dict[str, Dict]:
-        '''
-        获取服务器configs中配置的模型列表，返回形式为{"type": {model_name: config}, ...}。
-        '''
-        data = {
-            "types": types,
-        }
-        response = self.post(
-            "/llm_model/list_config_models",
-            json=data,
-        )
-        return self._get_response_value(response, as_json=True, value_func=lambda r: r.get("data", {}))
+    # def list_config_models(
+    #         self,
+    #         types: List[str] = ["online"],
+    # ) -> Dict[str, Dict]:
+    #     '''
+    #     获取服务器configs中配置的模型列表，返回形式为{"type": {model_name: config}, ...}。
+    #     '''
+    #     data = {
+    #         "types": types,
+    #     }
+    #     response = self.post(
+    #         "/llm_model/list_config_models",
+    #         json=data,
+    #     )
+    #     return self._get_response_value(response, as_json=True, value_func=lambda r: r.get("data", {}))
 
     def get_model_config(
             self,

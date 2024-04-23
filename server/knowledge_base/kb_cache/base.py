@@ -1,4 +1,5 @@
 import threading
+import datetime
 from typing import List, Any, Union, Tuple, Optional
 from collections import OrderedDict
 from contextlib import contextmanager
@@ -166,11 +167,13 @@ class EmbeddingsPool(CachePool):
 
 
 class RerankerPool(CachePool):
-    def load_reranker(self, model: str = None):
-        model = model or RERANKER_MODEL
-        reranker_model_path = MODEL_PATH["reranker"].get(model, "/opt/projects/hf_models/bge-reranker-v2-m3")
+    def load_reranker(self, model_name: str = None):
+        model_name = model_name or RERANKER_MODEL
+        reranker_model_path = MODEL_PATH["reranker"].get(model_name, "/opt/projects/hf_models/bge-reranker-v2-m3")
 
-        key = model
+        unix_timestamp = datetime.datetime.now().microsecond
+        binary = 0 if unix_timestamp % 2 == 0 else 1
+        key = str(binary) + model_name
 
         self.atomic.acquire()
 
@@ -193,11 +196,13 @@ class RerankerPool(CachePool):
             self.atomic.release()
             return cache.obj
 
-    def get_score(self, sentence_pairs, model: str = None):
-        model = model or RERANKER_MODEL
-        reranker_model_path = MODEL_PATH["reranker"].get(model, "/opt/projects/hf_models/bge-reranker-v2-m3")
+    def get_score(self, sentence_pairs, model_name: str = None):
+        model_name = model_name or RERANKER_MODEL
+        reranker_model_path = MODEL_PATH["reranker"].get(model_name, "/opt/projects/hf_models/bge-reranker-v2-m3")
 
-        key = model
+        unix_timestamp = datetime.datetime.now().microsecond
+        binary = 0 if unix_timestamp % 2 == 0 else 1
+        key = str(binary) + model_name
 
         self.atomic.acquire()
 
@@ -233,4 +238,4 @@ class RerankerPool(CachePool):
 
 
 embeddings_pool = EmbeddingsPool(cache_num=CACHED_EMBED_NUM)
-reranker_pool = RerankerPool(cache_num=CACHED_RERANK_NUM)
+# reranker_pool = RerankerPool(cache_num=CACHED_RERANK_NUM)

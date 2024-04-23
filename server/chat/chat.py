@@ -12,7 +12,7 @@ from langchain.prompts import PromptTemplate
 from server.chat.utils import History
 from server.utils import get_prompt_template, get_ChatOpenAI, wrap_done
 from server.db.repository import add_message_to_db
-from configs import LLM_MODELS, TEMPERATURE
+from configs import LLM_MODEL, TEMPERATURE
 from server.callback_handler.conversation_callback_handler import ConversationCallbackHandler
 from server.memory.conversation_db_buffer_memory import ConversationBufferDBMemory
 
@@ -28,7 +28,7 @@ async def chat(query: str = Body(..., description="用户输入", examples=["恼
                                                              {"role": "assistant", "content": "虎头虎脑"}]]
                                                          ),
                stream: bool = Body(False, description="流式输出"),
-               model_name: str = Body(LLM_MODELS[0], description="LLM 模型名称。"),
+               model_name: str = Body(LLM_MODEL, description="LLM 模型名称。"),
                temperature: float = Body(TEMPERATURE, description="LLM 采样温度", ge=0.0, le=2.0),
                max_tokens: Optional[int] = Body(None, description="限制LLM生成Token数量，默认None代表模型最大值"),
                # top_p: float = Body(TOP_P, description="LLM 核采样。勿与temperature同时设置", gt=0.0, lt=1.0),
@@ -36,8 +36,16 @@ async def chat(query: str = Body(..., description="用户输入", examples=["恼
                ):
     async def chat_iterator() -> AsyncIterable[str]:
         nonlocal history, max_tokens
-        callback = AsyncIteratorCallbackHandler()
-        callbacks = [callback]
+
+        if "总行" in model_name:
+            callback = None
+            streaming = False
+            callbacks = []
+        else:
+            callback = AsyncIteratorCallbackHandler()
+            callbacks = [callback]
+            streaming = stream
+
         memory = None
 
         # 负责保存llm response到message db
@@ -54,6 +62,7 @@ async def chat(query: str = Body(..., description="用户输入", examples=["恼
             temperature=temperature,
             max_tokens=max_tokens,
             callbacks=callbacks,
+            streaming=streaming
         )
 
         if history:  # 优先使用前端传入的历史消息
@@ -77,26 +86,25 @@ async def chat(query: str = Body(..., description="用户输入", examples=["恼
 
         chain = LLMChain(prompt=chat_prompt, llm=model, memory=memory)
 
-        # Begin a task that runs in the background.
-        task = asyncio.create_task(wrap_done(
-            chain.acall({"input": query}),
-            callback.done),
-        )
+        if streaming:
+            # Begin a task that runs in the background.
+            task = asyncio.create_task(wrap_done(
+                chain.acall({"input": query}),
+                callback.done),
+            )
 
-        if stream:
             async for token in callback.aiter():
                 # Use server-sent-events to stream the response
                 yield json.dumps(
                     {"text": token, "message_id": message_id},
                     ensure_ascii=False)
-        else:
-            answer = ""
-            async for token in callback.aiter():
-                answer += token
-            yield json.dumps(
-                {"text": answer, "message_id": message_id},
-                ensure_ascii=False)
 
-        await task
+            await task
+        else:
+            answer = await chain.ainvoke({"input": query})
+
+            yield json.dumps(
+                {"text": answer["text"], "message_id": message_id},
+                ensure_ascii=False)
 
     return EventSourceResponse(chat_iterator())

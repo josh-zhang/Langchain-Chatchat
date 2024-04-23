@@ -6,7 +6,7 @@ import os
 MODEL_ROOT_PATH = "/opt/projects/hf_models"
 
 # 选用的 Embedding 名称
-EMBEDDING_MODEL = "bge-m3-1-api"
+EMBEDDING_MODEL = "bge-m3-api"
 
 # Embedding 模型运行设备。设为"auto"会自动检测，也可手动设定为"cuda","mps","cpu"其中之一。
 EMBEDDING_DEVICE = "auto"
@@ -28,7 +28,7 @@ EMBEDDING_MODEL_OUTPUT_PATH = "output"
 
 # chatglm3-6b输出角色标签<|user|>及自问自答的问题详见项目wiki->常见问题->Q20.
 
-LLM_MODELS = ["通义千问大-六千字-api"]
+LLM_MODEL = "通义千问大-一万字-总行"
 
 # AgentLM模型的名称 (可以不指定，指定之后就锁定进入Agent之后的Chain的模型，不指定就是LLM_MODELS[0])
 Agent_MODEL = None
@@ -40,29 +40,11 @@ LLM_DEVICE = "auto"
 HISTORY_LEN = 3
 
 # 大模型最长支持的长度，如果不填写，则使用模型默认的最大长度，如果填写，则为用户设定的最大长度
-MAX_TOKENS = 6000
+MAX_TOKENS = None
 
 # LLM通用对话参数
 TEMPERATURE = 0.0
 TOP_P = 0.95  # ChatOpenAI暂不支持该参数
-
-ONLINE_LLM_MODEL = {
-    # 线上模型。请在server_config中为每个在线API设置不同的端口
-
-    # "online-center-qwen14b-1": {
-    #     "model_name": "Ywen-core",
-    #     "api_base_url": "http://40.46.62.31:30151/v1",
-    #     "api_key": "",
-    #     "openai_proxy": "",
-    # },
-
-    # "online-center-qwen14b-2": {
-    #     "model_name": "Ywen-core",
-    #     "api_base_url": "http://40.46.62.31:30142/v1",
-    #     "api_key": "",
-    #     "openai_proxy": "",
-    # },
-}
 
 # 在以下字典中修改属性值，以指定本地embedding模型存储位置。支持3种设置方法：
 # 1、将对应的值修改为模型绝对路径
@@ -77,18 +59,12 @@ MODEL_PATH = {
         "bge-base-zh": "/opt/projects/hf_models/bge-base-zh",
         "bge-large-zh": "/opt/projects/hf_models/bge-large-zh",
         "bge-large-zh-v1.5": "/opt/projects/hf_models/bge-large-zh-v1.5",
-        "bce-embedding-base_v1": "/opt/projects/hf_models/bce-embedding-base_v1",
-        "m3e-base": "/opt/projects/hf_models/m3e-base",
-        "stella-large-zh-v2": "/opt/projects/hf_models/stella-large-zh-v2",
-        "jina-embeddings-v2-base-zh": "/opt/projects/hf_models/jina-embeddings-v2-base-zh",
         "bge-m3": "/opt/projects/hf_models/bge-m3",
-        "dmeta-embedding": "/opt/projects/hf_models/Dmeta-embedding",
     },
     "reranker": {
         "bge-reranker-large": "/opt/projects/hf_models/bge-reranker-large",
         "bge-reranker-base": "/opt/projects/hf_models/bge-reranker-base",
         "bge-reranker-v2-m3": "/opt/projects/hf_models/bge-reranker-v2-m3",
-        # TODO 增加在线reranker，如cohere
     }
 }
 

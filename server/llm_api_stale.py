@@ -9,7 +9,6 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-import subprocess
 import re
 import logging
 import argparse

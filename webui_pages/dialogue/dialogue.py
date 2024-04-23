@@ -6,7 +6,7 @@ import streamlit as st
 from streamlit_chatbox import *
 from streamlit_javascript import st_javascript
 
-from configs import HISTORY_LEN, MAX_TOKENS, SUPPORT_AGENT_MODEL, LLM_MODELS
+from configs import HISTORY_LEN, MAX_TOKENS, SUPPORT_AGENT_MODEL
 from server.knowledge_base.utils import LOADER_DICT
 from server.utils import get_prompts
 from webui_pages.utils import *
@@ -48,22 +48,15 @@ def upload_temp_docs(files, document_loader_name, _api: ApiRequest) -> str:
     return _api.upload_temp_docs(files, document_loader_name).get("data", {}).get("id")
 
 
-@st.cache_data(ttl=300)
-def get_running_models(_api):
-    return _api.list_running_models()
-
-
 @st.cache_data(ttl=60)
 def get_api_running_models(_api):
     available_models = _api.list_api_running_models()
-    if available_models:
-        available_models = [i + "-api" for i in available_models]
     return available_models
 
 
-@st.cache_data(ttl=300)
-def get_config_models(_api):
-    return _api.list_config_models(["online"])
+# @st.cache_data(ttl=300)
+# def get_config_models(_api):
+#     return _api.list_config_models(["online"])
 
 
 @st.cache_data(ttl=60)
@@ -75,47 +68,9 @@ def support_iframe(ftype):
     return ftype in ["text/plain", "application/pdf", "text/html"]
 
 
-def model_setup(api):
-    # running_models = get_running_models(api)
-    # available_models = get_api_running_models(api)
-    # config_models = get_config_models(api)
-    running_models = get_api_running_models(api)
-
-    # for test
-    # running_models = []
-    available_models = []
-    config_models = {}
-
-    if available_models:
-        running_models.append(available_models[0])
-        available_models = available_models[1:]
-    else:
-        available_models = []
-
-    if config_models:
-        online_config_models = config_models.get("online", {})
-        for k, _ in online_config_models.items():  # 列出ONLINE_MODELS中直接访问的模型
-            if k not in running_models:
-                running_models.append(k)
-
-    if not running_models:
-        return None, None, None
-    else:
-        default_model = None
-        for i in LLM_MODELS:
-            if i in running_models:
-                default_model = i
-                break
-        if default_model is None:
-            default_model = running_models[0]
-
-    llm_models = running_models + available_models
-
-    return default_model, running_models, llm_models
-
-
 def dialogue_page(api: ApiRequest):
-    default_model, running_models, llm_models = model_setup(api)
+    running_models = get_api_running_models(api)
+    default_model = LLM_MODEL
 
     if not running_models:
         st.info("对话系统异常，暂时无法访问对话功能")
@@ -151,21 +106,16 @@ def dialogue_page(api: ApiRequest):
                 #     st.session_state["prev_llm_model"] = llm_model
                 st.session_state["cur_llm_model"] = st.session_state.llm_model
 
-        def llm_model_format_func(x):
-            if x in running_models:
-                return f"{x} (运行中)"
-            return x
-
         cur_llm_model = st.session_state.get("cur_llm_model", default_model)
-        if cur_llm_model in llm_models:
-            index = llm_models.index(cur_llm_model)
+        if cur_llm_model in running_models:
+            index = running_models.index(cur_llm_model)
         else:
             index = 0
 
         llm_model = st.selectbox("选择对话模型：",
-                                 llm_models,
+                                 running_models,
                                  index,
-                                 format_func=llm_model_format_func,
+                                 # format_func=llm_model_format_func,
                                  on_change=on_llm_change,
                                  key="llm_model")
 
@@ -274,7 +224,8 @@ def dialogue_page(api: ApiRequest):
 
 
 def file_dialogue_page(api: ApiRequest):
-    default_model, running_models, llm_models = model_setup(api)
+    running_models = get_api_running_models(api)
+    default_model = LLM_MODEL
 
     if not running_models:
         st.info("对话系统异常，暂时无法访问对话功能")
@@ -320,8 +271,9 @@ def file_dialogue_page(api: ApiRequest):
                 support_types = [i for ls in LOADER_DICT.values() for i in ls]
                 document_loader_name = "default"
 
-            single_file = st.file_uploader("上传文件(将文件拖到下方区域即可)：",
+            single_file = st.file_uploader("将上传文件直接拖拽到下方区域（支持文件格式如下）：",
                                            support_types,
+                                           help=f"支持文件格式包含 {support_types}",
                                            accept_multiple_files=False)
 
             if single_file:
@@ -352,21 +304,21 @@ def file_dialogue_page(api: ApiRequest):
                 #     st.session_state["prev_llm_model"] = llm_model
                 st.session_state["cur_llm_model"] = st.session_state.llm_model
 
-        def llm_model_format_func(x):
-            if x in running_models:
-                return f"{x} (运行中)"
-            return x
+        # def llm_model_format_func(x):
+        #     if x in running_models:
+        #         return f"{x} (运行中)"
+        #     return x
 
         cur_llm_model = st.session_state.get("cur_llm_model", default_model)
-        if cur_llm_model in llm_models:
-            index = llm_models.index(cur_llm_model)
+        if cur_llm_model in running_models:
+            index = running_models.index(cur_llm_model)
         else:
             index = 0
 
         llm_model = st.selectbox("选择对话模型：",
-                                 llm_models,
+                                 running_models,
                                  index,
-                                 format_func=llm_model_format_func,
+                                 # format_func=llm_model_format_func,
                                  on_change=on_llm_change,
                                  key="llm_model")
 
@@ -475,7 +427,8 @@ def file_dialogue_page(api: ApiRequest):
 
 
 def kb_dialogue_page(api: ApiRequest):
-    default_model, running_models, llm_models = model_setup(api)
+    running_models = get_api_running_models(api)
+    default_model = LLM_MODEL
 
     if not running_models:
         st.info("对话系统异常，暂时无法访问对话功能")
@@ -531,7 +484,9 @@ def kb_dialogue_page(api: ApiRequest):
             score_threshold = st.slider(f"搜索门槛 (门槛越高相似度要求越高，默认为{SCORE_THRESHOLD})：", 0.0, 1.0,
                                         float(SCORE_THRESHOLD), 0.01)
 
-            kb_search_type = st.radio('问答搜索方式', ['重新搜索', '继续问答'],
+            has_source = 0 if st.session_state["cur_source_docs"] else 1
+            kb_search_type = st.radio('问答搜索方式', ['继续问答', '重新搜索'],
+                                      index=has_source,
                                       captions=["AI根据新的输入重新搜索知识库进行问答",
                                                 "AI根据上方搜索结果进行问答"])
 
@@ -542,21 +497,21 @@ def kb_dialogue_page(api: ApiRequest):
                 #     st.session_state["prev_llm_model"] = llm_model
                 st.session_state["cur_llm_model"] = st.session_state.llm_model
 
-        def llm_model_format_func(x):
-            if x in running_models:
-                return f"{x} (运行中)"
-            return x
+        # def llm_model_format_func(x):
+        #     if x in running_models:
+        #         return f"{x} (运行中)"
+        #     return x
 
         cur_llm_model = st.session_state.get("cur_llm_model", default_model)
-        if cur_llm_model in llm_models:
-            index = llm_models.index(cur_llm_model)
+        if cur_llm_model in running_models:
+            index = running_models.index(cur_llm_model)
         else:
             index = 0
 
         llm_model = st.selectbox("选择对话模型：",
-                                 llm_models,
+                                 running_models,
                                  index,
-                                 format_func=llm_model_format_func,
+                                 # format_func=llm_model_format_func,
                                  on_change=on_llm_change,
                                  key="llm_model")
 
@@ -685,7 +640,8 @@ def kb_dialogue_page(api: ApiRequest):
 
 
 def agent_dialogue_page(api: ApiRequest):
-    default_model, running_models, llm_models = model_setup(api)
+    running_models = get_api_running_models(api)
+    default_model = LLM_MODEL
 
     if not running_models:
         st.info("对话系统异常，暂时无法访问对话功能")
@@ -721,21 +677,21 @@ def agent_dialogue_page(api: ApiRequest):
                 #     st.session_state["prev_llm_model"] = llm_model
                 st.session_state["cur_llm_model"] = st.session_state.llm_model
 
-        def llm_model_format_func(x):
-            if x in running_models:
-                return f"{x} (运行中)"
-            return x
+        # def llm_model_format_func(x):
+        #     if x in running_models:
+        #         return f"{x} (运行中)"
+        #     return x
 
         cur_llm_model = st.session_state.get("cur_llm_model", default_model)
-        if cur_llm_model in llm_models:
-            index = llm_models.index(cur_llm_model)
+        if cur_llm_model in running_models:
+            index = running_models.index(cur_llm_model)
         else:
             index = 0
 
         llm_model = st.selectbox("选择对话模型：",
-                                 llm_models,
+                                 running_models,
                                  index,
-                                 format_func=llm_model_format_func,
+                                 # format_func=llm_model_format_func,
                                  on_change=on_llm_change,
                                  key="llm_model")
 

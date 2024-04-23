@@ -1,22 +1,21 @@
 import os
 import urllib
-import json
 from typing import List
 
 from fastapi.responses import FileResponse
 from fastapi import File, Form, Body, Query, UploadFile
 from langchain.docstore.document import Document
-from sse_starlette import EventSourceResponse
 from pydantic import Json
 
 from server.knowledge_base.kb_service.base import KBServiceFactory
-from server.db.repository.knowledge_file_repository import get_file_detail
+from server.db.repository.knowledge_file_repository import get_file_detail, list_docs_from_db, list_answer_from_db, \
+    list_question_from_db
 from server.utils import BaseResponse, ListResponse, run_in_thread_pool
 from server.knowledge_base.kb_job.gen_qa import gen_qa_task, JobExecutor, JobFutures, FuturesAtomic
-from server.knowledge_base.utils import (validate_kb_name, list_files_from_folder, get_file_path, files2docs_in_thread,
+from server.knowledge_base.utils import (validate_kb_name, get_file_path, files2docs_in_thread,
                                          KnowledgeFile, DocumentWithScores, get_doc_path, create_compressed_archive)
-from configs import (DEFAULT_VS_TYPE, EMBEDDING_MODEL, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, BM_25_FACTOR,
-                     CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE, SEARCH_ENHANCE, logger, log_verbose, BASE_TEMP_DIR)
+from configs import (VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, BM_25_FACTOR, LITELLM_SERVER,
+                     CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE, logger, log_verbose, BASE_TEMP_DIR)
 
 
 def get_total_score_sorted(docs_data: List[DocumentWithScores], score_threshold) -> List[DocumentWithScores]:
@@ -119,13 +118,24 @@ def count_docs(
         return BaseResponse(code=403, msg="Don't attack me")
 
     knowledge_base_name = urllib.parse.unquote(knowledge_base_name)
+
+    if vector_name == "docs":
+        doc_infos = list_docs_from_db(kb_name=knowledge_base_name, file_name=file_name)
+    elif vector_name == "question":
+        doc_infos = list_question_from_db(kb_name=knowledge_base_name, file_name=file_name)
+    elif vector_name == "answer":
+        doc_infos = list_answer_from_db(kb_name=knowledge_base_name, file_name=file_name)
+    else:
+        assert False
+
     kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
     if kb is None:
         return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}")
     else:
         count = kb.count_docs(vector_name, file_name)
 
-        return BaseResponse(code=200, data={"count": count, "file_name": file_name, "vector_name": vector_name})
+        return BaseResponse(code=200, data={"vector_count": count, "db_count": len(doc_infos), "file_name": file_name,
+                                            "vector_name": vector_name})
 
 
 def _save_files_in_thread(files: List[UploadFile],
@@ -232,6 +242,7 @@ def upload_docs(
 def delete_docs(
         knowledge_base_name: str = Body(..., examples=["samples"]),
         file_names: List[str] = Body(..., examples=[["file_name.md", "test.txt"]]),
+        document_loaders: List[str] = Body(...),
         delete_content: bool = Body(False),
         not_refresh_vs_cache: bool = Body(False, description="暂不保存向量库（用于FAISS）"),
 ) -> BaseResponse:
@@ -244,15 +255,19 @@ def delete_docs(
         return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}")
 
     failed_files = {}
-    for file_name in file_names:
+    for file_name, document_loader_name in zip(file_names, document_loaders):
         if not kb.exist_doc(file_name):
             failed_files[file_name] = f"未找到文件 {file_name}"
 
         try:
             kb_file = KnowledgeFile(filename=file_name,
                                     knowledge_base_name=knowledge_base_name,
-                                    document_loader_name="unknown")
-            kb.delete_doc(kb_file, delete_content, not_refresh_vs_cache=True)
+                                    document_loader_name=document_loader_name)
+
+            if document_loader_name == "CustomExcelLoader":
+                kb.delete_faq(kb_file, delete_content, not_refresh_vs_cache=True)
+            else:
+                kb.delete_doc(kb_file, delete_content, not_refresh_vs_cache=True)
         except Exception as e:
             msg = f"{file_name} 文件删除失败，错误信息：{e}"
             logger.error(f'{e.__class__.__name__}: {msg}',
@@ -449,7 +464,7 @@ def gen_qa_for_kb(
         future = JobFutures.get(knowledge_base_name)
 
         if future is None or future.done():
-            new_future = JobExecutor.submit(gen_qa_task, knowledge_base_name, kb_info, model_name)
+            new_future = JobExecutor.submit(gen_qa_task, knowledge_base_name, kb_info, model_name, LITELLM_SERVER, 3)
             JobFutures[knowledge_base_name] = new_future
             FuturesAtomic.release()
             return BaseResponse(code=200, msg=f"使用{model_name}的文档问答生成任务提交成功")

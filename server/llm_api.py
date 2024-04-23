@@ -1,66 +1,39 @@
-from typing import List
-
-from fastapi import Body
-from configs import logger, log_verbose, LLM_SERVER
-from server.utils import BaseResponse, get_httpx_client, fschat_controller_address, list_config_llm_models
-
-
-def list_running_models(
-        controller_address: str = Body(None, description="Fastchat controller服务器地址",
-                                       examples=[fschat_controller_address()]),
-        placeholder: str = Body(None, description="该参数未使用，占位用"),
-) -> BaseResponse:
-    '''
-    从fastchat controller获取已加载模型列表及其配置项
-    '''
-    try:
-        controller_address = controller_address or fschat_controller_address()
-        with get_httpx_client() as client:
-            r = client.post(controller_address + "/list_models")
-            models = r.json()["models"]
-            return BaseResponse(data=models)
-    except Exception as e:
-        logger.error(f'{e.__class__.__name__}: {e}',
-                     exc_info=e if log_verbose else None)
-        return BaseResponse(
-            code=500,
-            data={},
-            msg=f"failed to get available models from controller: {controller_address}。错误信息是： {e}")
+from configs import logger, log_verbose, LITELLM_SERVER
+from server.utils import BaseResponse, get_httpx_client
 
 
 def list_api_running_models() -> BaseResponse:
     '''
-    从fastchat controller获取已加载模型列表及其配置项
+    从LITELLM_SERVER获取已加载模型列表及其配置项
     '''
     try:
         with get_httpx_client() as client:
-            # r = client.post("http://" + LLM_SERVER + "/v1/models")
-            # data = r.json()['data']
-            r = client.get("http://" + LLM_SERVER + "/v1/models")
-            data = [i['id'] for i in r.json()['data']]
-            return BaseResponse(data=data)
+            r = client.get("http://" + LITELLM_SERVER + "/model/info")
+            res = r.json()['data']
+            model_list = [i['model_name'] for i in res if 'mode' not in i['model_info'] or (
+                    'mode' in i['model_info'] and i['model_info']['mode'] != 'embedding')]
+            model_list = list(set(model_list))
+            return BaseResponse(data=model_list)
     except Exception as e:
         logger.error(f'{e.__class__.__name__}: {e}',
                      exc_info=e if log_verbose else None)
         return BaseResponse(
             code=500,
             data={},
-            msg=f"failed to get available models from LLM_SERVER: {LLM_SERVER}。错误信息是： {e}")
+            msg=f"failed to get available models from LLM_SERVER: {LITELLM_SERVER}。错误信息是： {e}")
 
-
-def list_config_models(
-        types: List[str] = Body(["local", "online"], description="模型配置项类别，如local, online, worker"),
-        placeholder: str = Body(None, description="占位用，无实际效果")
-) -> BaseResponse:
-    '''
-    从本地获取configs中配置的模型列表
-    '''
-    data = {}
-    for type, models in list_config_llm_models().items():
-        if type in types:
-            data[type] = models
-    return BaseResponse(data=data)
-
+# def list_config_models(
+#         types: List[str] = Body(["local", "online"], description="模型配置项类别，如local, online, worker"),
+#         placeholder: str = Body(None, description="占位用，无实际效果")
+# ) -> BaseResponse:
+#     '''
+#     从本地获取configs中配置的模型列表
+#     '''
+#     data = {}
+#     for type, models in list_config_llm_models().items():
+#         if type in types:
+#             data[type] = models
+#     return BaseResponse(data=data)
 
 # def get_model_config(
 #         model_name: str = Body(description="配置中LLM模型的名称"),

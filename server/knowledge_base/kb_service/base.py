@@ -4,7 +4,7 @@ import operator
 from abc import ABC, abstractmethod
 
 import os
-
+import asyncio
 import hashlib
 import numpy as np
 
@@ -16,10 +16,10 @@ from server.db.repository.knowledge_base_repository import (
     load_kb_from_db, get_kb_detail,
 )
 from server.db.repository.knowledge_file_repository import (
-    add_file_to_db, delete_file_from_db, delete_files_from_db, file_exists_in_db,
+    add_file_to_db, delete_file_from_db, delete_files_from_db, file_exists_in_db, list_files_info_from_db,
     count_files_from_db, list_files_from_db, get_file_detail, list_docs_from_db, list_question_from_db,
     list_answer_from_db, add_answer_to_db, add_question_to_db, get_answer_id_by_question_raw_id_from_db,
-    get_answer_doc_id_by_answer_id_from_db
+    get_answer_doc_id_by_answer_id_from_db, delete_docs_from_db, delete_answer_from_db, delete_question_from_db
 )
 
 from configs import (kbs_config, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, EMBEDDING_MODEL, SEARCH_ENHANCE)
@@ -31,7 +31,7 @@ from server.knowledge_base.faq_utils import load_faq
 
 from typing import List, Union, Dict, Optional
 
-from server.embeddings_api import embed_texts, embed_documents, aembed_texts
+from server.embeddings_api import embed_texts, embed_documents, aembed_texts, aembed_documents_api
 from server.knowledge_base.model.kb_document_model import DocumentWithVSId
 from server.knowledge_base.kb_cache.bm25_cache import kb_bm25_pool, ThreadSafeBM25, get_score
 
@@ -44,9 +44,6 @@ def normalize(embeddings: List[List[float]]) -> np.ndarray:
     norm = np.reshape(norm, (norm.shape[0], 1))
     norm = np.tile(norm, (1, len(embeddings[0])))
     return np.divide(embeddings, norm)
-
-
-faq_file_prefix_list = ["gen_", "faq_"]
 
 
 class SupportedVSType:
@@ -136,11 +133,14 @@ class KBService(ABC):
         status = delete_kb_from_db(self.kb_name)
         return status
 
-    def _docs_to_embeddings(self, docs: List[Document]) -> Dict:
+    def _docs_to_embeddings(self, docs: List[Document], use_async_thres=50) -> Dict:
         '''
         将 List[Document] 转化为 VectorStore.add_embeddings 可以接受的参数
         '''
-        return embed_documents(docs=docs, embed_model=self.embed_model, to_query=False)
+        if len(docs) > use_async_thres * 2:
+            return asyncio.run(aembed_documents_api(docs, self.embed_model, use_async_thres))
+        else:
+            return embed_documents(docs=docs, embed_model=self.embed_model, to_query=False)
 
     def add_doc(self, kb_file: KnowledgeFile, docs: List[Document] = [], **kwargs):
         """
@@ -186,10 +186,14 @@ class KBService(ABC):
         print("delete_doc")
 
         self.do_delete_doc("docs", kb_file, **kwargs)
-        status = delete_file_from_db(kb_file)
+
+        delete_docs_from_db(kb_name=kb_file.kb_name, file_name=kb_file.filename)
+        delete_answer_from_db(kb_name=kb_file.kb_name, file_name=kb_file.filename)
+        delete_question_from_db(kb_name=kb_file.kb_name, file_name=kb_file.filename)
+        delete_file_from_db(kb_name=kb_file.kb_name, file_name=kb_file.filename)
+
         if delete_content and os.path.exists(kb_file.filepath):
             os.remove(kb_file.filepath)
-        return status
 
     def add_faq(self, kb_file: KnowledgeFile, **kwargs):
         """
@@ -273,10 +277,13 @@ class KBService(ABC):
         self.do_delete_doc("answer", kb_file, **kwargs)
         self.do_delete_doc("question", kb_file, **kwargs)
 
-        status = delete_file_from_db(kb_file)
+        delete_docs_from_db(kb_name=kb_file.kb_name, file_name=kb_file.filename)
+        delete_answer_from_db(kb_name=kb_file.kb_name, file_name=kb_file.filename)
+        delete_question_from_db(kb_name=kb_file.kb_name, file_name=kb_file.filename)
+        delete_file_from_db(kb_name=kb_file.kb_name, file_name=kb_file.filename)
+
         if delete_content and os.path.exists(kb_file.filepath):
             os.remove(kb_file.filepath)
-        return status
 
     def update_faq(self, kb_file: KnowledgeFile, **kwargs):
         """
@@ -310,6 +317,9 @@ class KBService(ABC):
 
     def list_files(self):
         return list_files_from_db(self.kb_name)
+
+    def list_files_info(self):
+        return list_files_info_from_db(self.kb_name)
 
     def count_files(self):
         return count_files_from_db(self.kb_name)
@@ -432,22 +442,38 @@ class KBService(ABC):
         answer_data = list()
         question_data = list()
 
-        file_names = self.list_files()
+        file_infos = self.list_files_info()
 
-        faq_file_names = [file_name for file_name in file_names if
-                          any(file_name.startswith(i) for i in faq_file_prefix_list)]
-        non_faq_file_names = [file_name for file_name in file_names if
-                              not any(file_name.startswith(i) for i in faq_file_prefix_list)]
+        file_names = list()
+        faq_names = list()
 
-        if non_faq_file_names:
-            docs_text_list = list()
-            metadata_list = list()
-            for file_name in non_faq_file_names:
+        docs_text_list = list()
+        docs_metadata_list = list()
+
+        questions_text_list = list()
+        questions_metadata_list = list()
+
+        answers_text_list = list()
+        answers_metadata_list = list()
+
+        for file_name, document_loader_name in file_infos:
+            if document_loader_name != "CustomExcelLoader":
+                file_names.append(f"{file_name}_{document_loader_name}")
                 documentWithVSIds = self.list_docs("docs", file_name=file_name)
                 docs_text_list += [i.page_content for i in documentWithVSIds]
-                metadata_list += [i.metadata for i in documentWithVSIds]
+                docs_metadata_list += [i.metadata for i in documentWithVSIds]
+            else:
+                faq_names.append(f"{file_name}_{document_loader_name}")
+                documentWithVSIds = self.list_docs("question", file_name=file_name)
+                questions_text_list += [i.page_content for i in documentWithVSIds]
+                questions_metadata_list += [i.metadata for i in documentWithVSIds]
 
-            with self.load_bm25_retriever("docs", non_faq_file_names, docs_text_list, metadata_list).acquire() as vs:
+                documentWithVSIds = self.list_docs("answer", file_name=file_name)
+                answers_text_list += [i.page_content for i in documentWithVSIds]
+                answers_metadata_list += [i.metadata for i in documentWithVSIds]
+
+        if file_names:
+            with self.load_bm25_retriever("docs", file_names, docs_text_list, docs_metadata_list).acquire() as vs:
                 if len(vs.docs) > 0:
                     norm_scores = get_score(vs, query)
                     top_3_idx = np.argsort(norm_scores)[::-1][:top_k]
@@ -455,18 +481,9 @@ class KBService(ABC):
                         if idx in top_3_idx:
                             docs_data.append((doc, norm_scores[idx] * bm_factor))
 
-        # print(f"1 docs_data {docs_data}")
-
-        if faq_file_names:
-            docs_text_list = list()
-            metadata_list = list()
-            for file_name in faq_file_names:
-                documentWithVSIds = self.list_docs("answer", file_name=file_name)
-
-                docs_text_list += [i.page_content for i in documentWithVSIds]
-                metadata_list += [i.metadata for i in documentWithVSIds]
-
-            with self.load_bm25_retriever("answer", faq_file_names, docs_text_list, metadata_list).acquire() as vs:
+        if faq_names:
+            with self.load_bm25_retriever("answer", faq_names, answers_text_list,
+                                          answers_metadata_list).acquire() as vs:
                 if len(vs.docs) > 0:
                     norm_scores = get_score(vs, query)
 
@@ -476,17 +493,8 @@ class KBService(ABC):
                         if idx in top_3_idx:
                             answer_data.append((doc, norm_scores[idx] * bm_factor))
 
-        # print(f"2 answer_data {answer_data}")
-
-        if faq_file_names:
-            docs_text_list = list()
-            metadata_list = list()
-            for file_name in faq_file_names:
-                documentWithVSIds = self.list_docs("question", file_name=file_name)
-                docs_text_list += [i.page_content for i in documentWithVSIds]
-                metadata_list += [i.metadata for i in documentWithVSIds]
-
-            with self.load_bm25_retriever("question", faq_file_names, docs_text_list, metadata_list).acquire() as vs:
+            with self.load_bm25_retriever("question", faq_names, questions_text_list,
+                                          questions_metadata_list).acquire() as vs:
                 if len(vs.docs) > 0:
                     norm_scores = get_score(vs, query)
                     top_3_idx = np.argsort(norm_scores)[::-1][:top_k]
@@ -684,35 +692,21 @@ def get_kb_details() -> List[Dict]:
     result = {}
 
     for kb_name in kbs_in_db:
-        if kb_name in kbs_in_folder:
-            result[kb_name] = {
-                "kb_name": kb_name,
-                "vs_type": "",
-                "kb_info": "",
-                "kb_agent_guide": "",
-                "kb_summary": "",
-                "embed_model": "",
-                "file_count": 0,
-                "create_time": None,
-                "in_folder": True,
-                "in_db": True,
-            }
-        else:
-            result[kb_name] = {
-                "kb_name": kb_name,
-                "vs_type": "",
-                "kb_info": "",
-                "kb_agent_guide": "",
-                "kb_summary": "",
-                "embed_model": "",
-                "file_count": 0,
-                "create_time": None,
-                "in_folder": False,
-                "in_db": True,
-            }
+        result[kb_name] = {
+            "kb_name": kb_name,
+            "vs_type": "",
+            "kb_info": "",
+            "kb_agent_guide": "",
+            "kb_summary": "",
+            "embed_model": "",
+            "file_count": 0,
+            "create_time": None,
+            "in_folder": kb_name in kbs_in_folder,
+            "in_db": True,
+        }
 
     for kb_name in kbs_in_folder:
-        if kb_name not in kbs_in_db:
+        if kb_name not in result:
             result[kb_name] = {
                 "kb_name": kb_name,
                 "vs_type": "",
@@ -723,20 +717,7 @@ def get_kb_details() -> List[Dict]:
                 "file_count": 0,
                 "create_time": None,
                 "in_folder": True,
-                "in_db": False,
-            }
-        else:
-            result[kb_name] = {
-                "kb_name": kb_name,
-                "vs_type": "",
-                "kb_info": "",
-                "kb_agent_guide": "",
-                "kb_summary": "",
-                "embed_model": "",
-                "file_count": 0,
-                "create_time": None,
-                "in_folder": True,
-                "in_db": True,
+                "in_db": kb_name in kbs_in_db,
             }
 
     for kb_name in kbs_in_db:
@@ -766,7 +747,7 @@ def get_kb_file_details(kb_name: str) -> List[Dict]:
     files_in_db = kb.list_files()
     result = {}
 
-    for doc in files_in_folder:
+    for doc in files_in_db:
         result[doc] = {
             "kb_name": kb_name,
             "file_name": doc,
@@ -776,9 +757,25 @@ def get_kb_file_details(kb_name: str) -> List[Dict]:
             "docs_count": 0,
             "text_splitter": "",
             "create_time": None,
-            "in_folder": True,
-            "in_db": False,
+            "in_folder": doc in files_in_folder,
+            "in_db": True,
         }
+
+    for doc in files_in_folder:
+        if doc not in result:
+            result[doc] = {
+                "kb_name": kb_name,
+                "file_name": doc,
+                "file_ext": os.path.splitext(doc)[-1],
+                "file_version": 0,
+                "document_loader": "",
+                "docs_count": 0,
+                "text_splitter": "",
+                "create_time": None,
+                "in_folder": True,
+                "in_db": doc in files_in_db,
+            }
+
     lower_names = {x.lower(): x for x in result}
     for doc in files_in_db:
         doc_detail = get_file_detail(kb_name, doc)

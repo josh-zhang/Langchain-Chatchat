@@ -22,7 +22,7 @@ import time
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from server.llm_api_stale import string_args, server_args, LOG_PATH
+from server.llm_api_stale import string_args, LOG_PATH
 from server.api_allinone_stale import parser, api_args
 
 # parser.add_argument("--use-remote-api", action="store_true")
