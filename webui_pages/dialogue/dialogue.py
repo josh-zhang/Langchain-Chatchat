@@ -458,9 +458,6 @@ def kb_dialogue_page(api: ApiRequest):
         chat_box.use_chat_name(conversation_name)
         conversation_id = st.session_state["conversation_ids"][conversation_name]
 
-        def on_kb_change():
-            st.toast(f"已加载知识库： {st.session_state.selected_kb}")
-
         with st.expander("知识库配置", True):
             kb_list = get_knowledge_bases(api)
             if kb_list is None:
@@ -470,6 +467,9 @@ def kb_dialogue_page(api: ApiRequest):
 
             def format_func(option):
                 return kb_dict[option]
+
+            def on_kb_change():
+                st.toast(f"已加载知识库： {kb_dict[st.session_state.selected_kb]}")
 
             selected_kb = st.selectbox(
                 "选择知识库：",
@@ -570,7 +570,7 @@ def kb_dialogue_page(api: ApiRequest):
 
         chat_box.user_say(prompt)
         chat_box.ai_say([
-            f"正在查询知识库 `{selected_kb}` ...",
+            f"正在查询知识库 `{kb_dict[selected_kb]}` ...",
             Markdown("...", in_expander=True, title="知识库搜索结果", state="complete"),
         ])
         text = ""

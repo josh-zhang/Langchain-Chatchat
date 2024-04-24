@@ -206,15 +206,15 @@ def is_valid_ans(std_ans_txt: str):
 
 
 def is_valid_query(raw_query_txt: str):
-    return len(raw_query_txt) > 0
+    if len(raw_query_txt) > 3:
+        for ch in raw_query_txt:
+            if u'\u4e00' <= ch <= u'\u9fff':
+                return True
+    return False
 
 
 def is_valid_std_query(raw_query_txt: str, std_ans_txt: str):
     return is_valid_query(raw_query_txt) and is_valid_ans(std_ans_txt)
-
-
-def is_valid_user_query(raw_query_txt: str):
-    return is_valid_query(raw_query_txt)
 
 
 def alter_tokens(tokens):
@@ -309,6 +309,15 @@ def check_faq_is_generated(faq_file):
         return True, this_df
     else:
         return False, this_df
+
+
+def check_faq_is_unitx(faq_filepath):
+    excel_file = pandas.ExcelFile(faq_filepath)
+    sheet_names = excel_file.sheet_names
+    if "通用答案" in sheet_names and "相似问题" in sheet_names:
+        return True
+    else:
+        return False
 
 
 def load_df_generated(this_df):
@@ -411,13 +420,62 @@ def load_df_raw(this_df, filename):
     return query_list
 
 
-def load_faq(faq_filepath):
-    is_generated, this_df = check_faq_is_generated(faq_filepath)
+def load_df_raw_unitx(file_path):
+    query_list = list()
 
-    if is_generated:
-        raw_query_obj_list = load_df_generated(this_df)
+    df_qa = pandas.read_excel(file_path, sheet_name="通用答案", dtype=str)
+    df_q = pandas.read_excel(file_path, sheet_name="相似问题", dtype=str)
+
+    df_qa.fillna("", inplace=True)
+    logger.info(f"df_qa {df_qa.shape}")
+
+    df_q.fillna("", inplace=True)
+    logger.info(f"df_qa {df_q.shape}")
+
+    lookup_dict = dict()
+    for idx, row in df_q.iterrows():
+        raw_q = row["标准问题(必填)"]
+        sim_q = row["相似问题(必填)"]
+
+        if raw_q and sim_q:
+            if raw_q in lookup_dict:
+                lookup_dict[raw_q].append(sim_q)
+            else:
+                lookup_dict[raw_q] = [sim_q]
+
+    l_idx = 0
+
+    for idx, row in df_qa.iterrows():
+        raw_q = row["标准问题"]
+        raw_a = row["标准答案"]
+
+        if raw_q and raw_a:
+            l_query = StandardQuery(l_idx, raw_q, raw_a)
+            l_query.ref = file_path
+
+            if is_valid_std_query(l_query.raw_q, l_query.std_a):
+                if raw_q in lookup_dict:
+                    sample_list = lookup_dict[raw_q]
+                    l_query.sample_list_of_list.append(sample_list)
+
+                query_list.append(l_query)
+                l_idx += 1
+
+    return query_list
+
+
+def load_faq(faq_filepath):
+    is_unitx = check_faq_is_unitx(faq_filepath)
+
+    if is_unitx:
+        raw_query_obj_list = load_df_raw_unitx(faq_filepath)
     else:
-        raw_query_obj_list = load_df_raw(this_df, faq_filepath)
+        is_generated, this_df = check_faq_is_generated(faq_filepath)
+
+        if is_generated:
+            raw_query_obj_list = load_df_generated(this_df)
+        else:
+            raw_query_obj_list = load_df_raw(this_df, faq_filepath)
 
     conflict_list = list()
 
