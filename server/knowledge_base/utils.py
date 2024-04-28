@@ -34,8 +34,17 @@ class DocumentWithScores(Document):
 
 def validate_kb_name(knowledge_base_id: str) -> bool:
     # 检查是否包含预期外的字符或路径攻击关键字
-    if "../" in knowledge_base_id:
+    if not knowledge_base_id.strip() or "../" in knowledge_base_id or knowledge_base_id.startswith(
+            ".") or knowledge_base_id.startswith(".."):
         return False
+    return True
+
+
+def validate_kb_info(kb_info: str) -> bool:
+    # 检查是否包含预期外的字符或路径攻击关键字
+    if not kb_info.strip():
+        return False
+
     return True
 
 

@@ -1,6 +1,6 @@
 import urllib
 from server.utils import BaseResponse, ListListResponse
-from server.knowledge_base.utils import validate_kb_name
+from server.knowledge_base.utils import validate_kb_name, validate_kb_info
 from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.db.repository.knowledge_base_repository import list_kbs_from_db
 from configs import EMBEDDING_MODEL, logger, log_verbose, SEARCH_ENHANCE
@@ -19,11 +19,12 @@ def create_kb(knowledge_base_name: str = Body(..., examples=["samples"]),
             embed_model: str = Body(EMBEDDING_MODEL),
             search_enhance: bool = Body(SEARCH_ENHANCE),
             ) -> BaseResponse:
-    # Create selected knowledge base
+
     if not validate_kb_name(knowledge_base_name):
-        return BaseResponse(code=403, msg="Don't attack me")
-    if knowledge_base_name is None or knowledge_base_name.strip() == "":
-        return BaseResponse(code=404, msg="知识库名称不能为空，请重新填写知识库名称")
+        return BaseResponse(code=403, msg="知识库ID不能为空，请重新填写知识库ID")
+
+    if not validate_kb_info(kb_info):
+        return BaseResponse(code=403, msg="知识库名称不能为空，请重新填写知识库名称")
 
     kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
     if kb is not None:
