@@ -21,7 +21,7 @@ def create_kb(knowledge_base_name: str = Body(..., examples=["samples"]),
             ) -> BaseResponse:
 
     if not validate_kb_name(knowledge_base_name):
-        return BaseResponse(code=403, msg="知识库ID不能为空，请重新填写知识库ID")
+        return BaseResponse(code=403, msg="知识库编号不能为空，请重新填写知识库编号")
 
     if not validate_kb_info(kb_info):
         return BaseResponse(code=403, msg="知识库名称不能为空，请重新填写知识库名称")
