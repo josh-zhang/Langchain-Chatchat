@@ -108,10 +108,15 @@ def merge_docs(docs: List[DocumentWithScores]) -> List[DocumentWithScores]:
                 new_scores = {}
                 max_score = 0
 
+                pre_idx = 0
                 for doc_idx, doc in ele_list:
-                    score = doc.scores['total']
-                    new_page_content = merge_strings(new_page_content, doc.page_content)
+                    if doc_idx == pre_idx + 1:
+                        new_page_content = merge_strings(new_page_content, doc.page_content)
+                    else:
+                        new_page_content += doc.page_content
+                    pre_idx = doc_idx
 
+                    score = doc.scores['total']
                     if score >= max_score:
                         max_score = score
                         new_metadata = doc.metadata
