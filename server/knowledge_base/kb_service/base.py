@@ -159,7 +159,8 @@ class KBService(ABC):
 
         if docs:
             # 将 metadata["source"] 改为相对路径
-            for doc in docs:
+            for idx, doc in enumerate(docs):
+                doc.metadata["idx"] = str(idx)
                 source = doc.metadata.get("source", "")
                 try:
                     if os.path.isabs(source):

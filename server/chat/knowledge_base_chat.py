@@ -1,6 +1,5 @@
 import json
 import asyncio
-import requests
 from typing import AsyncIterable, List, Optional
 
 from fastapi import Body, Request
@@ -17,42 +16,14 @@ from server.chat.utils import History
 from server.chat.prompt_generator import generate_doc_qa
 from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.knowledge_base.kb_doc_api import search_docs
-# from server.knowledge_base.kb_cache.base import reranker_pool
 from server.utils import BaseResponse
-from server.utils import xinference_supervisor_address
 from configs import (LLM_MODEL,
                      VECTOR_SEARCH_TOP_K,
                      SCORE_THRESHOLD,
                      BM_25_FACTOR,
                      TEMPERATURE,
-                     USE_RERANKER,
-                     RERANKER_MODEL,
                      API_SERVER_HOST_MAPPING,
                      API_SERVER_PORT_MAPPING)
-
-
-def do_rerank(
-        documents: List[str],
-        query: str,
-        top_n: Optional[int] = None,
-        max_chunks_per_doc: Optional[int] = None,
-        return_documents: Optional[bool] = None,
-        model_name: str = RERANKER_MODEL,
-):
-    url = f"{xinference_supervisor_address()}/v1/rerank"
-    request_body = {
-        "model": model_name,
-        "documents": documents,
-        "query": query,
-        "top_n": top_n,
-        "max_chunks_per_doc": max_chunks_per_doc,
-        "return_documents": return_documents,
-    }
-    response = requests.post(url, json=request_body)
-    if response.status_code != 200:
-        return []
-    response_data = response.json()['results']
-    return response_data
 
 
 async def knowledge_base_chat(query: str = Body(..., description="用户输入", examples=["你好"]),
@@ -151,33 +122,32 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
                                            top_k=top_k,
                                            score_threshold=score_threshold)
 
-            # 加入reranker
-            if USE_RERANKER and len(docs) > top_k:
-                doc_list = list(docs)
-                _docs = [d.page_content for d in doc_list]
-
-                final_results = []
-                results = do_rerank(_docs, query)
-                for i in results:
-                    idx = i['index']
-                    value = i['relevance_score']
-                    doc = doc_list[idx]
-                    doc.metadata["relevance_score"] = value
-                    final_results.append(doc)
-
-                # remain_length = RERANKER_MAX_LENGTH - len(query)
-                # _docs = [d.page_content[:remain_length] for d in doc_list]
-                # sentence_pairs = [[query, _doc] for _doc in _docs]
-
-                # scores = reranker_pool.get_score(sentence_pairs, RERANKER_MODEL)
-                # sorted_tuples = sorted([(value, index) for index, value in enumerate(scores)], key=lambda x: x[0], reverse=True)
-                # for value, index in sorted_tuples:
-                #     doc = doc_list[index]
-                #     doc.metadata["relevance_score"] = value
-                #     final_results.append(doc)
-
-                docs = final_results
-
+            # # 加入reranker
+            # if USE_RERANKER and len(docs) > top_k:
+            #     doc_list = list(docs)
+            #     _docs = [d.page_content for d in doc_list]
+            #
+            #     final_results = []
+            #     results = do_rerank(_docs, query)
+            #     for i in results:
+            #         idx = i['index']
+            #         value = i['relevance_score']
+            #         doc = doc_list[idx]
+            #         doc.metadata["relevance_score"] = value
+            #         final_results.append(doc)
+            #
+            #     # remain_length = RERANKER_MAX_LENGTH - len(query)
+            #     # _docs = [d.page_content[:remain_length] for d in doc_list]
+            #     # sentence_pairs = [[query, _doc] for _doc in _docs]
+            #
+            #     # scores = reranker_pool.get_score(sentence_pairs, RERANKER_MODEL)
+            #     # sorted_tuples = sorted([(value, index) for index, value in enumerate(scores)], key=lambda x: x[0], reverse=True)
+            #     # for value, index in sorted_tuples:
+            #     #     doc = doc_list[index]
+            #     #     doc.metadata["relevance_score"] = value
+            #     #     final_results.append(doc)
+            #
+            #     docs = final_results
             docs = docs[:top_k]
             text_docs = [doc.page_content for doc in docs]
         else:
