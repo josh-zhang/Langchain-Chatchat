@@ -88,11 +88,12 @@ def generate_doc_qa(query: str, history: List[History], docs: List[str], fallbac
             source_id = inum + 1
             source_content = document_prompt_template().format(doc_id=f"出处{source_id}", page_content=doc) + "\n\n"
             count_char += len(source_content)
-
-            if len(count_char) > max_chars_for_context:
-                break
-
             context += source_content
+
+            if count_char >= max_chars_for_context:
+                context = context[:max_chars_for_context]
+
+                break
 
     max_chars_remain = max_chars_remain - len(context)
     # max_tokens_remain = int(max_chars_remain * 1.2)

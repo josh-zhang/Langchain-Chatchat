@@ -89,7 +89,7 @@ def merge_docs(docs: List[DocumentWithScores], max_chars: int) -> List[DocumentW
 
     count_chars = 0
 
-    for doc in docs:
+    for ix, doc in enumerate(docs):
         content = doc.page_content
         count_chars += len(content)
 
@@ -102,15 +102,20 @@ def merge_docs(docs: List[DocumentWithScores], max_chars: int) -> List[DocumentW
             else:
                 candidates_dict[source] = [(doc_idx, doc)]
         else:
-            candidates_dict[source] = doc
+            candidates_dict[source + "_" + str(ix)] = doc
 
         if count_chars >= max_chars:
             break
 
     for source, ele in candidates_dict.items():
         if isinstance(ele, list):
+            file_directory, file_name = os.path.split(source)
+            ext = os.path.splitext(file_name)[-1].lower()
+            file_name = file_name[:-len(ext)]
+
             if len(ele) == 1:
                 new_doc = ele[0][1]
+                final_docs.append(new_doc)
             else:
                 ele_list = sorted(ele, key=lambda element: element[0])
 
@@ -120,11 +125,18 @@ def merge_docs(docs: List[DocumentWithScores], max_chars: int) -> List[DocumentW
                 max_score = 0
 
                 pre_idx = 0
-                for doc_idx, doc in ele_list:
-                    if doc_idx == pre_idx + 1:
+                for ix, (doc_idx, doc) in enumerate(ele_list):
+                    if ix == 0:
+                        new_page_content = f"文章标题：{file_name}\n{doc.page_content}"
+                    elif doc_idx == pre_idx + 1:
                         new_page_content = merge_strings(new_page_content, doc.page_content)
                     else:
-                        new_page_content += doc.page_content
+                        new_doc = DocumentWithScores(**{"page_content": new_page_content, "metadata": new_metadata},
+                                                     scores=new_scores)
+                        final_docs.append(new_doc)
+
+                        new_page_content = f"文章标题：{file_name}\n{doc.page_content}"
+
                     pre_idx = doc_idx
 
                     score = doc.scores['total']
@@ -133,9 +145,10 @@ def merge_docs(docs: List[DocumentWithScores], max_chars: int) -> List[DocumentW
                         new_metadata = doc.metadata
                         new_scores = doc.scores
 
-                new_doc = DocumentWithScores(**{"page_content": new_page_content, "metadata": new_metadata},
-                                             scores=new_scores)
-            final_docs.append(new_doc)
+                if new_page_content:
+                    new_doc = DocumentWithScores(**{"page_content": new_page_content, "metadata": new_metadata},
+                                                 scores=new_scores)
+                    final_docs.append(new_doc)
         else:
             final_docs.append(ele)
 
