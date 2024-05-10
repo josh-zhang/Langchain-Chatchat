@@ -79,12 +79,20 @@ def merge_strings(s1, s2):
     return merged_string
 
 
-def merge_docs(docs: List[DocumentWithScores]) -> List[DocumentWithScores]:
+def merge_docs(docs: List[DocumentWithScores], max_chars: int) -> List[DocumentWithScores]:
+    max_chars = max_chars - 1000
+    max_chars = max(1000, max_chars)
+
     final_docs = list()
 
     candidates_dict = dict()
 
+    count_chars = 0
+
     for doc in docs:
+        content = doc.page_content
+        count_chars += len(content)
+
         source = doc.metadata["source"]
         if "idx" in doc.metadata:
             doc_idx = int(doc.metadata["idx"])
@@ -95,6 +103,9 @@ def merge_docs(docs: List[DocumentWithScores]) -> List[DocumentWithScores]:
                 candidates_dict[source] = [(doc_idx, doc)]
         else:
             candidates_dict[source] = doc
+
+        if count_chars >= max_chars:
+            break
 
     for source, ele in candidates_dict.items():
         if isinstance(ele, list):
@@ -135,6 +146,7 @@ def search_docs(
         query: str = Body("", description="用户输入", examples=["你好"]),
         knowledge_base_name: str = Body(..., description="知识库名称", examples=["samples"]),
         top_k: int = Body(VECTOR_SEARCH_TOP_K, description="匹配向量数"),
+        max_chars: int = Body(2000, description="最大参考字数"),
         score_threshold: float = Body(SCORE_THRESHOLD,
                                       description="知识库匹配相关度阈值，取值范围在0-1之间，"
                                                   "SCORE越小，相关度越高，"
@@ -173,7 +185,7 @@ def search_docs(
             rerank_results.append(doc)
         docs = rerank_results
 
-    docs = merge_docs(docs)
+    docs = merge_docs(docs, max_chars)
 
     logger.info(f"top_k {top_k} and {len(docs)} docs total searched ")
     logger.info(docs)

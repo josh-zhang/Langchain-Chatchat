@@ -10,7 +10,7 @@ def list_api_running_models() -> BaseResponse:
         with get_httpx_client() as client:
             r = client.get("http://" + LITELLM_SERVER + "/model/info")
             res = r.json()['data']
-            model_list = [i['model_name'] for i in res if 'mode' not in i['model_info'] or (
+            model_list = [(i['model_name'], i["max_chars"]) for i in res if 'mode' not in i['model_info'] or (
                     'mode' in i['model_info'] and i['model_info']['mode'] != 'embedding')]
             model_list = list(set(model_list))
             return BaseResponse(data=model_list)
