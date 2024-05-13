@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import operator
@@ -228,7 +229,8 @@ class KBService(ABC):
             if a_idx in answer_dict:
                 answer_dict[a_idx].append(docq)
             else:
-                qna = "问题：" + std_label_list[a_idx] + "\n答案：" + answer
+                qna = "### 问题：" + std_label_list[a_idx] + "\n### 答案：\n" + re.sub("(\s*\n\s*)+", "\n",
+                                                                                     answer).strip()
                 doca = Document(page_content=qna)
                 doca.metadata["source"] = filename
                 doca.metadata["raw_id"] = str(a_idx)

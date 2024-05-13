@@ -95,6 +95,7 @@ def merge_docs(docs: List[DocumentWithScores], max_chars: int) -> List[DocumentW
 
         source = doc.metadata["source"]
         if "idx" in doc.metadata:
+            # normal doc
             doc_idx = int(doc.metadata["idx"])
 
             if source in candidates_dict:
@@ -102,6 +103,7 @@ def merge_docs(docs: List[DocumentWithScores], max_chars: int) -> List[DocumentW
             else:
                 candidates_dict[source] = [(doc_idx, doc)]
         else:
+            # faq doc
             candidates_dict[source + "_" + str(ix)] = doc
 
         if count_chars >= max_chars:
@@ -115,6 +117,7 @@ def merge_docs(docs: List[DocumentWithScores], max_chars: int) -> List[DocumentW
 
             if len(ele) == 1:
                 new_doc = ele[0][1]
+                new_doc.page_content = f"{file_name}(节选)\n\n{new_doc.page_content}"
                 final_docs.append(new_doc)
             else:
                 ele_list = sorted(ele, key=lambda element: element[0])
@@ -127,7 +130,7 @@ def merge_docs(docs: List[DocumentWithScores], max_chars: int) -> List[DocumentW
                 pre_idx = 0
                 for ix, (doc_idx, doc) in enumerate(ele_list):
                     if ix == 0:
-                        new_page_content = f"文章标题：{file_name}\n{doc.page_content}"
+                        new_page_content = f"{file_name}(节选)\n\n{doc.page_content}"
                     elif doc_idx == pre_idx + 1:
                         new_page_content = merge_strings(new_page_content, doc.page_content)
                     else:
@@ -135,7 +138,7 @@ def merge_docs(docs: List[DocumentWithScores], max_chars: int) -> List[DocumentW
                                                      scores=new_scores)
                         final_docs.append(new_doc)
 
-                        new_page_content = f"文章标题：{file_name}\n{doc.page_content}"
+                        new_page_content = f"{file_name}(节选)\n\n{doc.page_content}"
 
                     pre_idx = doc_idx
 
@@ -150,6 +153,7 @@ def merge_docs(docs: List[DocumentWithScores], max_chars: int) -> List[DocumentW
                                                  scores=new_scores)
                     final_docs.append(new_doc)
         else:
+            ele.page_content = f"\n{ele.page_content}"
             final_docs.append(ele)
 
     return final_docs

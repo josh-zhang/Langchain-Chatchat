@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import importlib
 import shutil
@@ -173,15 +174,11 @@ SUPPORTED_EXTS = [ext for sublist in LOADER_DICT.values() for ext in sublist]
 
 
 class CustomHTMLLoader(langchain_community.document_loaders.UnstructuredFileLoader):
-    # delimiter = " 之 "
 
     def load_content(self, file_path) -> List[Element]:
         elements: List[Element] = []
 
         last_modification_date = get_last_modified_date(file_path)
-        # file_directory, file_name = os.path.split(file_path)
-        # ext = os.path.splitext(file_name)[-1].lower()
-        # file_name = file_name[:-len(ext)]
 
         chapters_list = load_gen_file(file_path)
 
@@ -190,7 +187,8 @@ class CustomHTMLLoader(langchain_community.document_loaders.UnstructuredFileLoad
 
             chapter_title = "" if chapter_tuple[0] is None else chapter_tuple[0]
             if chapter_title:
-                chapter_title = f"章节标题：{chapter_title}\n"
+                chapter_title = re.sub("(\s*\n\s*)+", "\n", chapter_title).strip()
+                chapter_title = f"### {chapter_title}\n"
             chapter_title_ele = Title(text=chapter_title, metadata=ElementMetadata(filename=file_path,
                                                                                    filetype="html",
                                                                                    page_number=chapter_number))
@@ -202,11 +200,10 @@ class CustomHTMLLoader(langchain_community.document_loaders.UnstructuredFileLoad
             paragraphs = chapter_tuple[1]
             for iii, paragraph_tuple in enumerate(paragraphs):
                 paragraph_title = "" if paragraph_tuple[0] is None else paragraph_tuple[0]
+
                 if paragraph_title:
-                    paragraph_title = f"段落标题：{paragraph_title}\n"
-                # paragraph_title = file_name + self.delimiter + paragraph_title
-                paragraph_text = paragraph_tuple[1]
-                # sub_paragraphs = paragraph_tuple[2]
+                    paragraph_title = re.sub("(\s*\n\s*)+", "\n", paragraph_title).strip()
+                    paragraph_title = f"#### {paragraph_title}\n"
 
                 paragraph_title_ele = Title(text=paragraph_title, metadata=ElementMetadata(filename=file_path,
                                                                                            filetype="html",
@@ -217,36 +214,12 @@ class CustomHTMLLoader(langchain_community.document_loaders.UnstructuredFileLoad
 
                 elements.append(paragraph_title_ele)
 
-                # if sub_paragraphs:
-                #     for iii, sub_paragraph_tuple in enumerate(sub_paragraphs):
-                #         sub_paragraph_title = "" if sub_paragraph_tuple[0] is None else sub_paragraph_tuple[0]
-                #
-                #         if sub_paragraph_title:
-                #             sub_paragraph_title = file_name + self.delimiter + paragraph_tuple[0] + self.delimiter + \
-                #                                   sub_paragraph_title
-                #         else:
-                #             sub_paragraph_title = file_name + self.delimiter + paragraph_tuple[0] + f" 段落{iii + 1}"
-                #
-                #         sub_paragraph_text = sub_paragraph_tuple[1]
-                #
-                #         sub_paragraph_title_ele = Title(text=sub_paragraph_title,
-                #                                         metadata=ElementMetadata(filename=file_path,
-                #                                                                  filetype="html",
-                #                                                                  page_number=chapter_number))
-                #         sub_paragraph_title_ele.metadata.parent_id = paragraph_title_ele.id
-                #         sub_paragraph_title_ele.metadata.last_modified = last_modification_date
-                #         sub_paragraph_title_ele.metadata.category_depth = 2
-                #
-                #         sub_paragraph_text_ele = Text(text=sub_paragraph_text,
-                #                                       metadata=ElementMetadata(filename=file_path,
-                #                                                                filetype="html",
-                #                                                                page_number=chapter_number))
-                #         sub_paragraph_text_ele.metadata.parent_id = paragraph_title_ele.id
-                #         sub_paragraph_text_ele.metadata.last_modified = last_modification_date
-                #
-                #         elements.append(sub_paragraph_title_ele)
-                #         elements.append(sub_paragraph_text_ele)
-                # else:
+                paragraph_text = paragraph_tuple[1]
+
+                if paragraph_text:
+                    paragraph_text = re.sub("(\s*\n\s*)+", "\n", paragraph_text).strip()
+                    paragraph_text = f"{paragraph_text}\n"
+
                 paragraph_text_ele = Text(text=paragraph_text, metadata=ElementMetadata())
                 paragraph_text_ele.metadata.parent_id = paragraph_title_ele.id
                 paragraph_text_ele.metadata.last_modified = last_modification_date
