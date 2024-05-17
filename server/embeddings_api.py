@@ -69,8 +69,11 @@ def embed_texts(
             supervisor_address = f"{supervisor_address}/v1/embeddings"
 
             response = requests.post(supervisor_address, json={"model": embed_model[:-4], "input": texts})
-            data = [i["embedding"] for i in response.json()["data"]]
-            return BaseResponse(data=data)
+            if response.status_code != 200:
+                return BaseResponse(code=500, msg=f"文本向量化过程中出现错误")
+            else:
+                data = [i["embedding"] for i in response.json()["data"]]
+                return BaseResponse(data=data)
         else:
             from server.utils import load_local_embeddings
 
@@ -97,8 +100,11 @@ async def aembed_texts(
             supervisor_address = f"{supervisor_address}/v1/embeddings"
 
             response = requests.post(supervisor_address, json={"model": embed_model[:-4], "input": texts})
-            data = [i["embedding"] for i in response.json()["data"]]
-            return BaseResponse(data=data)
+            if response.status_code != 200:
+                return BaseResponse(code=500, msg=f"文本向量化过程中出现错误")
+            else:
+                data = [i["embedding"] for i in response.json()["data"]]
+                return BaseResponse(data=data)
         else:
             from server.utils import load_local_embeddings
 

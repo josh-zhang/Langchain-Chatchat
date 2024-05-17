@@ -29,6 +29,10 @@ def validate_and_clean_input(user_input):
         return cleaned_input, False  # Input was invalid, but cleaned
 
 
+def is_vaild_kb_file(kb_filename):
+    return True
+
+
 def config_aggrid(
         df: pd.DataFrame,
         columns: Dict[Tuple[str, str], Dict] = {},
@@ -113,25 +117,25 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
             now = datetime.datetime.now()
             now_str = now.strftime('%Y%m%d_%H%M%S')
             suggested_id = f"{now_str}"
-            suggested_name = f"{now_str}源文件"
+            # suggested_name = f"{now_str}源文件"
 
             new_kb_name = st.text_input(
-                "知识库ID (仅支持英文字母、数字和下划线)",
-                placeholder="新知识库ID (仅支持英文字母、数字和下划线)",
+                "请输入知识库编号（仅支持英文字母、数字和下划线）",
+                placeholder="新知识库编号 (仅支持英文字母、数字和下划线)",
                 key="kb_name",
                 value=suggested_id,
                 max_chars=50,
             )
 
             new_kb_info = st.text_input(
-                "知识库名称",
+                "请输入知识库名称（不能为空）",
                 placeholder="知识库名称",
                 key="kb_info",
                 value="",
                 max_chars=100,
             )
             new_kb_agent_guide = st.text_area(
-                "知识库介绍",
+                "请输入知识库介绍",
                 placeholder="知识库介绍",
                 key="kb_agent_guide",
                 value="",
@@ -147,7 +151,6 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 index=vs_types.index(DEFAULT_VS_TYPE),
                 key="vs_type",
             )
-
             embed_model = cols[1].selectbox(
                 "向量库模型",
                 embed_models,
@@ -167,16 +170,16 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
             _, is_valid = validate_and_clean_input(new_kb_name)
 
             if not new_kb_name or not new_kb_name.strip():
-                st.error(f"知识库ID不能为空")
+                st.error(f"知识库编号不能为空")
             elif not is_valid:
-                st.error("新建知识库ID中仅支持包含英文字母、数字和下划线")
+                st.error("新建知识库编号中仅支持包含英文字母、数字和下划线")
             elif new_kb_name in kb_name_dict:
-                st.error(f"ID为 {new_kb_name} 的知识库已经存在，请直接使用。如需重新创建，请先删除现有同ID知识库")
+                st.error(f"知识库编号为 {new_kb_name} 的知识库已经存在，请直接使用。如需重新创建，请先删除现有知识库")
             else:
                 if not new_kb_info or not new_kb_info.strip():
                     st.error(f"知识库名称不能为空")
                 elif new_kb_info in exist_kb_infos:
-                    st.error(f"名称为 {new_kb_info} 的知识库已经存在，请直接使用。如需重新创建，请先删除现有同名称知识库")
+                    st.error(f"知识库名称为 {new_kb_info} 的知识库已经存在，请直接使用。如需重新创建，请先删除现有知识库")
                 else:
                     ret = api.create_knowledge_base(
                         knowledge_base_name=new_kb_name,
@@ -195,7 +198,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
         this_kb_name = selected_kb
         this_kb_info = kb_name_dict[this_kb_name]['kb_info']
         # st.session_state["selected_kb_info"] = kb_dict[kb]['kb_info']
-        st.text_input("知识库ID", value=this_kb_name, max_chars=None,
+        st.text_input("知识库编号", value=this_kb_name, max_chars=None,
                       key=None, help=None, on_change=None, args=None, kwargs=None, disabled=True)
         st.text_area("知识库介绍", value=kb_name_dict[this_kb_name]['kb_agent_guide'], max_chars=None,
                      key=None, help=None, on_change=None, args=None, kwargs=None, disabled=True)
@@ -214,6 +217,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
         elif doc_type == "知识库网页文件":
             support_types = ["html"]
             document_loader_name = "CustomHTMLLoader"
+            st.info("注意：请以 [知识标题.html] 形式命名上传知识库网页文件")
         else:
             support_types = [i for ls in LOADER_DICT.values() for i in ls]
             document_loader_name = "default"
@@ -273,7 +277,8 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 kb_file_detail['file_type'] = "FAQ表格文件"
             elif loader == "CustomHTMLLoader":
                 kb_file_detail['file_type'] = "知识库网页文件"
-                has_kf_html = True
+                if is_vaild_kb_file(file_name):
+                    has_kf_html = True
             else:
                 kb_file_detail['file_type'] = "普通文件"
 

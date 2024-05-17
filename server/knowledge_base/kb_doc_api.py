@@ -1,6 +1,7 @@
 import os
 import urllib
-from typing import List
+import requests
+from typing import List, Optional
 
 from fastapi.responses import FileResponse
 from fastapi import File, Form, Body, Query, UploadFile
@@ -10,12 +11,36 @@ from pydantic import Json
 from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.db.repository.knowledge_file_repository import get_file_detail, list_docs_from_db, list_answer_from_db, \
     list_question_from_db
-from server.utils import BaseResponse, ListResponse, run_in_thread_pool
+from server.utils import BaseResponse, ListResponse, run_in_thread_pool, xinference_supervisor_address
 from server.knowledge_base.kb_job.gen_qa import gen_qa_task, JobExecutor, JobFutures, FuturesAtomic
 from server.knowledge_base.utils import (validate_kb_name, get_file_path, files2docs_in_thread,
                                          KnowledgeFile, DocumentWithScores, get_doc_path, create_compressed_archive)
-from configs import (VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, BM_25_FACTOR, LITELLM_SERVER,
+from configs import (VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, BM_25_FACTOR, LITELLM_SERVER, USE_RERANKER, RERANKER_MODEL,
                      CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE, logger, log_verbose, BASE_TEMP_DIR)
+
+
+def do_rerank(
+        documents: List[str],
+        query: str,
+        top_n: Optional[int] = None,
+        max_chunks_per_doc: Optional[int] = None,
+        return_documents: Optional[bool] = None,
+        model_name: str = RERANKER_MODEL,
+):
+    url = f"{xinference_supervisor_address()}/v1/rerank"
+    request_body = {
+        "model": model_name,
+        "documents": documents,
+        "query": query,
+        "top_n": top_n,
+        "max_chunks_per_doc": max_chunks_per_doc,
+        "return_documents": return_documents,
+    }
+    response = requests.post(url, json=request_body)
+    if response.status_code != 200:
+        return []
+    response_data = response.json()['results']
+    return response_data
 
 
 def get_total_score_sorted(docs_data: List[DocumentWithScores], score_threshold) -> List[DocumentWithScores]:
@@ -39,10 +64,106 @@ def get_total_score_sorted(docs_data: List[DocumentWithScores], score_threshold)
                   reverse=True)
 
 
+def merge_strings(s1, s2):
+    # Find the maximum length of the overlap between s1 and s2
+    overlap_length = 0
+    max_length = min(len(s1), len(s2))
+
+    for i in range(1, max_length + 1):
+        # Check if the end of s1 overlaps with the start of s2
+        if s1[-i:] == s2[:i]:
+            overlap_length = i
+
+    # Merge the strings using the overlap length
+    merged_string = s1 + s2[overlap_length:]
+    return merged_string
+
+
+def merge_docs(docs: List[DocumentWithScores], max_chars: int) -> List[DocumentWithScores]:
+    max_chars = max_chars - 1000
+    max_chars = max(1000, max_chars)
+
+    final_docs = list()
+
+    candidates_dict = dict()
+
+    count_chars = 0
+
+    for ix, doc in enumerate(docs):
+        content = doc.page_content
+        count_chars += len(content)
+
+        source = doc.metadata["source"]
+        if "idx" in doc.metadata:
+            # normal doc
+            doc_idx = int(doc.metadata["idx"])
+
+            if source in candidates_dict:
+                candidates_dict[source].append((doc_idx, doc))
+            else:
+                candidates_dict[source] = [(doc_idx, doc)]
+        else:
+            # faq doc
+            candidates_dict[source + "_" + str(ix)] = doc
+
+        if count_chars >= max_chars:
+            break
+
+    for source, ele in candidates_dict.items():
+        if isinstance(ele, list):
+            file_directory, file_name = os.path.split(source)
+            ext = os.path.splitext(file_name)[-1].lower()
+            file_name = file_name[:-len(ext)]
+
+            if len(ele) == 1:
+                new_doc = ele[0][1]
+                new_doc.page_content = f"{file_name}(节选)\n\n{new_doc.page_content}"
+                final_docs.append(new_doc)
+            else:
+                ele_list = sorted(ele, key=lambda element: element[0])
+
+                new_page_content = ""
+                new_metadata = {}
+                new_scores = {}
+                max_score = 0
+
+                pre_idx = 0
+                for ix, (doc_idx, doc) in enumerate(ele_list):
+                    if ix == 0:
+                        new_page_content = f"{file_name}(节选)\n\n{doc.page_content}"
+                    elif doc_idx == pre_idx + 1:
+                        new_page_content = merge_strings(new_page_content, doc.page_content)
+                    else:
+                        new_doc = DocumentWithScores(**{"page_content": new_page_content, "metadata": new_metadata},
+                                                     scores=new_scores)
+                        final_docs.append(new_doc)
+
+                        new_page_content = f"{file_name}(节选)\n\n{doc.page_content}"
+
+                    pre_idx = doc_idx
+
+                    score = doc.scores['total']
+                    if score >= max_score:
+                        max_score = score
+                        new_metadata = doc.metadata
+                        new_scores = doc.scores
+
+                if new_page_content:
+                    new_doc = DocumentWithScores(**{"page_content": new_page_content, "metadata": new_metadata},
+                                                 scores=new_scores)
+                    final_docs.append(new_doc)
+        else:
+            ele.page_content = f"\n{ele.page_content}"
+            final_docs.append(ele)
+
+    return final_docs
+
+
 def search_docs(
         query: str = Body("", description="用户输入", examples=["你好"]),
         knowledge_base_name: str = Body(..., description="知识库名称", examples=["samples"]),
         top_k: int = Body(VECTOR_SEARCH_TOP_K, description="匹配向量数"),
+        max_chars: int = Body(2000, description="最大参考字数"),
         score_threshold: float = Body(SCORE_THRESHOLD,
                                       description="知识库匹配相关度阈值，取值范围在0-1之间，"
                                                   "SCORE越小，相关度越高，"
@@ -65,12 +186,28 @@ def search_docs(
 
     docs_data = docs_data + qa_data
 
-    docs_data = get_total_score_sorted(docs_data, score_threshold)
+    docs = get_total_score_sorted(docs_data, score_threshold)
 
-    logger.info(f"top_k {top_k} and {len(docs_data)} docs total searched ")
-    logger.info(docs_data)
+    if USE_RERANKER and len(docs) > top_k:
+        doc_list = list(docs)
+        _docs = [d.page_content for d in doc_list]
 
-    return docs_data
+        rerank_results = []
+        results = do_rerank(_docs, query)
+        for i in results:
+            idx = i['index']
+            value = i['relevance_score']
+            doc = doc_list[idx]
+            doc.metadata["relevance_score"] = value
+            rerank_results.append(doc)
+        docs = rerank_results
+
+    docs = merge_docs(docs, max_chars)
+
+    logger.info(f"top_k {top_k} and {len(docs)} docs total searched ")
+    logger.info(docs)
+
+    return docs
 
 
 def list_files(

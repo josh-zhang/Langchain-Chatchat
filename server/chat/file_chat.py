@@ -113,7 +113,7 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
                     stream: bool = Body(False, description="流式输出"),
                     model_name: str = Body(LLM_MODEL, description="LLM 模型名称。"),
                     temperature: float = Body(TEMPERATURE, description="LLM 采样温度", ge=0.0, le=1.0),
-                    max_tokens: Optional[int] = Body(None, description="限制LLM生成Token数量，默认None代表模型最大值"),
+                    max_chars: Optional[int] = Body(None, description="限制LLM总文字数量，默认None代表模型最大值"),
                     prompt_name: str = Body("default",
                                             description="使用的prompt模板名称(在configs/prompt_config.py中配置)"),
                     ):
@@ -126,9 +126,6 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
     history = [History.from_data(h) for h in history]
 
     async def knowledge_base_chat_iterator() -> AsyncIterable[str]:
-        nonlocal max_tokens
-        if isinstance(max_tokens, int) and max_tokens <= 0:
-            max_tokens = None
 
         if "总行" in model_name:
             callback = None
@@ -139,22 +136,23 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
             callbacks = [callback]
             streaming = stream
 
-        model = get_ChatOpenAI(
-            model_name=model_name,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            callbacks=callbacks,
-            streaming=streaming
-        )
-
         source_documents = []
 
         if knowledge_content:
-            prompt_template, _ = generate_doc_qa(query, history, [], "根据已知信息无法回答该问题", knowledge_content)
+            prompt_template, _, max_tokens_remain = generate_doc_qa(query, history, [], "根据已知信息无法回答该问题",
+                                                                    max_chars, knowledge_content)
 
             input_msg = History(role="user", content=prompt_template).to_msg_template(False)
 
             chat_prompt = ChatPromptTemplate.from_messages([input_msg])
+
+            model = get_ChatOpenAI(
+                model_name=model_name,
+                temperature=temperature,
+                max_tokens=max_tokens_remain,
+                callbacks=callbacks,
+                streaming=streaming
+            )
 
             chain = LLMChain(prompt=chat_prompt, llm=model)
 
@@ -170,11 +168,20 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
                 docs = [x[0] for x in docs]
                 text_docs = [doc.page_content for doc in docs]
 
-            prompt_template, context = generate_doc_qa(query, history, text_docs, "根据已知信息无法回答该问题")
+            prompt_template, context, max_tokens_remain = generate_doc_qa(query, history, text_docs,
+                                                                          "根据已知信息无法回答该问题", max_chars)
 
             input_msg = History(role="user", content=prompt_template).to_msg_template(False)
 
             chat_prompt = ChatPromptTemplate.from_messages([input_msg])
+
+            model = get_ChatOpenAI(
+                model_name=model_name,
+                temperature=temperature,
+                max_tokens=max_tokens_remain,
+                callbacks=callbacks,
+                streaming=streaming
+            )
 
             chain = LLMChain(prompt=chat_prompt, llm=model)
 

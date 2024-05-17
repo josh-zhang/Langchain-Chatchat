@@ -1,6 +1,5 @@
 import json
 import asyncio
-import requests
 from typing import AsyncIterable, List, Optional
 
 from fastapi import Body, Request
@@ -17,42 +16,14 @@ from server.chat.utils import History
 from server.chat.prompt_generator import generate_doc_qa
 from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.knowledge_base.kb_doc_api import search_docs
-# from server.knowledge_base.kb_cache.base import reranker_pool
 from server.utils import BaseResponse
-from server.utils import xinference_supervisor_address
 from configs import (LLM_MODEL,
                      VECTOR_SEARCH_TOP_K,
                      SCORE_THRESHOLD,
                      BM_25_FACTOR,
                      TEMPERATURE,
-                     USE_RERANKER,
-                     RERANKER_MODEL,
                      API_SERVER_HOST_MAPPING,
                      API_SERVER_PORT_MAPPING)
-
-
-def do_rerank(
-        documents: List[str],
-        query: str,
-        top_n: Optional[int] = None,
-        max_chunks_per_doc: Optional[int] = None,
-        return_documents: Optional[bool] = None,
-        model_name: str = RERANKER_MODEL,
-):
-    url = f"{xinference_supervisor_address()}/v1/rerank"
-    request_body = {
-        "model": model_name,
-        "documents": documents,
-        "query": query,
-        "top_n": top_n,
-        "max_chunks_per_doc": max_chunks_per_doc,
-        "return_documents": return_documents,
-    }
-    response = requests.post(url, json=request_body)
-    if response.status_code != 200:
-        return []
-    response_data = response.json()['results']
-    return response_data
 
 
 async def knowledge_base_chat(query: str = Body(..., description="用户输入", examples=["你好"]),
@@ -82,9 +53,9 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
                               stream: bool = Body(False, description="流式输出"),
                               model_name: str = Body(LLM_MODEL, description="LLM 模型名称。"),
                               temperature: float = Body(TEMPERATURE, description="LLM 采样温度", ge=0.0, le=1.0),
-                              max_tokens: Optional[int] = Body(
+                              max_chars: Optional[int] = Body(
                                   None,
-                                  description="限制LLM生成Token数量，默认None代表模型最大值"
+                                  description="限制LLM总文字数量，默认None代表模型最大值"
                               ),
                               prompt_name: str = Body(
                                   "default",
@@ -118,12 +89,24 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
             history: Optional[List[History]],
             source: Optional[List],
             model_name: str = model_name,
-            prompt_name: str = prompt_name,
     ) -> AsyncIterable[str]:
+        final_search_type = "继续问答" if search_type == "继续问答" and source else "重新搜索"
 
-        nonlocal max_tokens
-        if isinstance(max_tokens, int) and max_tokens <= 0:
-            max_tokens = None
+        if final_search_type == "重新搜索":
+            docs = await run_in_threadpool(search_docs,
+                                           query=query,
+                                           knowledge_base_name=knowledge_base_name,
+                                           top_k=top_k,
+                                           max_chars=max_chars,
+                                           score_threshold=score_threshold)
+            docs = docs[:top_k]
+            text_docs = [doc.page_content for doc in docs]
+        else:
+            docs = source
+            text_docs = docs
+
+        prompt_template, context, max_tokens_remain = generate_doc_qa(query, history, text_docs,
+                                                                      "根据已知信息无法回答该问题", max_chars)
 
         if "总行" in model_name:
             callback = None
@@ -137,54 +120,10 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
         model = get_ChatOpenAI(
             model_name=model_name,
             temperature=temperature,
-            max_tokens=max_tokens,
+            max_tokens=max_tokens_remain,
             callbacks=callbacks,
             streaming=streaming
         )
-
-        final_search_type = "继续问答" if search_type == "继续问答" and source else "重新搜索"
-
-        if final_search_type == "重新搜索":
-            docs = await run_in_threadpool(search_docs,
-                                           query=query,
-                                           knowledge_base_name=knowledge_base_name,
-                                           top_k=top_k,
-                                           score_threshold=score_threshold)
-
-            # 加入reranker
-            if USE_RERANKER and len(docs) > top_k:
-                doc_list = list(docs)
-                _docs = [d.page_content for d in doc_list]
-
-                final_results = []
-                results = do_rerank(_docs, query)
-                for i in results:
-                    idx = i['index']
-                    value = i['relevance_score']
-                    doc = doc_list[idx]
-                    doc.metadata["relevance_score"] = value
-                    final_results.append(doc)
-
-                # remain_length = RERANKER_MAX_LENGTH - len(query)
-                # _docs = [d.page_content[:remain_length] for d in doc_list]
-                # sentence_pairs = [[query, _doc] for _doc in _docs]
-
-                # scores = reranker_pool.get_score(sentence_pairs, RERANKER_MODEL)
-                # sorted_tuples = sorted([(value, index) for index, value in enumerate(scores)], key=lambda x: x[0], reverse=True)
-                # for value, index in sorted_tuples:
-                #     doc = doc_list[index]
-                #     doc.metadata["relevance_score"] = value
-                #     final_results.append(doc)
-
-                docs = final_results
-
-            docs = docs[:top_k]
-            text_docs = [doc.page_content for doc in docs]
-        else:
-            docs = source
-            text_docs = docs
-
-        prompt_template, context = generate_doc_qa(query, history, text_docs, "根据已知信息无法回答该问题")
 
         input_msg = History(role="user", content=prompt_template).to_msg_template(False)
 
@@ -199,7 +138,6 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
             for inum, doc in enumerate(docs):
                 filename = doc.metadata.get("source")
                 parameters = urlencode({"knowledge_base_name": knowledge_base_name, "file_name": filename})
-                # base_url = request.base_url
                 url = f"{base_url_altered}knowledge_base/download_doc?" + parameters
                 text = ""
                 if inum > 0:
@@ -233,4 +171,4 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
                              ensure_ascii=False)
 
     return EventSourceResponse(
-        knowledge_base_chat_iterator(query, search_type, top_k, history, source, model_name, prompt_name))
+        knowledge_base_chat_iterator(query, search_type, top_k, history, source, model_name))
