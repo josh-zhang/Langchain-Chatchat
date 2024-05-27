@@ -157,7 +157,7 @@ class ESKBService(KBService):
             query = {
                 "query": {
                     "term": {
-                        "metadata.source.keyword": kb_file.filepath
+                        "metadata.source.keyword": self.get_relative_source_path(kb_file.filepath)
                     }
                 }
             }
@@ -213,11 +213,3 @@ class ESKBService(KBService):
         # self.kb_file: 知识库路径
         if os.path.exists(self.kb_path):
             shutil.rmtree(self.kb_path)
-
-
-
-
-
-
-
-

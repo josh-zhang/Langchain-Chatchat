@@ -169,43 +169,50 @@ def search_docs(
                                                   "SCORE越小，相关度越高，"
                                                   "取到1相当于不筛选，建议设置在0.5左右",
                                       ge=0, le=1),
+        file_name: str = Body("", description="文件名称，支持 sql 通配符"),
+        metadata: dict = Body({}, description="根据 metadata 进行过滤，仅支持一级键"),
 ) -> List[DocumentWithScores]:
     kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
     if kb is None:
         return []
 
-    ks_docs_data, ks_qa_data = kb.search_allinone(query, top_k * 2, 0.0)
+    if query:
+        ks_docs_data, ks_qa_data = kb.search_allinone(query, top_k * 2, 0.0)
 
-    if kb.search_enhance:
-        bm25_docs_data, bm25_qa_data = kb.enhance_search_allinone(query, 2, BM_25_FACTOR)
-        docs_data = kb.merge_docs(ks_docs_data, bm25_docs_data, is_max=True)
-        qa_data = kb.merge_answers(ks_qa_data, bm25_qa_data, is_max=True)
+        if kb.search_enhance:
+            bm25_docs_data, bm25_qa_data = kb.enhance_search_allinone(query, 2, BM_25_FACTOR)
+            docs_data = kb.merge_docs(ks_docs_data, bm25_docs_data, is_max=True)
+            qa_data = kb.merge_answers(ks_qa_data, bm25_qa_data, is_max=True)
+        else:
+            docs_data = ks_docs_data
+            qa_data = ks_qa_data
+
+        docs_data = docs_data + qa_data
+
+        docs = get_total_score_sorted(docs_data, score_threshold)
+
+        if USE_RERANKER and len(docs) > top_k:
+            doc_list = list(docs)
+            _docs = [d.page_content for d in doc_list]
+
+            rerank_results = []
+            results = do_rerank(_docs, query)
+            for i in results:
+                idx = i['index']
+                value = i['relevance_score']
+                doc = doc_list[idx]
+                doc.metadata["relevance_score"] = value
+                rerank_results.append(doc)
+            docs = rerank_results
+
+        docs = merge_docs(docs, max_chars)
+
+        logger.info(f"top_k {top_k} and {len(docs)} docs total searched ")
+        logger.info(docs)
+    elif file_name or metadata:
+        docs = kb.list_docs(file_name=file_name, metadata=metadata)
     else:
-        docs_data = ks_docs_data
-        qa_data = ks_qa_data
-
-    docs_data = docs_data + qa_data
-
-    docs = get_total_score_sorted(docs_data, score_threshold)
-
-    if USE_RERANKER and len(docs) > top_k:
-        doc_list = list(docs)
-        _docs = [d.page_content for d in doc_list]
-
-        rerank_results = []
-        results = do_rerank(_docs, query)
-        for i in results:
-            idx = i['index']
-            value = i['relevance_score']
-            doc = doc_list[idx]
-            doc.metadata["relevance_score"] = value
-            rerank_results.append(doc)
-        docs = rerank_results
-
-    docs = merge_docs(docs, max_chars)
-
-    logger.info(f"top_k {top_k} and {len(docs)} docs total searched ")
-    logger.info(docs)
+        docs = []
 
     return docs
 

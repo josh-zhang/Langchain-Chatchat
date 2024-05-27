@@ -23,10 +23,10 @@ class PGKBService(KBService):
                                   connection_string=kbs_config.get("pg").get("connection_uri"))
 
     def get_doc_by_ids(self, ids: List[str]) -> List[Document]:
-        with self.pg_vector.connect() as connect:
-            stmt = text("SELECT document, cmetadata FROM langchain_pg_embedding WHERE collection_id in :ids")
+        with Session(PGKBService.engine) as session:
+            stmt = text("SELECT document, cmetadata FROM langchain_pg_embedding WHERE custom_id = ANY(:ids)")
             results = [Document(page_content=row[0], metadata=row[1]) for row in
-                       connect.execute(stmt, parameters={'ids': ids}).fetchall()]
+                       session.execute(stmt, {'ids': ids}).fetchall()]
             return results
 
     def do_init(self):
@@ -65,13 +65,12 @@ class PGKBService(KBService):
         return doc_infos
 
     def do_delete_doc(self, kb_file: KnowledgeFile, **kwargs):
-        with self.pg_vector.connect() as connect:
-            filepath = kb_file.filepath.replace('\\', '\\\\')
-            connect.execute(
+        with Session(PGKBService.engine) as session:
+            session.execute(
                 text(
                     ''' DELETE FROM langchain_pg_embedding WHERE cmetadata::jsonb @> '{"source": "filepath"}'::jsonb;'''.replace(
-                        "filepath", filepath)))
-            connect.commit()
+                        "filepath", self.get_relative_source_path(kb_file.filepath))))
+            session.commit()
 
     def do_clear_vs(self):
         self.pg_vector.delete_collection()
