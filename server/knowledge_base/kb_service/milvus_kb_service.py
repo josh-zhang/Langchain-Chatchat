@@ -30,9 +30,6 @@ class MilvusKBService(KBService):
                 result.append(Document(page_content=text, metadata=data))
         return result
 
-    def del_doc_by_ids(self, vector_name, ids: List[str]):
-        self.get_milvus(vector_name).col.delete(expr=f'pk in {ids}')
-
     def do_init(self):
         self._load_milvus("docs")
         self._load_milvus("question")
@@ -134,6 +131,9 @@ class MilvusKBService(KBService):
                                    index_params=kbs_config.get("milvus_kwargs")["index_params"],
                                    search_params=kbs_config.get("milvus_kwargs")["search_params"]
                                    )
+
+    def del_doc_by_ids(self, vector_name, ids: List[str]):
+        self.get_milvus(vector_name).col.delete(expr=f'pk in {ids}')
 
 
 if __name__ == '__main__':

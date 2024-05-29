@@ -666,14 +666,14 @@ class KBServiceFactory:
                     embed_model: str = EMBEDDING_MODEL,
                     search_enhance: bool = SEARCH_ENHANCE,
                     ) -> KBService:
-        if isinstance(vector_store_type, str):
-            vector_store_type = getattr(SupportedVSType, vector_store_type.upper())
-        if SupportedVSType.MILVUS == vector_store_type:
-            from server.knowledge_base.kb_service.milvus_kb_service import MilvusKBService
-            return MilvusKBService(kb_name, kb_info, kb_agent_guide, search_enhance, embed_model=embed_model)
-        else:
-            from server.knowledge_base.kb_service.faiss_kb_service import FaissKBService
-            return FaissKBService(kb_name, kb_info, kb_agent_guide, search_enhance, embed_model=embed_model)
+        # if isinstance(vector_store_type, str):
+        #     vector_store_type = getattr(SupportedVSType, vector_store_type.upper())
+        # if SupportedVSType.MILVUS == vector_store_type:
+        from server.knowledge_base.kb_service.milvus_kb_service import MilvusKBService
+        return MilvusKBService(kb_name, kb_info, kb_agent_guide, search_enhance, embed_model=embed_model)
+        # else:
+        #     from server.knowledge_base.kb_service.faiss_kb_service import FaissKBService
+        #     return FaissKBService(kb_name, kb_info, kb_agent_guide, search_enhance, embed_model=embed_model)
         # elif SupportedVSType.PG == vector_store_type:
         #     from server.knowledge_base.kb_service.pg_kb_service import PGKBService
         #     return PGKBService(kb_name, embed_model=embed_model)

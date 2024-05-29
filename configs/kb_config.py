@@ -4,7 +4,7 @@ import os
 DEFAULT_KNOWLEDGE_BASE = "samples"
 
 # 默认向量库/全文检索引擎类型。可选：faiss, milvus(离线) & zilliz(在线), pgvector,全文检索引擎es
-DEFAULT_VS_TYPE = "faiss"
+DEFAULT_VS_TYPE = "milvus"
 
 # 缓存向量库数量（针对FAISS）
 CACHED_VS_NUM = 20
@@ -82,10 +82,10 @@ kbs_config = {
     #     "user": "",
     #     "password": ""
     # },
-    # "milvus_kwargs": {
-    #     "search_params": {"metric_type": "L2"},  # 在此处增加search_params
-    #     "index_params": {"metric_type": "L2", "index_type": "HNSW"}  # 在此处增加index_params
-    # }
+    "milvus_kwargs": {
+        "search_params": {"metric_type": "L2"},  # 在此处增加search_params
+        "index_params": {"metric_type": "L2", "index_type": "HNSW"}  # 在此处增加index_params
+    }
 }
 
 # TextSplitter配置项，如果你不明白其中的含义，就不要修改。
