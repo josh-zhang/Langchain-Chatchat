@@ -402,7 +402,7 @@ class KBService(ABC):
                 doc_ids.append(doc_id)
                 scores_list.append(scores)
 
-        answers = list(zip(self.get_doc_by_ids("answer", doc_ids), scores_list))
+        answers = list(zip(self.get_doc_by_ids("answer", doc_ids, ["text", "source", "raw_id"]), scores_list))
 
         return [DocumentWithScores(**{"page_content": d.page_content, "metadata": d.metadata}, scores=s) for d, s in
                 answers]
@@ -462,16 +462,16 @@ class KBService(ABC):
         for file_name, document_loader_name in file_infos:
             if document_loader_name != "CustomExcelLoader":
                 file_names.append(f"{file_name}_{document_loader_name}")
-                documents = self.get_docs_by_file_name("docs", file_name)
+                documents = self.get_docs_by_file_name("docs", file_name, ["text", "source", "idx"])
                 docs_text_list += [i.page_content for i in documents]
                 docs_metadata_list += [i.metadata for i in documents]
             else:
                 faq_names.append(f"{file_name}_{document_loader_name}")
-                documents = self.get_docs_by_file_name("question", file_name)
+                documents = self.get_docs_by_file_name("question", file_name, ["text", "source", "raw_id", "answer_id"])
                 questions_text_list += [i.page_content for i in documents]
                 questions_metadata_list += [i.metadata for i in documents]
 
-                documents = self.get_docs_by_file_name("answer", file_name)
+                documents = self.get_docs_by_file_name("answer", file_name, ["text", "source", "raw_id"])
                 answers_text_list += [i.page_content for i in documents]
                 answers_metadata_list += [i.metadata for i in documents]
 
@@ -531,10 +531,10 @@ class KBService(ABC):
         embedding, docs = self.do_search(vector_name, query, top_k, score_threshold, embeddings=embeddings)
         return embedding, docs
 
-    def get_doc_by_ids(self, vector_name, ids: List[str]) -> List[Document]:
+    def get_doc_by_ids(self, vector_name, ids: List[str], fields: List[str]) -> List[Document]:
         return []
 
-    def get_docs_by_file_name(self, vector_name, file_name) -> List[Document]:
+    def get_docs_by_file_name(self, vector_name, file_name, fields: List[str]) -> List[Document]:
         return []
 
     def list_docs(self, vector_name, file_name: str = None, metadata: Dict = {}) -> List[DocumentWithVSId]:
@@ -543,15 +543,19 @@ class KBService(ABC):
         '''
         if vector_name == "docs":
             doc_infos = list_docs_from_db(kb_name=self.kb_name, file_name=file_name, metadata=metadata)
+            doc_infos_ids = [x["id"] for x in doc_infos]
+            doc_infos_s = self.get_doc_by_ids(vector_name, doc_infos_ids, ["text", "source", "idx"])
         elif vector_name == "question":
             doc_infos = list_question_from_db(kb_name=self.kb_name, file_name=file_name, metadata=metadata)
+            doc_infos_ids = [x["id"] for x in doc_infos]
+            doc_infos_s = self.get_doc_by_ids(vector_name, doc_infos_ids, ["text", "source", "raw_id", "answer_id"])
         elif vector_name == "answer":
             doc_infos = list_answer_from_db(kb_name=self.kb_name, file_name=file_name, metadata=metadata)
+            doc_infos_ids = [x["id"] for x in doc_infos]
+            doc_infos_s = self.get_doc_by_ids(vector_name, doc_infos_ids, ["text", "source", "raw_id"])
         else:
             assert False
 
-        doc_infos_ids = [x["id"] for x in doc_infos]
-        doc_infos_s = self.get_doc_by_ids(vector_name, doc_infos_ids)
         docs = []
         for id, doc_info_s in zip(doc_infos_ids, doc_infos_s):
             if doc_info_s is not None:

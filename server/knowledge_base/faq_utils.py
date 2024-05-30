@@ -446,8 +446,8 @@ def load_df_raw_unitx(file_path):
     l_idx = 0
 
     for idx, row in df_qa.iterrows():
-        raw_q = row["标准问题"]
-        raw_a = row["标准答案"]
+        raw_q = row["标准问题(必填)"]
+        raw_a = row["通用答案1"]
 
         if raw_q and raw_a:
             l_query = StandardQuery(l_idx, raw_q, raw_a)

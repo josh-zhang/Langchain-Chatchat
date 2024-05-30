@@ -21,22 +21,22 @@ class MilvusKBService(KBService):
     def vs_type(self) -> str:
         return SupportedVSType.MILVUS
 
-    def get_doc_by_ids(self, vector_name, ids: List[str]) -> List[Document]:
+    def get_doc_by_ids(self, vector_name, ids: List[str], fields: List[str]) -> List[Document]:
         result = []
         if self.get_milvus(vector_name).col:
             # ids = [int(id) for id in ids]  # for milvus if needed #pr 2725
             data_list = self.get_milvus(vector_name).col.query(expr=f'pk in {[int(_id) for _id in ids]}',
-                                                               output_fields=["*"])
+                                                               output_fields=fields)
             for data in data_list:
                 text = data.pop("text")
                 result.append(Document(page_content=text, metadata=data))
         return result
 
-    def get_docs_by_file_name(self, vector_name, file_name) -> List[Document]:
+    def get_docs_by_file_name(self, vector_name, file_name, fields: List[str]) -> List[Document]:
         result = []
         if self.get_milvus(vector_name).col:
             data_list = self.get_milvus(vector_name).col.query(expr=f'source == "{file_name}"',
-                                                               output_fields=["*"])
+                                                               output_fields=fields)
             for data in data_list:
                 text = data.pop("text")
                 result.append(Document(page_content=text, metadata=data))
@@ -121,7 +121,7 @@ class MilvusKBService(KBService):
             return self.milvus_d
 
     def _load_milvus(self, vector_name):
-        col_name = f"{self.kb_name}_{vector_name}"
+        col_name = f"{vector_name}_{self.kb_name}"
         if vector_name == "question":
             self.milvus_q = Milvus(embedding_function=EmbeddingsFunAdapter(self.embed_model),
                                    collection_name=col_name,

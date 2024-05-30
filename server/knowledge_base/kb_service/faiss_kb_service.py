@@ -30,11 +30,11 @@ class FaissKBService(KBService):
         vs_path = self.get_vs_path(vector_name)
         self.load_vector_store(vector_name).save(vs_path)
 
-    def get_doc_by_ids(self, vector_name, ids: List[str]) -> List[Document]:
+    def get_doc_by_ids(self, vector_name, ids: List[str], fields: List[str]) -> List[Document]:
         with self.load_vector_store(vector_name).acquire() as vs:
             return [vs.docstore._dict.get(id) for id in ids]
 
-    def get_docs_by_file_name(self, vector_name, file_name) -> List[Document]:
+    def get_docs_by_file_name(self, vector_name, file_name, fields: List[str]) -> List[Document]:
         with self.load_vector_store(vector_name).acquire() as vs:
             return [doc for _, doc in vs.docstore._dict.items() if doc.metadata["source"] == file_name]
 
