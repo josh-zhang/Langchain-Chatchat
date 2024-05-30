@@ -4,7 +4,9 @@ from langchain.schema import Document
 from langchain.vectorstores.milvus import Milvus
 
 from configs import kbs_config
-from server.db.repository import list_file_num_docs_id_by_kb_name_and_file_name
+from server.db.repository import list_file_num_docs_id_by_kb_name_and_file_name, \
+    list_file_num_answer_id_by_kb_name_and_file_name, \
+    list_file_num_question_id_by_kb_name_and_file_name
 
 from server.knowledge_base.kb_service.base import KBService, SupportedVSType, EmbeddingsFunAdapter, \
     score_threshold_process
@@ -24,6 +26,16 @@ class MilvusKBService(KBService):
         if self.get_milvus(vector_name).col:
             # ids = [int(id) for id in ids]  # for milvus if needed #pr 2725
             data_list = self.get_milvus(vector_name).col.query(expr=f'pk in {[int(_id) for _id in ids]}',
+                                                               output_fields=["*"])
+            for data in data_list:
+                text = data.pop("text")
+                result.append(Document(page_content=text, metadata=data))
+        return result
+
+    def get_docs_by_file_name(self, vector_name, file_name) -> List[Document]:
+        result = []
+        if self.get_milvus(vector_name).col:
+            data_list = self.get_milvus(vector_name).col.query(expr=f'source == "{file_name}"',
                                                                output_fields=["*"])
             for data in data_list:
                 text = data.pop("text")
@@ -109,31 +121,44 @@ class MilvusKBService(KBService):
             return self.milvus_d
 
     def _load_milvus(self, vector_name):
-        col_name = f"{self.kb_name}-{vector_name}"
+        col_name = f"{self.kb_name}_{vector_name}"
         if vector_name == "question":
             self.milvus_q = Milvus(embedding_function=EmbeddingsFunAdapter(self.embed_model),
                                    collection_name=col_name,
                                    connection_args=kbs_config.get("milvus"),
                                    index_params=kbs_config.get("milvus_kwargs")["index_params"],
-                                   search_params=kbs_config.get("milvus_kwargs")["search_params"]
+                                   search_params=kbs_config.get("milvus_kwargs")["search_params"],
+                                   auto_id=True
                                    )
         elif vector_name == "answer":
             self.milvus_a = Milvus(embedding_function=EmbeddingsFunAdapter(self.embed_model),
                                    collection_name=col_name,
                                    connection_args=kbs_config.get("milvus"),
                                    index_params=kbs_config.get("milvus_kwargs")["index_params"],
-                                   search_params=kbs_config.get("milvus_kwargs")["search_params"]
+                                   search_params=kbs_config.get("milvus_kwargs")["search_params"],
+                                   auto_id=True
                                    )
         else:
             self.milvus_d = Milvus(embedding_function=EmbeddingsFunAdapter(self.embed_model),
                                    collection_name=col_name,
                                    connection_args=kbs_config.get("milvus"),
                                    index_params=kbs_config.get("milvus_kwargs")["index_params"],
-                                   search_params=kbs_config.get("milvus_kwargs")["search_params"]
+                                   search_params=kbs_config.get("milvus_kwargs")["search_params"],
+                                   auto_id=True
                                    )
 
     def del_doc_by_ids(self, vector_name, ids: List[str]):
-        self.get_milvus(vector_name).col.delete(expr=f'pk in {ids}')
+        self.get_milvus(vector_name).col.delete(expr=f'pk in {[int(_id) for _id in ids]}')
+
+    def count_docs(self, vector_name: str, filename: str):
+        if vector_name == "question":
+            count = len(list_file_num_question_id_by_kb_name_and_file_name(self.kb_name, filename))
+        elif vector_name == "answer":
+            count = len(list_file_num_answer_id_by_kb_name_and_file_name(self.kb_name, filename))
+        else:
+            count = len(list_file_num_docs_id_by_kb_name_and_file_name(self.kb_name, filename))
+
+        return count
 
 
 if __name__ == '__main__':

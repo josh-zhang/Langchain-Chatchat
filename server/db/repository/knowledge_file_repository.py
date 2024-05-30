@@ -20,6 +20,32 @@ def list_file_num_docs_id_by_kb_name_and_file_name(session,
 
 
 @with_session
+def list_file_num_question_id_by_kb_name_and_file_name(session,
+                                                       kb_name: str,
+                                                       file_name: str,
+                                                       ) -> List[int]:
+    '''
+    列出某知识库某文件对应的所有Document的id。
+    返回形式：[str, ...]
+    '''
+    doc_ids = session.query(AnswerQuestionModel.doc_id).filter_by(kb_name=kb_name, file_name=file_name).all()
+    return [int(_id[0]) for _id in doc_ids]
+
+
+@with_session
+def list_file_num_answer_id_by_kb_name_and_file_name(session,
+                                                     kb_name: str,
+                                                     file_name: str,
+                                                     ) -> List[int]:
+    '''
+    列出某知识库某文件对应的所有Document的id。
+    返回形式：[str, ...]
+    '''
+    doc_ids = session.query(FileAnswerModel.doc_id).filter_by(kb_name=kb_name, file_name=file_name).all()
+    return [int(_id[0]) for _id in doc_ids]
+
+
+@with_session
 def list_docs_from_db(session,
                       kb_name: str,
                       file_name: str = None,
@@ -280,11 +306,6 @@ def get_answer_doc_id_by_answer_id_from_db(session,
                                            kb_name: str,
                                            raw_id: str,
                                            ):
-    files = session.query(FileAnswerModel).filter(FileAnswerModel.kb_name.ilike(kb_name)).filter_by(
-        answer_id=raw_id).all()
-
-    print(files)
-
     answer = session.query(FileAnswerModel).filter(FileAnswerModel.kb_name.ilike(kb_name)).filter_by(
         answer_id=raw_id).first()
 

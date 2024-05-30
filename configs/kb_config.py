@@ -65,13 +65,14 @@ SQLALCHEMY_DATABASE_URI = f"sqlite:///{DB_ROOT_PATH}"
 kbs_config = {
     "faiss": {
     },
-    # "milvus": {
-    #     "host": "127.0.0.1",
-    #     "port": "19530",
-    #     "user": "",
-    #     "password": "",
-    #     "secure": False,
-    # },
+    "milvus": {
+        "host": "127.0.0.1",
+        "port": "19530",
+        "user": "",
+        "password": "",
+        "db_name": "",
+        "secure": False,
+    },
     # "pg": {
     #     "connection_uri": "postgresql://postgres:postgres@127.0.0.1:5432/langchain_chatchat",
     # },
@@ -84,7 +85,7 @@ kbs_config = {
     # },
     "milvus_kwargs": {
         "search_params": {"metric_type": "L2"},  # 在此处增加search_params
-        "index_params": {"metric_type": "L2", "index_type": "HNSW"}  # 在此处增加index_params
+        "index_params": {"metric_type": "L2", "index_type": "HNSW", "efConstruction": 200, "M": 20}  # 在此处增加index_params
     }
 }
 

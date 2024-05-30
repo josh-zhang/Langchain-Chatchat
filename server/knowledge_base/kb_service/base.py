@@ -462,18 +462,18 @@ class KBService(ABC):
         for file_name, document_loader_name in file_infos:
             if document_loader_name != "CustomExcelLoader":
                 file_names.append(f"{file_name}_{document_loader_name}")
-                documentWithVSIds = self.list_docs("docs", file_name=file_name)
-                docs_text_list += [i.page_content for i in documentWithVSIds]
-                docs_metadata_list += [i.metadata for i in documentWithVSIds]
+                documents = self.get_docs_by_file_name("docs", file_name)
+                docs_text_list += [i.page_content for i in documents]
+                docs_metadata_list += [i.metadata for i in documents]
             else:
                 faq_names.append(f"{file_name}_{document_loader_name}")
-                documentWithVSIds = self.list_docs("question", file_name=file_name)
-                questions_text_list += [i.page_content for i in documentWithVSIds]
-                questions_metadata_list += [i.metadata for i in documentWithVSIds]
+                documents = self.get_docs_by_file_name("question", file_name)
+                questions_text_list += [i.page_content for i in documents]
+                questions_metadata_list += [i.metadata for i in documents]
 
-                documentWithVSIds = self.list_docs("answer", file_name=file_name)
-                answers_text_list += [i.page_content for i in documentWithVSIds]
-                answers_metadata_list += [i.metadata for i in documentWithVSIds]
+                documents = self.get_docs_by_file_name("answer", file_name)
+                answers_text_list += [i.page_content for i in documents]
+                answers_metadata_list += [i.metadata for i in documents]
 
         if file_names:
             with self.load_bm25_retriever("docs", file_names, docs_text_list, docs_metadata_list).acquire() as vs:
@@ -532,6 +532,9 @@ class KBService(ABC):
         return embedding, docs
 
     def get_doc_by_ids(self, vector_name, ids: List[str]) -> List[Document]:
+        return []
+
+    def get_docs_by_file_name(self, vector_name, file_name) -> List[Document]:
         return []
 
     def list_docs(self, vector_name, file_name: str = None, metadata: Dict = {}) -> List[DocumentWithVSId]:

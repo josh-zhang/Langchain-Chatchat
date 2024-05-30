@@ -34,6 +34,10 @@ class FaissKBService(KBService):
         with self.load_vector_store(vector_name).acquire() as vs:
             return [vs.docstore._dict.get(id) for id in ids]
 
+    def get_docs_by_file_name(self, vector_name, file_name) -> List[Document]:
+        with self.load_vector_store(vector_name).acquire() as vs:
+            return [doc for _, doc in vs.docstore._dict.items() if doc.metadata["source"] == file_name]
+
     def do_init(self):
         # self.vector_name = self.vector_name or self.embed_model
         self.kb_path = self.get_kb_path()
