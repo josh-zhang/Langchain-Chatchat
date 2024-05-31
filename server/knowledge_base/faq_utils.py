@@ -5,22 +5,9 @@ import functools
 from collections import Counter
 
 import pandas
-import hanlp
-# from LAC import LAC
+# import hanlp
 
 from configs import COMMON_PATH, logger
-
-# lac = LAC(mode='seg')
-# term_dict_file = f"{COMMON_PATH}/custom_20230720.txt"
-# if not os.path.exists(term_dict_file):
-#     term_dict_file = ""
-# term_dictionary = list()
-# if term_dict_file:
-#     with open(term_dict_file) as f:
-#         term_dictionary = [i.replace("\n", "")[:-4] for i in f.readlines()]
-#     logger.info(f"term_dictionary len {len(term_dictionary)}")
-#     lac.load_customization(term_dict_file, sep=None)
-tok_fine = hanlp.load(hanlp.pretrained.tok.FINE_ELECTRA_SMALL_ZH)
 
 stopwords_file = f"{COMMON_PATH}/stopwords.txt"
 if not os.path.exists(stopwords_file):
@@ -30,6 +17,24 @@ if stopwords_file:
     with open(stopwords_file) as f:
         stopwords = [i.replace("\n", "") for i in f.readlines()]
     logger.info(f"stopwords len {len(stopwords)}")
+
+from LAC import LAC
+
+term_dict_file = f"{COMMON_PATH}/custom_20230720.txt"
+if not os.path.exists(term_dict_file):
+    term_dict_file = ""
+
+lac = LAC(mode='seg')
+if term_dict_file:
+    lac.load_customization(term_dict_file, sep=None)
+
+
+# term_dictionary = list()
+# with open(term_dict_file) as f:
+#     term_dictionary = [i.replace("\n", "")[:-4] for i in f.readlines()]
+# logger.info(f"term_dictionary len {len(term_dictionary)}")
+
+# tok_fine = hanlp.load(hanlp.pretrained.tok.FINE_ELECTRA_SMALL_ZH)
 
 
 class Query:
@@ -138,10 +143,10 @@ class StandardQuery(Query):
 
 @functools.lru_cache()
 def seg_text(sentence):
-    # seg_result = lac.run([sentence])
-    # seg_result = seg_result[0]
-    seg_result = tok_fine(sentence)
-    return [j.strip() for j in seg_result if j.strip()]
+    seg_result = lac.run([sentence])[0]
+    # seg_result = tok_fine(sentence)
+    seg_result = [j.strip() for j in seg_result]
+    return [j for j in seg_result if j and j not in stopwords]
 
 
 def clean_text(lbl, remove_stop=False, return_list=False):
@@ -151,10 +156,7 @@ def clean_text(lbl, remove_stop=False, return_list=False):
     lbl = lbl.strip().upper()
 
     if remove_stop:
-        result = list()
-        for word in seg_text(lbl):
-            if word not in stopwords:
-                result.append(word)
+        result = seg_text(lbl)
         if return_list:
             lbl = result
         else:
@@ -164,10 +166,7 @@ def clean_text(lbl, remove_stop=False, return_list=False):
 
 def remove_stop(ans):
     ans = ans.upper()
-    result = list()
-    for word in seg_text(ans):
-        if word not in stopwords:
-            result.append(word)
+    result = seg_text(ans)
     ans = "".join(result)
     return ans
 

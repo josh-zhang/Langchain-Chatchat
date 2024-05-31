@@ -12,7 +12,7 @@ langchain.verbose = False
 
 # 日志格式
 LOG_FORMAT = "%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s"
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logging.basicConfig(format=LOG_FORMAT)
 
