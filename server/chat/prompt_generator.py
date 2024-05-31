@@ -81,7 +81,7 @@ def generate_doc_qa(query: str, history: List[History], docs: List[str], fallbac
 
     current_prompt = prompt_template.replace("{{ question }}", query)
 
-    logger.info(f"current_prompt: {current_prompt}")
+    # logger.info(f"current_prompt: {current_prompt}")
 
     current_token_length = huggingface_tokenizer_length(current_prompt)
 
@@ -103,11 +103,11 @@ def generate_doc_qa(query: str, history: List[History], docs: List[str], fallbac
 
     current_prompt = prompt_template.replace("{{ question }}", query).replace("{{ context }}", context)
 
-    logger.info(f"current_prompt: {current_prompt}")
+    # logger.info(f"current_prompt: {current_prompt}")
 
     current_token_length = huggingface_tokenizer_length(current_prompt)
 
-    max_tokens_remain = max_tokens - current_token_length
+    max_tokens_remain = max_tokens - current_token_length - 100
 
     logger.info(f"docQA max_tokens_remain {max_tokens_remain} prompt_template: {prompt_template}")
 

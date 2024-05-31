@@ -177,7 +177,7 @@ def dialogue_page(api: ApiRequest):
                           model=llm_model,
                           prompt_name=prompt_template_name,
                           temperature=temperature,
-                          max_chars=running_model_dict[llm_model])
+                          max_tokens=running_model_dict[llm_model])
         for t in r:
             if error_msg := check_error_msg(t):  # check whether error occured
                 st.error(error_msg)
@@ -383,7 +383,7 @@ def file_dialogue_page(api: ApiRequest):
                                    model=llm_model,
                                    # prompt_name=prompt_template_name,
                                    temperature=temperature,
-                                   max_chars=running_model_dict[llm_model]):
+                                   max_tokens=running_model_dict[llm_model]):
                 if error_msg := check_error_msg(d):  # check whether error occured
                     st.error(error_msg)
                 elif chunk := d.get("answer"):
@@ -558,7 +558,7 @@ def kb_dialogue_page(api: ApiRequest):
                                          model=llm_model,
                                          # prompt_name=prompt_template_name,
                                          temperature=temperature,
-                                         max_chars=running_model_dict[llm_model]):
+                                         max_tokens=running_model_dict[llm_model]):
             if error_msg := check_error_msg(d):  # check whether error occured
                 st.error(error_msg)
             elif chunk := d.get("answer"):
