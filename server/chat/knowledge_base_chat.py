@@ -53,9 +53,9 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
                               stream: bool = Body(False, description="流式输出"),
                               model_name: str = Body(LLM_MODEL, description="LLM 模型名称。"),
                               temperature: float = Body(TEMPERATURE, description="LLM 采样温度", ge=0.0, le=1.0),
-                              max_chars: Optional[int] = Body(
+                              max_tokens: Optional[int] = Body(
                                   None,
-                                  description="限制LLM总文字数量，默认None代表模型最大值"
+                                  description="限制LLM总token数量"
                               ),
                               prompt_name: str = Body(
                                   "default",
@@ -97,7 +97,7 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
                                            query=query,
                                            knowledge_base_name=knowledge_base_name,
                                            top_k=top_k,
-                                           max_chars=max_chars,
+                                           max_tokens=max_tokens,
                                            score_threshold=score_threshold)
             docs = docs[:top_k]
             text_docs = [doc.page_content for doc in docs]
@@ -106,7 +106,7 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
             text_docs = docs
 
         prompt_template, context, max_tokens_remain = generate_doc_qa(query, history, text_docs,
-                                                                      "根据已知信息无法回答该问题", max_chars)
+                                                                      "根据已知信息无法回答该问题", max_tokens)
 
         if "总行" in model_name:
             callback = None

@@ -1,5 +1,4 @@
 import os
-import logging
 import time
 import datetime
 import shutil
@@ -54,13 +53,13 @@ def gen_qa_task(knowledge_base_name, kb_info, model_name, url, concurrency):
     now_str = now.strftime("%Y%m%d_%H%M%S")
     task_id = f"{knowledge_base_name}_{now_str}"
 
-    logging.info(f"task started {task_id}")
+    logger.info(f"task started {task_id}")
 
     filepaths = list_files_from_folder(knowledge_base_name)
     doc_path = get_doc_path(knowledge_base_name)
     filepaths = [os.path.join(doc_path, filepath) for filepath in filepaths]
 
-    logging.info("gen qa")
+    logger.info("gen qa")
 
     output_path = os.path.join(BASE_TEMP_DIR, task_id)
     os.makedirs(output_path)
@@ -83,7 +82,7 @@ def gen_qa_task(knowledge_base_name, kb_info, model_name, url, concurrency):
     failed_count = len(failed_files)
     if failed_count >= total_count:
         msg = f"{failed_count}个问答文件生成任务全部出错"
-        logging.error(msg)
+        logger.error(msg)
         # return BaseResponse(code=500, msg=msg)
         return
 
@@ -91,11 +90,11 @@ def gen_qa_task(knowledge_base_name, kb_info, model_name, url, concurrency):
 
     if not qa_filepath_list:
         msg = f"没有任何问答文件生成"
-        logging.error(msg)
+        logger.error(msg)
         # return BaseResponse(code=500, msg=msg)
         return
 
-    logging.info("create_kb")
+    logger.info("create_kb")
 
     new_kb_name = f"{knowledge_base_name}_faq"
     new_kb_info = f"{kb_info}-生成问答"
@@ -106,14 +105,14 @@ def gen_qa_task(knowledge_base_name, kb_info, model_name, url, concurrency):
         status = kb.clear_vs()
         if not status:
             msg = f"创建知识库出错，知识库已存在并且清楚出错"
-            logging.error(msg)
+            logger.error(msg)
             # return BaseResponse(code=500, msg=msg)
             return
 
         status = kb.drop_kb()
         if not status:
             msg = f"创建知识库出错，知识库已存在并且删除出错"
-            logging.error(msg)
+            logger.error(msg)
             # return BaseResponse(code=500, msg=msg)
             return
 
@@ -122,11 +121,11 @@ def gen_qa_task(knowledge_base_name, kb_info, model_name, url, concurrency):
     status = kb.create_kb()
     if not status:
         msg = f"创建知识库出错"
-        logging.error(msg)
+        logger.error(msg)
         # return BaseResponse(code=500, msg=msg)
         return
 
-    logging.info("update_faq")
+    logger.info("update_faq")
 
     count = 0
     for qa_filepath in tqdm(qa_filepath_list):
@@ -148,9 +147,9 @@ def gen_qa_task(knowledge_base_name, kb_info, model_name, url, concurrency):
                 count += 1
 
     msg = f"已新增知识库 {new_kb_name}"
-    logging.info(msg)
+    logger.info(msg)
 
-    logging.info(f"task ended {task_id}")
+    logger.info(f"task ended {task_id}")
     # return BaseResponse(code=200, msg=f"已新增知识库 {new_kb_name}, 其中包含 {count}篇文档生成的问答")
 
 

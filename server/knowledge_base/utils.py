@@ -12,6 +12,7 @@ from unstructured.documents.elements import Element, Text, ElementMetadata, Titl
 from unstructured.partition.common import get_last_modified_date
 from langchain.docstore.document import Document
 from langchain.text_splitter import TextSplitter, MarkdownHeaderTextSplitter
+from transformers import AutoTokenizer
 
 from configs import (
     KB_ROOT_PATH,
@@ -23,10 +24,35 @@ from configs import (
     text_splitter_dict,
     LLM_MODEL,
     TEXT_SPLITTER_NAME,
+    tokenizer_path_for_count_token
 )
 from text_splitter import zh_title_enhance as func_zh_title_enhance
 from server.utils import run_in_thread_pool
 from server.knowledge_base.faq_utils import load_gen_file
+
+tokenizer = AutoTokenizer.from_pretrained(tokenizer_path_for_count_token, trust_remote_code=True)
+
+
+def huggingface_tokenizer_length(text: str) -> int:
+    return len(tokenizer.encode(text))
+
+
+def truncate_string_by_token_limit(text, token_limit):
+    # Tokenize the string
+    tokens = tokenizer.encode(text)
+
+    # Check if token count exceeds the limit
+    if len(tokens) > token_limit:
+        # Truncate the tokens to fit within the limit
+        truncated_tokens = tokens[:token_limit]
+        # Decode the truncated tokens back into a string
+        truncated_text = tokenizer.decode(truncated_tokens, skip_special_tokens=True)
+        return truncated_text, True
+    elif len(tokens) == token_limit:
+        return text, True
+    else:
+        # If the token count is within the limit, return the original text
+        return text, False
 
 
 class DocumentWithScores(Document):
@@ -388,7 +414,7 @@ def make_text_splitter(
                         chunk_overlap=chunk_overlap
                     )
     except Exception as e:
-        print(e)
+        logger.error(e)
         # text_splitter_module = importlib.import_module('langchain.text_splitter')
         # TextSplitter = getattr(text_splitter_module, "RecursiveCharacterTextSplitter")
         # text_splitter = TextSplitter(chunk_size=250, chunk_overlap=50)
@@ -464,7 +490,7 @@ class KnowledgeFile:
         if not docs:
             return []
 
-        print(f"文档 {self.filename} 切分示例：{docs[0]}")
+        logger.info(f"文档 {self.filename} 切分示例：{docs[0]}")
         if zh_title_enhance:
             docs = func_zh_title_enhance(docs)
         self.splited_docs = docs
@@ -499,7 +525,7 @@ class KnowledgeFile:
 
 
 def files2docs_in_thread(
-        files: List[Union[KnowledgeFile, Tuple[str, str], Dict]],
+        files: List[Union[KnowledgeFile, Tuple[str, str, str], Dict]],
         chunk_size: int = CHUNK_SIZE,
         chunk_overlap: int = OVERLAP_SIZE,
         zh_title_enhance: bool = ZH_TITLE_ENHANCE,
@@ -578,10 +604,11 @@ def create_compressed_archive(folder_path, output_path, archive_format='zip'):
         # Change back to the original directory
         os.chdir(original_cwd)
 
-        print(f"Archive created at: {archive_path}")
-        return archive_path
+        logger.info(f"Archive created at: {archive_path}")
     except Exception as e:
         raise Exception(f"An error occurred while creating the archive: {e}")
+
+    return archive_path
 
 
 if __name__ == "__main__":

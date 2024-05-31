@@ -123,3 +123,5 @@ EMBEDDING_KEYWORD_FILE = "embedding_keywords.txt"
 SEARCH_ENHANCE = True
 
 BM_25_FACTOR = 0.4
+
+tokenizer_path_for_count_token = "/opt/projects/hf_models/qwen1.5-14b-chat-gptq-int4"

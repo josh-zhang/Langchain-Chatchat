@@ -113,7 +113,7 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
                     stream: bool = Body(False, description="流式输出"),
                     model_name: str = Body(LLM_MODEL, description="LLM 模型名称。"),
                     temperature: float = Body(TEMPERATURE, description="LLM 采样温度", ge=0.0, le=1.0),
-                    max_chars: Optional[int] = Body(None, description="限制LLM总文字数量，默认None代表模型最大值"),
+                    max_tokens: Optional[int] = Body(None, description="限制LLM总token数量"),
                     prompt_name: str = Body("default",
                                             description="使用的prompt模板名称(在configs/prompt_config.py中配置)"),
                     ):
@@ -140,7 +140,7 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
 
         if knowledge_content:
             prompt_template, _, max_tokens_remain = generate_doc_qa(query, history, [], "根据已知信息无法回答该问题",
-                                                                    max_chars, knowledge_content)
+                                                                    max_tokens, knowledge_content)
 
             input_msg = History(role="user", content=prompt_template).to_msg_template(False)
 
@@ -169,7 +169,7 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
                 text_docs = [doc.page_content for doc in docs]
 
             prompt_template, context, max_tokens_remain = generate_doc_qa(query, history, text_docs,
-                                                                          "根据已知信息无法回答该问题", max_chars)
+                                                                          "根据已知信息无法回答该问题", max_tokens)
 
             input_msg = History(role="user", content=prompt_template).to_msg_template(False)
 

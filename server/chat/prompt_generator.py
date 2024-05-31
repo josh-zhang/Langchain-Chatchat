@@ -1,6 +1,8 @@
 from typing import List
 
 from server.chat.utils import History
+from server.knowledge_base.utils import huggingface_tokenizer_length, truncate_string_by_token_limit
+from configs import logger
 
 
 def document_prompt_template():
@@ -72,40 +74,43 @@ def get_prompt(fallback: str, history: List[History], has_context: bool) -> str:
     return prompt_template
 
 
-def generate_doc_qa(query: str, history: List[History], docs: List[str], fallback: str, max_chars, context: str = ""):
-    print(f"query: {query}, docs: {docs}, fallback: {fallback}")
-
+def generate_doc_qa(query: str, history: List[History], docs: List[str], fallback: str, max_tokens, context: str = ""):
     has_context = len(context) > 0 or len(docs) > 0
 
     prompt_template = get_prompt(fallback, history, has_context)
 
-    max_chars_remain = max_chars - len(prompt_template)
+    current_prompt = prompt_template.replace("{{ question }}", query)
 
-    max_chars_for_context = max_chars_remain - 500
+    logger.info(f"current_prompt: {current_prompt}")
+
+    current_token_length = huggingface_tokenizer_length(current_prompt)
+
+    max_tokens_for_context = max_tokens - current_token_length - 500
 
     # iterate over all documents
     if context:
-        context = context[:max_chars_for_context]
+        context = truncate_string_by_token_limit(context, max_tokens_for_context)
     else:
-        count_char = 0
         for inum, doc in enumerate(docs):
             if not doc:
                 continue
             source_id = inum + 1
             source_content = document_prompt_template().format(doc_id=f"引用{source_id}", page_content=doc) + "\n\n"
-            count_char += len(source_content)
             context += source_content
-
-            if count_char >= max_chars_for_context:
-                context = context[:max_chars_for_context]
-
+            context, need_stop = truncate_string_by_token_limit(context, max_tokens_for_context)
+            if need_stop:
                 break
 
-    max_chars_remain = max_chars_remain - len(context)
-    # max_tokens_remain = int(max_chars_remain * 1.2)
-    max_tokens_remain = max_chars_remain
-    max_tokens_remain = max(50, max_tokens_remain)
+    current_prompt = prompt_template.replace("{{ question }}", query).replace("{{ context }}", context)
 
-    print(f"docQA max_tokens_remain {max_tokens_remain} prompt_template: {prompt_template}")
+    logger.info(f"current_prompt: {current_prompt}")
+
+    current_token_length = huggingface_tokenizer_length(current_prompt)
+
+    max_tokens_remain = max_tokens - current_token_length
+
+    logger.info(f"docQA max_tokens_remain {max_tokens_remain} prompt_template: {prompt_template}")
+
+    max_tokens_remain = max(50, max_tokens_remain)
 
     return prompt_template, context, max_tokens_remain

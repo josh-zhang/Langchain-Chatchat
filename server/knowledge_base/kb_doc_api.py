@@ -12,6 +12,7 @@ from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.db.repository.knowledge_file_repository import get_file_detail, list_docs_from_db, list_answer_from_db, \
     list_question_from_db
 from server.utils import BaseResponse, ListResponse, run_in_thread_pool, xinference_supervisor_address
+from server.knowledge_base.utils import huggingface_tokenizer_length
 from server.knowledge_base.kb_job.gen_qa import gen_qa_task, JobExecutor, JobFutures, FuturesAtomic
 from server.knowledge_base.utils import (validate_kb_name, get_file_path, files2docs_in_thread,
                                          KnowledgeFile, DocumentWithScores, get_doc_path, create_compressed_archive)
@@ -79,19 +80,19 @@ def merge_strings(s1, s2):
     return merged_string
 
 
-def merge_docs(docs: List[DocumentWithScores], max_chars: int) -> List[DocumentWithScores]:
-    max_chars = max_chars - 1000
-    max_chars = max(1000, max_chars)
+def merge_docs(docs: List[DocumentWithScores], max_tokens: int) -> List[DocumentWithScores]:
+    max_tokens = max_tokens - 1000
+    max_tokens = max(1000, max_tokens)
 
     final_docs = list()
 
     candidates_dict = dict()
 
-    count_chars = 0
+    count_tokens = 0
 
     for ix, doc in enumerate(docs):
         content = doc.page_content
-        count_chars += len(content)
+        count_tokens += huggingface_tokenizer_length(content)
 
         source = doc.metadata["source"]
         if "idx" in doc.metadata:
@@ -106,7 +107,7 @@ def merge_docs(docs: List[DocumentWithScores], max_chars: int) -> List[DocumentW
             # faq doc
             candidates_dict[source + "_" + str(ix)] = doc
 
-        if count_chars >= max_chars:
+        if count_tokens >= max_tokens:
             break
 
     for source, ele in candidates_dict.items():
@@ -163,7 +164,7 @@ def search_docs(
         query: str = Body("", description="用户输入", examples=["你好"]),
         knowledge_base_name: str = Body(..., description="知识库名称", examples=["samples"]),
         top_k: int = Body(VECTOR_SEARCH_TOP_K, description="匹配向量数"),
-        max_chars: int = Body(2000, description="最大参考字数"),
+        max_tokens: int = Body(2000, description="最大参考字数"),
         score_threshold: float = Body(SCORE_THRESHOLD,
                                       description="知识库匹配相关度阈值，取值范围在0-1之间，"
                                                   "SCORE越小，相关度越高，"
@@ -205,7 +206,7 @@ def search_docs(
             rerank_results.append(doc)
         docs = rerank_results
 
-    docs = merge_docs(docs, max_chars)
+    docs = merge_docs(docs, max_tokens)
 
     logger.info(f"top_k {top_k} and {len(docs)} docs total searched ")
     logger.info(docs)
