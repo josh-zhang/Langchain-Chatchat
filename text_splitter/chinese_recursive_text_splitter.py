@@ -6,15 +6,105 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def under_non_alpha_ratio(text: str, threshold: float = 0.5):
+    """Checks if the proportion of non-alpha characters in the text snippet exceeds a given
+    threshold. This helps prevent text like "-----------BREAK---------" from being tagged
+    as a title or narrative text. The ratio does not count spaces.
+
+    Parameters
+    ----------
+    text
+        The input string to test
+    threshold
+        If the proportion of non-alpha characters exceeds this threshold, the function
+        returns False
+    """
+    if len(text) == 0:
+        return False
+
+    text = "".join([char for char in text if char.strip()])
+    alpha_count = len(re.compile(r"[A-Za-z\u4e00-\u9fff]".findall(text)))
+    total_count = len(text)
+    try:
+        ratio = alpha_count / total_count
+        return ratio < threshold
+    except:
+        return False
+
+
+def is_possible_title(
+        text: str,
+        title_max_word_length: int = 40,
+        non_alpha_threshold: float = 0.5,
+) -> bool:
+    """Checks to see if the text passes all of the checks for a valid title.
+
+    Parameters
+    ----------
+    text
+        The input text to check
+    title_max_word_length
+        The maximum number of words a title can contain
+    non_alpha_threshold
+        The minimum number of alpha characters the text needs to be considered a title
+    """
+
+    # 文本长度为0的话，肯定不是title
+    if len(text) == 0:
+        print("Not a title. Text is empty.")
+        return False
+
+    # 文本中有标点符号，就不是title
+    ENDS_IN_PUNCT_PATTERN = r"[^\w\s]\Z"
+    ENDS_IN_PUNCT_RE = re.compile(ENDS_IN_PUNCT_PATTERN)
+    if ENDS_IN_PUNCT_RE.search(text) is not None:
+        return False
+
+    # 文本长度不能超过设定值，默认20
+    # NOTE(robinson) - splitting on spaces here instead of word tokenizing because it
+    # is less expensive and actual tokenization doesn't add much value for the length check
+    if len(text) > title_max_word_length:
+        return False
+
+    # 文本中数字的占比不能太高，否则不是title
+    if under_non_alpha_ratio(text, threshold=non_alpha_threshold):
+        return False
+
+    # NOTE(robinson) - Prevent flagging salutations like "To My Dearest Friends," as titles
+    if text.endswith((",", ".", "，", "。")):
+        return False
+
+    if text.isnumeric():
+        print(f"Not a title. Text is all numeric:\n\n{text}")  # type: ignore
+        return False
+
+    # 开头的字符内应该有数字，默认5个字符内
+    # if len(text) < 5:
+    #     text_5 = text
+    # else:
+    #     text_5 = text[:5]
+    # alpha_in_text_5 = sum(list(map(lambda x: x.isnumeric(), list(text_5))))
+    # if not alpha_in_text_5:
+    #     return False
+
+    return True
+
+
 def _split_text_with_regex_from_end(
         text: str, separator: str, keep_separator: bool
 ) -> List[str]:
+    title_char = ["章", "节", "段", "条"]
     # Now that we have the separator, split the text
     if separator:
         if keep_separator:
             # The parentheses in the pattern keep the delimiters in the result.
             _splits = re.split(f"({separator})", text)
-            splits = ["".join(i) for i in zip(_splits[0::2], _splits[1::2])]
+            if _splits and any(i in separator for i in title_char):
+                splits = [_splits[0]]
+                _splits = _splits[1:]
+                splits += ["".join(i) for i in zip(_splits[0::2], _splits[1::2])]
+            else:
+                splits = ["".join(i) for i in zip(_splits[0::2], _splits[1::2])]
             if len(_splits) % 2 == 1:
                 splits += _splits[-1:]
             # splits = [_splits[0]] + splits
@@ -36,6 +126,8 @@ class ChineseRecursiveTextSplitter(RecursiveCharacterTextSplitter):
         """Create a new TextSplitter."""
         super().__init__(keep_separator=keep_separator, **kwargs)
         self._separators = separators or [
+            "第[\d一二三四五六七八九十零]+[章]",
+            "第[\d一二三四五六七八九十零]+[节段条]",
             "\n\n",
             "\n",
             "。|！|？",
@@ -64,6 +156,15 @@ class ChineseRecursiveTextSplitter(RecursiveCharacterTextSplitter):
         _separator = separator if self._is_separator_regex else re.escape(separator)
         splits = _split_text_with_regex_from_end(text, _separator, self._keep_separator)
 
+        possi_title = ""
+        if len(splits) > 1:
+            possi_title = splits[0]
+            if is_possible_title(possi_title):
+                possi_title = possi_title + "\n"
+                splits = splits[1:]
+            else:
+                possi_title = ""
+
         # Now go merging things, recursively splitting longer texts.
         _good_splits = []
         _separator = "" if self._keep_separator else separator
@@ -72,8 +173,9 @@ class ChineseRecursiveTextSplitter(RecursiveCharacterTextSplitter):
                 _good_splits.append(s)
             else:
                 if _good_splits:
-                    merged_text = self._merge_splits(_good_splits, _separator)
-                    final_chunks.extend(merged_text)
+                    # merged_text = self._merge_splits(_good_splits, _separator)
+                    # final_chunks.extend(merged_text)
+                    final_chunks += _good_splits
                     _good_splits = []
                 if not new_separators:
                     final_chunks.append(s)
@@ -81,9 +183,11 @@ class ChineseRecursiveTextSplitter(RecursiveCharacterTextSplitter):
                     other_info = self._split_text(s, new_separators)
                     final_chunks.extend(other_info)
         if _good_splits:
-            merged_text = self._merge_splits(_good_splits, _separator)
-            final_chunks.extend(merged_text)
-        return [re.sub(r"\n{2,}", "\n", chunk.strip()) for chunk in final_chunks if chunk.strip()!=""]
+            # merged_text = self._merge_splits(_good_splits, _separator)
+            # final_chunks.extend(merged_text)
+            final_chunks += _good_splits
+
+        return [re.sub(r"\n{2,}", "\n", possi_title + chunk.strip()) for chunk in final_chunks if chunk.strip() != ""]
 
 
 if __name__ == "__main__":

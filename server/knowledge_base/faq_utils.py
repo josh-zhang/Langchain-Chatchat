@@ -150,7 +150,7 @@ def seg_text(sentence):
 
 
 def clean_text(lbl, remove_stop=False, return_list=False):
-    lbl = re.sub("[^A-Za-z0-9\u4e00-\u9fa5]", "_", lbl)
+    lbl = re.sub("[^A-Za-z0-9\u4e00-\u9fff]", "_", lbl)
     lbl = re.sub("_+", " ", lbl)
     lbl = re.sub(" {2,}", " ", lbl).strip()
     lbl = lbl.strip().upper()

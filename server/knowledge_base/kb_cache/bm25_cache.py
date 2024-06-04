@@ -11,7 +11,7 @@ from configs import CACHED_BM25_VS_NUM
 
 @functools.lru_cache()
 def preprocess_func(sentence: str) -> List[str]:
-    sentence = re.sub("[^A-Za-z0-9\u4e00-\u9fa5]", "_", sentence)
+    sentence = re.sub("[^A-Za-z0-9\u4e00-\u9fff]", "_", sentence)
     sentence = re.sub("_+", " ", sentence)
     sentence = re.sub(" {2,}", " ", sentence).strip()
     sentence = sentence.strip().upper()
