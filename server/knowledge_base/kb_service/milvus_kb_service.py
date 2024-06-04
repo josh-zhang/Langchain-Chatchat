@@ -10,7 +10,7 @@ from server.db.repository import list_file_num_docs_id_by_kb_name_and_file_name,
 
 from server.knowledge_base.kb_service.base import KBService, SupportedVSType, EmbeddingsFunAdapter, \
     score_threshold_process
-from server.knowledge_base.utils import KnowledgeFile
+from server.knowledge_base.utils import KnowledgeFile, DocumentWithScores
 
 
 class MilvusKBService(KBService):
@@ -71,6 +71,8 @@ class MilvusKBService(KBService):
 
         docs = self.get_milvus(vector_name).similarity_search_with_score_by_vector(embeddings, top_k)
         docs = score_threshold_process(score_threshold, top_k, docs)
+        docs = [DocumentWithScores(**d.dict(), scores={f"sbert_{vector_name}": s}) for d, s in docs]
+
         return embeddings, docs
 
     def do_add_doc(self, vector_name: str, docs: List[Document], **kwargs) -> List[Dict]:

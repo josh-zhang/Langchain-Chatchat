@@ -848,13 +848,10 @@ class EmbeddingsFunAdapter(Embeddings):
 
 def score_threshold_process(score_threshold, k, docs):
     if score_threshold is not None:
-        cmp = (
-            operator.le
-        )
         docs = [
             (doc, similarity)
             for doc, similarity in docs
-            if cmp(similarity, score_threshold)
+            if similarity >= score_threshold
         ]
     return docs[:k]
 
