@@ -16,7 +16,7 @@ from server.knowledge_base.utils import huggingface_tokenizer_length
 from server.knowledge_base.kb_job.gen_qa import gen_qa_task, JobExecutor, JobFutures, FuturesAtomic
 from server.knowledge_base.utils import (validate_kb_name, get_file_path, files2docs_in_thread,
                                          KnowledgeFile, DocumentWithScores, get_doc_path, create_compressed_archive)
-from configs import (VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, BM_25_FACTOR, LITELLM_SERVER, USE_RERANKER, RERANKER_MODEL,
+from configs import (VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, BM_25_FACTOR, LITELLM_SERVER, RERANKER_MODEL,
                      CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE, logger, log_verbose, BASE_TEMP_DIR)
 
 
@@ -170,6 +170,8 @@ def search_docs(
                                                   "SCORE越小，相关度越高，"
                                                   "取到1相当于不筛选，建议设置在0.5左右",
                                       ge=0, le=1),
+        use_rerank: bool = Body(True, description="是否重拍"),
+        use_merge: bool = Body(True, description="是否合并临近段落"),
         # file_name: str = Body("", description="文件名称，支持 sql 通配符"),
         # metadata: dict = Body({}, description="根据 metadata 进行过滤，仅支持一级键"),
 ) -> List[DocumentWithScores]:
@@ -192,7 +194,7 @@ def search_docs(
 
     docs = get_total_score_sorted(docs_data, score_threshold)
 
-    if USE_RERANKER and len(docs) > top_k:
+    if use_rerank and len(docs) > top_k:
         doc_list = list(docs)
         _docs = [d.page_content for d in doc_list]
 
@@ -206,7 +208,8 @@ def search_docs(
             rerank_results.append(doc)
         docs = rerank_results
 
-    docs = merge_docs(docs, max_tokens)
+    if use_merge and docs:
+        docs = merge_docs(docs, max_tokens)
 
     logger.info(f"top_k {top_k} and {len(docs)} docs total searched ")
     logger.info(docs)
