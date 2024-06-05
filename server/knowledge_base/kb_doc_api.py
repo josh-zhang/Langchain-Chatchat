@@ -132,8 +132,21 @@ def merge_docs(docs: List[DocumentWithScores], max_tokens: int) -> List[Document
                 for ix, (doc_idx, doc) in enumerate(ele_list):
                     if ix == 0:
                         new_page_content = f"{file_name}(节选)\n\n{doc.page_content}"
+
+                        score = doc.scores['total']
+                        max_score = score
+                        new_metadata = doc.metadata
+                        new_scores = doc.scores
+
                     elif doc_idx == pre_idx + 1:
                         new_page_content = merge_strings(new_page_content, doc.page_content)
+
+                        score = doc.scores['total']
+                        if score >= max_score:
+                            max_score = score
+                            new_metadata = doc.metadata
+                            new_scores = doc.scores
+
                     else:
                         new_doc = DocumentWithScores(**{"page_content": new_page_content, "metadata": new_metadata},
                                                      scores=new_scores)
@@ -141,13 +154,12 @@ def merge_docs(docs: List[DocumentWithScores], max_tokens: int) -> List[Document
 
                         new_page_content = f"{file_name}(节选)\n\n{doc.page_content}"
 
-                    pre_idx = doc_idx
-
-                    score = doc.scores['total']
-                    if score >= max_score:
+                        score = doc.scores['total']
                         max_score = score
                         new_metadata = doc.metadata
                         new_scores = doc.scores
+
+                    pre_idx = doc_idx
 
                 if new_page_content:
                     new_doc = DocumentWithScores(**{"page_content": new_page_content, "metadata": new_metadata},
