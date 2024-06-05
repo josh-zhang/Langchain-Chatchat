@@ -5,6 +5,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+title_char = ["章", "节", "段", "条"]
+
 
 def under_non_alpha_ratio(text: str, threshold: float = 0.5):
     """Checks if the proportion of non-alpha characters in the text snippet exceeds a given
@@ -23,7 +25,7 @@ def under_non_alpha_ratio(text: str, threshold: float = 0.5):
         return False
 
     text = "".join([char for char in text if char.strip()])
-    alpha_count = len(re.compile(r"[A-Za-z\u4e00-\u9fff]".findall(text)))
+    alpha_count = len(re.compile(r"[A-Za-z\u4e00-\u9fff]").findall(text))
     total_count = len(text)
     try:
         ratio = alpha_count / total_count
@@ -93,7 +95,6 @@ def is_possible_title(
 def _split_text_with_regex_from_end(
         text: str, separator: str, keep_separator: bool
 ) -> List[str]:
-    title_char = ["章", "节", "段", "条"]
     # Now that we have the separator, split the text
     if separator:
         if keep_separator:
@@ -173,9 +174,12 @@ class ChineseRecursiveTextSplitter(RecursiveCharacterTextSplitter):
                 _good_splits.append(s)
             else:
                 if _good_splits:
-                    # merged_text = self._merge_splits(_good_splits, _separator)
-                    # final_chunks.extend(merged_text)
-                    final_chunks += _good_splits
+                    if any(i in separator for i in title_char):
+                        final_chunks += _good_splits
+                    else:
+                        merged_text = self._merge_splits(_good_splits, _separator)
+                        final_chunks.extend(merged_text)
+
                     _good_splits = []
                 if not new_separators:
                     final_chunks.append(s)
@@ -183,9 +187,11 @@ class ChineseRecursiveTextSplitter(RecursiveCharacterTextSplitter):
                     other_info = self._split_text(s, new_separators)
                     final_chunks.extend(other_info)
         if _good_splits:
-            # merged_text = self._merge_splits(_good_splits, _separator)
-            # final_chunks.extend(merged_text)
-            final_chunks += _good_splits
+            if any(i in separator for i in title_char):
+                final_chunks += _good_splits
+            else:
+                merged_text = self._merge_splits(_good_splits, _separator)
+                final_chunks.extend(merged_text)
 
         return [re.sub(r"\n{2,}", "\n", possi_title + chunk.strip()) for chunk in final_chunks if chunk.strip() != ""]
 
