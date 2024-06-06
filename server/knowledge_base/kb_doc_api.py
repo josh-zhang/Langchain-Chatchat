@@ -184,6 +184,9 @@ def search_docs(
                                       ge=0, le=1),
         use_rerank: bool = Body(True, description="是否重拍"),
         use_merge: bool = Body(True, description="是否合并临近段落"),
+        dense_top_k_factor: float = Body(5.0, description="密集匹配向量数"),
+        sparse_top_k_factor: float = Body(1.0, description="稀疏匹配向量数"),
+        sparse_factor: float = Body(BM_25_FACTOR, description="稀疏匹配系数"),
         # file_name: str = Body("", description="文件名称，支持 sql 通配符"),
         # metadata: dict = Body({}, description="根据 metadata 进行过滤，仅支持一级键"),
 ) -> List[DocumentWithScores]:
@@ -191,11 +194,17 @@ def search_docs(
     if kb is None:
         return []
 
+    dense_topk = int(top_k * dense_top_k_factor)
+    sparse_topk = int(top_k * sparse_top_k_factor)
+
+    logger.info(f"dense_topk {dense_topk}")
+    logger.info(f"sparse_topk {sparse_topk}")
+
     # if query:
-    ks_docs_data, ks_qa_data = kb.search_allinone(query, top_k * 2, 0.0)
+    ks_docs_data, ks_qa_data = kb.search_allinone(query, dense_topk, 0.0)
 
     if kb.search_enhance:
-        bm25_docs_data, bm25_qa_data = kb.enhance_search_allinone(query, 2, BM_25_FACTOR)
+        bm25_docs_data, bm25_qa_data = kb.enhance_search_allinone(query, sparse_topk, sparse_factor)
         docs_data = kb.merge_docs(ks_docs_data, bm25_docs_data, is_max=True)
         qa_data = kb.merge_answers(ks_qa_data, bm25_qa_data, is_max=True)
     else:
