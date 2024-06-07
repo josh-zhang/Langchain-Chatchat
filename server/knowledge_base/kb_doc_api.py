@@ -182,6 +182,7 @@ def search_docs(
                                                   "SCORE越小，相关度越高，"
                                                   "取到1相当于不筛选，建议设置在0.5左右",
                                       ge=0, le=1),
+        use_bm25: bool = Body(True, description="是否添加BM25召回"),
         use_rerank: bool = Body(True, description="是否重拍"),
         use_merge: bool = Body(True, description="是否合并临近段落"),
         dense_top_k_factor: float = Body(5.0, description="密集匹配向量数"),
@@ -203,7 +204,7 @@ def search_docs(
     # if query:
     ks_docs_data, ks_qa_data = kb.search_allinone(query, dense_topk, 0.0)
 
-    if kb.search_enhance:
+    if kb.search_enhance and use_bm25:
         bm25_docs_data, bm25_qa_data = kb.enhance_search_allinone(query, sparse_topk, sparse_factor)
         docs_data = kb.merge_docs(ks_docs_data, bm25_docs_data, is_max=True)
         qa_data = kb.merge_answers(ks_qa_data, bm25_qa_data, is_max=True)
