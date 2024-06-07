@@ -80,20 +80,12 @@ def merge_strings(s1, s2):
     return merged_string
 
 
-def merge_docs(docs: List[DocumentWithScores], max_tokens: int) -> List[DocumentWithScores]:
-    max_tokens = max_tokens - 1000
-    max_tokens = max(1000, max_tokens)
-
+def merge_docs(docs: List[DocumentWithScores]) -> List[DocumentWithScores]:
     final_docs = list()
 
     candidates_dict = dict()
 
-    count_tokens = 0
-
     for ix, doc in enumerate(docs):
-        content = doc.page_content
-        count_tokens += huggingface_tokenizer_length(content)
-
         source = doc.metadata["source"]
         if "idx" in doc.metadata:
             # normal doc
@@ -106,9 +98,6 @@ def merge_docs(docs: List[DocumentWithScores], max_tokens: int) -> List[Document
         else:
             # faq doc
             candidates_dict[source + "_" + str(ix)] = doc
-
-        if count_tokens >= max_tokens:
-            break
 
     for source, ele in candidates_dict.items():
         if isinstance(ele, list):
@@ -176,7 +165,7 @@ def search_docs(
         query: str = Body("", description="用户输入", examples=["你好"]),
         knowledge_base_name: str = Body(..., description="知识库名称", examples=["samples"]),
         top_k: int = Body(VECTOR_SEARCH_TOP_K, description="匹配向量数"),
-        max_tokens: int = Body(2000, description="最大参考字数"),
+        max_tokens: int = Body(3000, description="最大参考字数"),
         score_threshold: float = Body(SCORE_THRESHOLD,
                                       description="知识库匹配相关度阈值，取值范围在0-1之间，"
                                                   "SCORE越小，相关度越高，"
@@ -185,7 +174,7 @@ def search_docs(
         use_bm25: bool = Body(True, description="是否添加BM25召回"),
         use_rerank: bool = Body(True, description="是否重拍"),
         use_merge: bool = Body(True, description="是否合并临近段落"),
-        dense_top_k_factor: float = Body(5.0, description="密集匹配向量数"),
+        dense_top_k_factor: float = Body(3.0, description="密集匹配向量数"),
         sparse_top_k_factor: float = Body(1.0, description="稀疏匹配向量数"),
         sparse_factor: float = Body(BM_25_FACTOR, description="稀疏匹配系数"),
         # file_name: str = Body("", description="文件名称，支持 sql 通配符"),
@@ -195,11 +184,17 @@ def search_docs(
     if kb is None:
         return []
 
+    max_tokens = max_tokens - 1000
+    max_tokens = max(1000, max_tokens)
+
     dense_topk = int(top_k * dense_top_k_factor)
     sparse_topk = int(top_k * sparse_top_k_factor)
 
-    logger.info(f"dense_topk {dense_topk}")
-    logger.info(f"sparse_topk {sparse_topk}")
+    # logger.info(f"top_k {top_k}")
+    # logger.info(f"dense_topk {dense_topk}")
+    # logger.info(f"sparse_topk {sparse_topk}")
+    # logger.info(f"max_tokens {max_tokens}")
+    # logger.info(f"score_threshold {score_threshold}")
 
     # if query:
     ks_docs_data, ks_qa_data = kb.search_allinone(query, dense_topk, 0.0)
@@ -216,31 +211,51 @@ def search_docs(
 
     docs = get_total_score_sorted(docs_data, score_threshold)
 
-    if use_rerank and len(docs) > top_k:
-        doc_list = list(docs)
-        _docs = [d.page_content for d in doc_list]
+    logger.info(f"{len(docs)} docs after search")
 
-        rerank_results = []
+    count_tokens = 0
+    new_docs = list()
+    for doc in docs:
+        content = doc.page_content
+        token_count = huggingface_tokenizer_length(content)
+        doc.metadata["token_count"] = token_count
+
+        count_tokens += token_count
+
+        if count_tokens > max_tokens:
+            break
+        elif count_tokens == max_tokens:
+            new_docs.append(doc)
+            break
+        else:
+            new_docs.append(doc)
+
+    logger.info(f"{len(new_docs)} docs after token filter")
+
+    if use_rerank and len(new_docs) > top_k:
+        _docs = [d.page_content for d in new_docs]
+
+        rerank_results = list()
         results = do_rerank(_docs, query)
         for i in results:
             idx = i['index']
             value = i['relevance_score']
-            doc = doc_list[idx]
+            doc = new_docs[idx]
             doc.metadata["relevance_score"] = value
             rerank_results.append(doc)
-        docs = rerank_results
+        new_docs = rerank_results
 
-    if use_merge and docs:
-        docs = merge_docs(docs, max_tokens)
+    if use_merge and new_docs:
+        new_docs = merge_docs(new_docs)
 
-    logger.info(f"top_k {top_k} and {len(docs)} docs total searched ")
-    logger.info(docs)
+    logger.info(f"{len(new_docs)} docs total searched ")
+
     # elif file_name or metadata:
     #     docs = kb.list_docs(file_name=file_name, metadata=metadata)
     # else:
     #     docs = []
 
-    return docs
+    return new_docs
 
 
 def list_files(
