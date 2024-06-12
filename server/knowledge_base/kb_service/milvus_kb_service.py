@@ -3,13 +3,12 @@ from typing import List, Dict
 from langchain.schema import Document
 from langchain.vectorstores.milvus import Milvus
 
-from configs import kbs_config
+from configs import kbs_config, MILVUS_NPROBE
 from server.db.repository import list_file_num_docs_id_by_kb_name_and_file_name, \
     list_file_num_answer_id_by_kb_name_and_file_name, \
     list_file_num_question_id_by_kb_name_and_file_name
 
-from server.knowledge_base.kb_service.base import KBService, SupportedVSType, EmbeddingsFunAdapter, \
-    score_threshold_process
+from server.knowledge_base.kb_service.base import KBService, SupportedVSType, EmbeddingsFunAdapter
 from server.knowledge_base.utils import KnowledgeFile, DocumentWithScores
 
 
@@ -70,7 +69,7 @@ class MilvusKBService(KBService):
             embeddings = embed_func.embed_query(query)
 
         docs = self.get_milvus(vector_name).similarity_search_with_score_by_vector(embeddings, top_k)
-        docs = score_threshold_process(score_threshold, top_k, docs)
+        # docs = score_threshold_process(score_threshold, top_k, docs)
         docs = [DocumentWithScores(**d.dict(), scores={f"sbert_{vector_name}": s}) for d, s in docs]
 
         return embeddings, docs
@@ -109,7 +108,7 @@ class MilvusKBService(KBService):
     def search(milvus_name, content, limit=3):
         search_params = {
             "metric_type": "L2",
-            "params": {"nprobe": 10},
+            "params": {"nprobe": MILVUS_NPROBE},
         }
         c = MilvusKBService.get_collection(milvus_name)
         return c.search(content, "embeddings", search_params, limit=limit, output_fields=["content"])

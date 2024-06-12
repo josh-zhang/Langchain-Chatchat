@@ -1,7 +1,6 @@
 import os
 import urllib
-import requests
-from typing import List, Optional
+from typing import List
 
 from fastapi.responses import FileResponse
 from fastapi import File, Form, Body, Query, UploadFile
@@ -11,154 +10,12 @@ from pydantic import Json
 from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.db.repository.knowledge_file_repository import get_file_detail, list_docs_from_db, list_answer_from_db, \
     list_question_from_db
-from server.utils import BaseResponse, ListResponse, run_in_thread_pool, xinference_supervisor_address
-from server.knowledge_base.utils import huggingface_tokenizer_length
+from server.utils import BaseResponse, ListResponse, run_in_thread_pool
 from server.knowledge_base.kb_job.gen_qa import gen_qa_task, JobExecutor, JobFutures, FuturesAtomic
 from server.knowledge_base.utils import (validate_kb_name, get_file_path, files2docs_in_thread,
                                          KnowledgeFile, DocumentWithScores, get_doc_path, create_compressed_archive)
-from configs import (VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, BM_25_FACTOR, LITELLM_SERVER, RERANKER_MODEL,
+from configs import (VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, BM_25_FACTOR, LITELLM_SERVER,
                      CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE, logger, log_verbose, BASE_TEMP_DIR)
-
-
-def do_rerank(
-        documents: List[str],
-        query: str,
-        top_n: Optional[int] = None,
-        max_chunks_per_doc: Optional[int] = None,
-        return_documents: Optional[bool] = None,
-        model_name: str = RERANKER_MODEL,
-):
-    url = f"{xinference_supervisor_address()}/v1/rerank"
-    request_body = {
-        "model": model_name,
-        "documents": documents,
-        "query": query,
-        "top_n": top_n,
-        "max_chunks_per_doc": max_chunks_per_doc,
-        "return_documents": return_documents,
-    }
-    response = requests.post(url, json=request_body)
-    if response.status_code != 200:
-        return []
-    response_data = response.json()['results']
-    return response_data
-
-
-def get_total_score_sorted(docs_data: List[DocumentWithScores], score_threshold) -> List[DocumentWithScores]:
-    for ds in docs_data:
-        sbert_doc = ds.scores.get("sbert_docs", 0.0)
-        sbert_que = ds.scores.get("sbert_question", 0.0)
-        sbert_ans = ds.scores.get("sbert_answer", 0.0)
-
-        bm_doc = ds.scores.get("bm_docs", 0.0)
-        bm_que = ds.scores.get("bm_question", 0.0)
-        bm_ans = ds.scores.get("bm_answer", 0.0)
-
-        doc = sbert_doc + bm_doc
-        que = sbert_que + bm_que
-        ans = sbert_ans + bm_ans
-        qa = max(que, ans)
-
-        ds.scores["total"] = doc + qa
-
-    return sorted([ds for ds in docs_data if ds.scores["total"] >= score_threshold], key=lambda x: x.scores["total"],
-                  reverse=True)
-
-
-def merge_strings(s1, s2):
-    # Find the maximum length of the overlap between s1 and s2
-    overlap_length = 0
-    max_length = min(len(s1), len(s2))
-
-    for i in range(1, max_length + 1):
-        # Check if the end of s1 overlaps with the start of s2
-        if s1[-i:] == s2[:i]:
-            overlap_length = i
-
-    # Merge the strings using the overlap length
-    merged_string = s1 + s2[overlap_length:]
-    return merged_string
-
-
-def merge_docs(docs: List[DocumentWithScores]) -> List[DocumentWithScores]:
-    final_docs = list()
-
-    candidates_dict = dict()
-
-    for ix, doc in enumerate(docs):
-        source = doc.metadata["source"]
-        if "idx" in doc.metadata:
-            # normal doc
-            doc_idx = int(doc.metadata["idx"])
-
-            if source in candidates_dict:
-                candidates_dict[source].append((doc_idx, doc))
-            else:
-                candidates_dict[source] = [(doc_idx, doc)]
-        else:
-            # faq doc
-            candidates_dict[source + "_" + str(ix)] = doc
-
-    for source, ele in candidates_dict.items():
-        if isinstance(ele, list):
-            file_directory, file_name = os.path.split(source)
-            ext = os.path.splitext(file_name)[-1].lower()
-            file_name = file_name[:-len(ext)]
-
-            if len(ele) == 1:
-                new_doc = ele[0][1]
-                new_doc.page_content = f"{file_name}(节选)\n\n{new_doc.page_content}"
-                final_docs.append(new_doc)
-            else:
-                ele_list = sorted(ele, key=lambda element: element[0])
-
-                new_page_content = ""
-                new_metadata = {}
-                new_scores = {}
-                max_score = 0
-
-                pre_idx = 0
-                for ix, (doc_idx, doc) in enumerate(ele_list):
-                    if ix == 0:
-                        new_page_content = f"{file_name}(节选)\n\n{doc.page_content}"
-
-                        score = doc.scores['total']
-                        max_score = score
-                        new_metadata = doc.metadata
-                        new_scores = doc.scores
-
-                    elif doc_idx == pre_idx + 1:
-                        new_page_content = merge_strings(new_page_content, doc.page_content)
-
-                        score = doc.scores['total']
-                        if score >= max_score:
-                            max_score = score
-                            new_metadata = doc.metadata
-                            new_scores = doc.scores
-
-                    else:
-                        new_doc = DocumentWithScores(**{"page_content": new_page_content, "metadata": new_metadata},
-                                                     scores=new_scores)
-                        final_docs.append(new_doc)
-
-                        new_page_content = f"{file_name}(节选)\n\n{doc.page_content}"
-
-                        score = doc.scores['total']
-                        max_score = score
-                        new_metadata = doc.metadata
-                        new_scores = doc.scores
-
-                    pre_idx = doc_idx
-
-                if new_page_content:
-                    new_doc = DocumentWithScores(**{"page_content": new_page_content, "metadata": new_metadata},
-                                                 scores=new_scores)
-                    final_docs.append(new_doc)
-        else:
-            ele.page_content = f"\n{ele.page_content}"
-            final_docs.append(ele)
-
-    return final_docs
 
 
 def search_docs(
@@ -177,6 +34,7 @@ def search_docs(
         dense_top_k_factor: float = Body(3.0, description="密集匹配向量数"),
         sparse_top_k_factor: float = Body(1.0, description="稀疏匹配向量数"),
         sparse_factor: float = Body(BM_25_FACTOR, description="稀疏匹配系数"),
+        limit_before_rerank: bool = Body(False, description="是否在重排前限制token总数"),
         # file_name: str = Body("", description="文件名称，支持 sql 通配符"),
         # metadata: dict = Body({}, description="根据 metadata 进行过滤，仅支持一级键"),
 ) -> List[DocumentWithScores]:
@@ -184,8 +42,10 @@ def search_docs(
     if kb is None:
         return []
 
-    max_tokens = max_tokens - 1000
-    max_tokens = max(1000, max_tokens)
+    leave_for_prompt = 1000
+    leave_for_context_min = 500
+    max_tokens_for_context = max_tokens - leave_for_prompt
+    max_tokens_for_context = max(leave_for_context_min, max_tokens_for_context)
 
     dense_topk = int(top_k * dense_top_k_factor)
     sparse_topk = int(top_k * sparse_top_k_factor)
@@ -197,65 +57,44 @@ def search_docs(
     # logger.info(f"score_threshold {score_threshold}")
 
     # if query:
-    ks_docs_data, ks_qa_data = kb.search_allinone(query, dense_topk, 0.0)
-
-    if kb.search_enhance and use_bm25:
-        bm25_docs_data, bm25_qa_data = kb.enhance_search_allinone(query, sparse_topk, sparse_factor)
-        docs_data = kb.merge_docs(ks_docs_data, bm25_docs_data, is_max=True)
-        qa_data = kb.merge_answers(ks_qa_data, bm25_qa_data, is_max=True)
-    else:
-        docs_data = ks_docs_data
-        qa_data = ks_qa_data
-
-    docs_data = docs_data + qa_data
-
-    docs = get_total_score_sorted(docs_data, score_threshold)
+    docs = kb.search_all(query, dense_topk, sparse_topk, sparse_factor, use_bm25, score_threshold)
 
     logger.info(f"{len(docs)} docs after search")
 
-    count_tokens = 0
-    new_docs = list()
-    for doc in docs:
-        content = doc.page_content
-        token_count = huggingface_tokenizer_length(content)
-        doc.metadata["token_count"] = token_count
+    if limit_before_rerank:
+        docs, count_tokens = kb.limit_tokens(docs, max_tokens_for_context)
 
-        count_tokens += token_count
+        logger.info(f"{len(docs)} docs after token filter 1")
 
-        if count_tokens > max_tokens:
-            break
-        elif count_tokens == max_tokens:
-            new_docs.append(doc)
-            break
-        else:
-            new_docs.append(doc)
-
-    logger.info(f"{len(new_docs)} docs after token filter")
-
-    if use_rerank and len(new_docs) > top_k:
-        _docs = [d.page_content for d in new_docs]
+    if use_rerank and len(docs) > top_k:
+        _docs = [d.page_content for d in docs]
 
         rerank_results = list()
-        results = do_rerank(_docs, query)
+        results = kb.do_rerank(_docs, query)
         for i in results:
             idx = i['index']
             value = i['relevance_score']
-            doc = new_docs[idx]
+            doc = docs[idx]
             doc.metadata["relevance_score"] = value
             rerank_results.append(doc)
-        new_docs = rerank_results
+        docs = rerank_results
 
-    if use_merge and new_docs:
-        new_docs = merge_docs(new_docs)
+    if not limit_before_rerank:
+        docs, count_tokens = kb.limit_tokens(docs, max_tokens_for_context)
 
-    logger.info(f"{len(new_docs)} docs total searched ")
+        logger.info(f"{len(docs)} docs after token filter 2")
+
+    if use_merge and docs:
+        docs = kb.combine_docs(docs)
+
+    logger.info(f"{len(docs)} docs total searched")
 
     # elif file_name or metadata:
     #     docs = kb.list_docs(file_name=file_name, metadata=metadata)
     # else:
     #     docs = []
 
-    return new_docs
+    return docs
 
 
 def list_files(

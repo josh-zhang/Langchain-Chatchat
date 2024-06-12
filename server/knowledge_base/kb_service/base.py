@@ -1,14 +1,14 @@
 import re
+import requests
 from pathlib import Path
 
-import operator
 from abc import ABC, abstractmethod
+from typing import List, Union, Dict, Optional
 
 import os
 import asyncio
 import hashlib
 import numpy as np
-
 from langchain.embeddings.base import Embeddings
 from langchain.docstore.document import Document
 
@@ -22,19 +22,31 @@ from server.db.repository.knowledge_file_repository import (
     list_answer_from_db, add_answer_to_db, add_question_to_db, get_answer_id_by_question_raw_id_from_db,
     get_answer_doc_id_by_answer_id_from_db, delete_docs_from_db, delete_answer_from_db, delete_question_from_db
 )
-
-from configs import (kbs_config, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, EMBEDDING_MODEL, SEARCH_ENHANCE)
+from configs import (kbs_config, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, EMBEDDING_MODEL, SEARCH_ENHANCE, RERANKER_MODEL)
 from server.knowledge_base.utils import (
-    get_kb_path, get_doc_path, KnowledgeFile,
+    get_kb_path, get_doc_path, KnowledgeFile, huggingface_tokenizer_length,
     list_kbs_from_folder, list_files_from_folder, DocumentWithScores
 )
 from server.knowledge_base.faq_utils import load_faq
-
-from typing import List, Union, Dict, Optional
-
 from server.embeddings_api import embed_texts, embed_documents, aembed_texts, aembed_documents_api
 from server.knowledge_base.model.kb_document_model import DocumentWithVSId
 from server.knowledge_base.kb_cache.bm25_cache import kb_bm25_pool, ThreadSafeBM25, get_score
+from server.utils import xinference_supervisor_address
+
+
+def merge_strings(s1, s2):
+    # Find the maximum length of the overlap between s1 and s2
+    overlap_length = 0
+    max_length = min(len(s1), len(s2))
+
+    for i in range(1, max_length + 1):
+        # Check if the end of s1 overlaps with the start of s2
+        if s1[-i:] == s2[:i]:
+            overlap_length = i
+
+    # Merge the strings using the overlap length
+    merged_string = s1 + s2[overlap_length:]
+    return merged_string
 
 
 def normalize(embeddings: List[List[float]]) -> np.ndarray:
@@ -45,6 +57,28 @@ def normalize(embeddings: List[List[float]]) -> np.ndarray:
     norm = np.reshape(norm, (norm.shape[0], 1))
     norm = np.tile(norm, (1, len(embeddings[0])))
     return np.divide(embeddings, norm)
+
+
+def get_total_score_sorted(docs_data: List[DocumentWithScores], score_threshold) -> List[DocumentWithScores]:
+    for ds in docs_data:
+        sbert_doc = ds.scores.get("sbert_docs", 0.0)
+        sbert_que = ds.scores.get("sbert_question", 0.0)
+        sbert_ans = ds.scores.get("sbert_answer", 0.0)
+
+        bm_doc = ds.scores.get("bm_docs", 0.0)
+        bm_que = ds.scores.get("bm_question", 0.0)
+        bm_ans = ds.scores.get("bm_answer", 0.0)
+
+        doc = sbert_doc + bm_doc
+        que = sbert_que + bm_que
+        ans = sbert_ans + bm_ans
+        qa = max(que, ans)
+
+        ds.scores["total"] = doc + qa
+
+    return sorted([ds for ds in docs_data if ds.scores["total"] >= score_threshold],
+                  key=lambda x: x.scores["total"],
+                  reverse=True)
 
 
 class SupportedVSType:
@@ -378,6 +412,28 @@ class KBService(ABC):
         return [DocumentWithScores(**{"page_content": d.page_content, "metadata": d.metadata}, scores=s) for d, s in
                 merged_docs_data]
 
+    def limit_tokens(self, docs, max_tokens):
+        count_tokens = 0
+        new_docs = list()
+        for doc in docs:
+            content = doc.page_content
+            token_count = huggingface_tokenizer_length(content)
+            doc.metadata["token_count"] = token_count
+
+            count_tokens += token_count
+
+            if count_tokens > max_tokens:
+                count_tokens -= token_count
+
+                break
+            elif count_tokens == max_tokens:
+                new_docs.append(doc)
+                break
+            else:
+                new_docs.append(doc)
+
+        return new_docs, count_tokens
+
     def question_to_answer(self, question_data: List[DocumentWithScores]):
         doc_ids = list()
         scores_list = list()
@@ -406,6 +462,23 @@ class KBService(ABC):
 
         return [DocumentWithScores(**{"page_content": d.page_content, "metadata": d.metadata}, scores=s) for d, s in
                 answers]
+
+    def search_all(self, query, dense_topk, sparse_topk, sparse_factor, use_bm25, score_threshold):
+        ks_docs_data, ks_qa_data = self.search_allinone(query, dense_topk, 0.0)
+
+        if self.search_enhance and use_bm25:
+            bm25_docs_data, bm25_qa_data = self.enhance_search_allinone(query, sparse_topk, sparse_factor)
+            docs_data = self.merge_docs(ks_docs_data, bm25_docs_data, is_max=True)
+            qa_data = self.merge_answers(ks_qa_data, bm25_qa_data, is_max=True)
+        else:
+            docs_data = ks_docs_data
+            qa_data = ks_qa_data
+
+        docs_data = docs_data + qa_data
+
+        docs = get_total_score_sorted(docs_data, score_threshold)
+
+        return docs
 
     def search_allinone(self,
                         query: str,
@@ -581,6 +654,110 @@ class KBService(ABC):
 
         relative_path = str(relative_path.as_posix().strip("/"))
         return relative_path
+
+    def do_rerank(
+            self,
+            documents: List[str],
+            query: str,
+            top_n: Optional[int] = None,
+            max_chunks_per_doc: Optional[int] = None,
+            return_documents: Optional[bool] = None,
+            model_name: str = RERANKER_MODEL,
+    ):
+        url = f"{xinference_supervisor_address()}/v1/rerank"
+        request_body = {
+            "model": model_name,
+            "documents": documents,
+            "query": query,
+            "top_n": top_n,
+            "max_chunks_per_doc": max_chunks_per_doc,
+            "return_documents": return_documents,
+        }
+        response = requests.post(url, json=request_body)
+        if response.status_code != 200:
+            return []
+        response_data = response.json()['results']
+        return response_data
+
+    def combine_docs(self, docs: List[DocumentWithScores]) -> List[DocumentWithScores]:
+        final_docs = list()
+
+        candidates_dict = dict()
+
+        for ix, doc in enumerate(docs):
+            source = doc.metadata["source"]
+            if "idx" in doc.metadata:
+                # normal doc
+                doc_idx = int(doc.metadata["idx"])
+
+                if source in candidates_dict:
+                    candidates_dict[source].append((doc_idx, doc))
+                else:
+                    candidates_dict[source] = [(doc_idx, doc)]
+            else:
+                # faq doc
+                candidates_dict[source + "_" + str(ix)] = doc
+
+        for source, ele in candidates_dict.items():
+            if isinstance(ele, list):
+                file_directory, file_name = os.path.split(source)
+                ext = os.path.splitext(file_name)[-1].lower()
+                file_name = file_name[:-len(ext)]
+
+                if len(ele) == 1:
+                    new_doc = ele[0][1]
+                    new_doc.page_content = f"{file_name}(节选)\n\n{new_doc.page_content}"
+                    final_docs.append(new_doc)
+                else:
+                    ele_list = sorted(ele, key=lambda element: element[0])
+
+                    new_page_content = ""
+                    new_metadata = {}
+                    new_scores = {}
+                    max_score = 0
+
+                    pre_idx = 0
+                    for ix, (doc_idx, doc) in enumerate(ele_list):
+                        if ix == 0:
+                            new_page_content = f"{file_name}(节选)\n\n{doc.page_content}"
+
+                            score = doc.scores['total']
+                            max_score = score
+                            new_metadata = doc.metadata
+                            new_scores = doc.scores
+
+                        elif doc_idx == pre_idx + 1:
+                            new_page_content = merge_strings(new_page_content, doc.page_content)
+
+                            score = doc.scores['total']
+                            if score >= max_score:
+                                max_score = score
+                                new_metadata = doc.metadata
+                                new_scores = doc.scores
+
+                        else:
+                            new_doc = DocumentWithScores(**{"page_content": new_page_content, "metadata": new_metadata},
+                                                         scores=new_scores)
+                            final_docs.append(new_doc)
+
+                            new_page_content = f"{file_name}(节选)\n\n{doc.page_content}"
+
+                            score = doc.scores['total']
+                            max_score = score
+                            new_metadata = doc.metadata
+                            new_scores = doc.scores
+
+                        pre_idx = doc_idx
+
+                    if new_page_content:
+                        new_doc = DocumentWithScores(**{"page_content": new_page_content, "metadata": new_metadata},
+                                                     scores=new_scores)
+                        final_docs.append(new_doc)
+            else:
+                ele.page_content = f"\n{ele.page_content}"
+                final_docs.append(ele)
+
+        return final_docs
 
     @abstractmethod
     def do_create_kb(self, vs_path):
