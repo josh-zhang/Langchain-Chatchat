@@ -10,7 +10,7 @@ from tqdm import tqdm
 from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.knowledge_base.utils import (list_files_from_folder, get_file_path, list_files_from_path,
                                          KnowledgeFile, get_doc_path)
-from configs import (EMBEDDING_MODEL, SEARCH_ENHANCE, QA_JOB_SCRIPT_PATH, BASE_TEMP_DIR, logger)
+from configs import (EMBEDDING_MODEL, USE_BM25, QA_JOB_SCRIPT_PATH, BASE_TEMP_DIR, logger)
 
 import concurrent.futures
 
@@ -117,7 +117,7 @@ def gen_qa_task(knowledge_base_name, kb_info, model_name, url, concurrency):
             return
 
     kb = KBServiceFactory.get_service(new_kb_name, new_kb_info, new_kb_agent_guide, "faiss", EMBEDDING_MODEL,
-                                      SEARCH_ENHANCE)
+                                      USE_BM25)
     status = kb.create_kb()
     if not status:
         msg = f"创建知识库出错"

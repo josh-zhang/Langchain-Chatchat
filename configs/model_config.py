@@ -42,7 +42,7 @@ HISTORY_LEN = 3
 MAX_TOKENS = None
 
 # LLM通用对话参数
-TEMPERATURE = 0.0
+TEMPERATURE = 0.7
 TOP_P = 0.95  # ChatOpenAI暂不支持该参数
 
 # 在以下字典中修改属性值，以指定本地embedding模型存储位置。支持3种设置方法：

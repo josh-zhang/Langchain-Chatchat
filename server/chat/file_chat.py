@@ -15,8 +15,10 @@ from server.utils import (wrap_done, BaseResponse, get_temp_dir, run_in_thread_p
 from server.chat.utils import History
 from server.knowledge_base.kb_cache.faiss_cache import memo_faiss_pool
 from server.knowledge_base.kb_service.base import EmbeddingsFunAdapter
-from server.knowledge_base.utils import KnowledgeFile
+from server.knowledge_base.utils import KnowledgeFile, huggingface_tokenizer_length
 from server.chat.prompt_generator import generate_doc_qa
+from server.callback_handler.conversation_callback_handler import ConversationCallbackHandler
+from server.db.repository import add_message_to_db
 
 
 def _parse_files_in_thread(
@@ -96,6 +98,7 @@ def upload_temp_docs(
 
 
 async def file_chat(query: str = Body(..., description="用户输入", examples=["你好"]),
+                    conversation_id: str = Body("", description="对话框ID"),
                     knowledge_id: str = Body(..., description="临时知识库ID"),
                     knowledge_content: str = Body(..., description="临时知识内容"),
                     top_k: int = Body(VECTOR_SEARCH_TOP_K, description="匹配向量数"),
@@ -136,11 +139,18 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
             callbacks = [callback]
             streaming = stream
 
+        # 负责保存llm response到message db
+        message_id = add_message_to_db(chat_type="knowledge_base_chat", query=query, conversation_id=conversation_id)
+        conversation_callback = ConversationCallbackHandler(conversation_id=conversation_id, message_id=message_id,
+                                                            chat_type="knowledge_base_chat", query=query)
+        callbacks.append(conversation_callback)
+
         source_documents = []
 
         if knowledge_content:
-            prompt_template, _, max_tokens_remain = generate_doc_qa(query, history, [], "根据已知信息无法回答该问题",
-                                                                    max_tokens, knowledge_content)
+            prompt_template, _, max_tokens_remain, input_token_counts = generate_doc_qa(query, history, [],
+                                                                                        "根据已知信息无法回答该问题",
+                                                                                        max_tokens, knowledge_content)
 
             input_msg = History(role="user", content=prompt_template).to_msg_template(False)
 
@@ -168,8 +178,10 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
                 docs = [x[0] for x in docs]
                 text_docs = [doc.page_content for doc in docs]
 
-            prompt_template, context, max_tokens_remain = generate_doc_qa(query, history, text_docs,
-                                                                          "根据已知信息无法回答该问题", max_tokens)
+            prompt_template, context, max_tokens_remain, input_token_counts = generate_doc_qa(query, history,
+                                                                                              text_docs,
+                                                                                              "根据已知信息无法回答该问题",
+                                                                                              max_tokens)
 
             input_msg = History(role="user", content=prompt_template).to_msg_template(False)
 
@@ -202,18 +214,34 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
                 chain.acall({"context": context, "question": query}),
                 callback.done),
             )
-
+            outputs = ""
             async for token in callback.aiter():
                 # Use server-sent-events to stream the response
-                yield json.dumps({"answer": token}, ensure_ascii=False)
-            yield json.dumps({"docs": source_documents}, ensure_ascii=False)
+                outputs = token
+                yield json.dumps({"answer": outputs, "message_id": message_id}, ensure_ascii=False)
+
+            if outputs:
+                token_counts = huggingface_tokenizer_length(outputs) + input_token_counts
+            else:
+                token_counts = input_token_counts
+
+            yield json.dumps({"docs": source_documents,
+                              "token_counts": token_counts}, ensure_ascii=False)
 
             await task
         else:
             answer = await chain.ainvoke({"context": context, "question": query})
+            outputs = answer["text"]
 
-            yield json.dumps({"answer": answer["text"],
-                              "docs": source_documents},
+            if outputs:
+                token_counts = huggingface_tokenizer_length(outputs) + input_token_counts
+            else:
+                token_counts = input_token_counts
+
+            yield json.dumps({"answer": outputs,
+                              "docs": source_documents,
+                              "token_counts": token_counts,
+                              "message_id": message_id},
                              ensure_ascii=False)
 
     return EventSourceResponse(knowledge_base_chat_iterator())

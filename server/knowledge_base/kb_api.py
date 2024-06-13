@@ -3,7 +3,7 @@ from server.utils import BaseResponse, ListListResponse
 from server.knowledge_base.utils import validate_kb_name, validate_kb_info
 from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.db.repository.knowledge_base_repository import list_kbs_from_db
-from configs import EMBEDDING_MODEL, logger, log_verbose, SEARCH_ENHANCE
+from configs import EMBEDDING_MODEL, logger, log_verbose, USE_BM25
 from fastapi import Body
 
 
@@ -13,12 +13,12 @@ def list_kbs():
 
 
 def create_kb(knowledge_base_name: str = Body(..., examples=["samples"]),
-            kb_info: str = Body(..., examples=["samples_introduction"]),
-            kb_agent_guide: str = Body(..., examples=["samples_introduction_for_agent"]),
-            vector_store_type: str = Body("faiss"),
-            embed_model: str = Body(EMBEDDING_MODEL),
-            search_enhance: bool = Body(SEARCH_ENHANCE),
-            ) -> BaseResponse:
+              kb_info: str = Body(..., examples=["samples_introduction"]),
+              kb_agent_guide: str = Body(..., examples=["samples_introduction_for_agent"]),
+              vector_store_type: str = Body("faiss"),
+              embed_model: str = Body(EMBEDDING_MODEL),
+              search_enhance: bool = Body(USE_BM25),
+              ) -> BaseResponse:
 
     if not validate_kb_name(knowledge_base_name):
         return BaseResponse(code=404, msg="知识库编号不能为空，请重新填写知识库编号")

@@ -22,7 +22,7 @@ from server.db.repository.knowledge_file_repository import (
     list_answer_from_db, add_answer_to_db, add_question_to_db, get_answer_id_by_question_raw_id_from_db,
     get_answer_doc_id_by_answer_id_from_db, delete_docs_from_db, delete_answer_from_db, delete_question_from_db
 )
-from configs import (kbs_config, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, EMBEDDING_MODEL, SEARCH_ENHANCE, RERANKER_MODEL)
+from configs import (kbs_config, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, EMBEDDING_MODEL, USE_BM25, RERANKER_MODEL)
 from server.knowledge_base.utils import (
     get_kb_path, get_doc_path, KnowledgeFile, huggingface_tokenizer_length, huggingface_tokenizer_length_rerank,
     list_kbs_from_folder, list_files_from_folder, DocumentWithScores
@@ -103,7 +103,7 @@ class KBService(ABC):
                  knowledge_base_name: str,
                  kb_info: str,
                  kb_agent_guide: str,
-                 search_enhance: bool = SEARCH_ENHANCE,
+                 search_enhance: bool = USE_BM25,
                  embed_model: str = EMBEDDING_MODEL,
                  ):
         self.kb_name = knowledge_base_name
@@ -869,7 +869,7 @@ class KBServiceFactory:
                     kb_agent_guide: str,
                     vector_store_type: Union[str, SupportedVSType],
                     embed_model: str = EMBEDDING_MODEL,
-                    search_enhance: bool = SEARCH_ENHANCE,
+                    search_enhance: bool = USE_BM25,
                     ) -> KBService:
         # if isinstance(vector_store_type, str):
         #     vector_store_type = getattr(SupportedVSType, vector_store_type.upper())

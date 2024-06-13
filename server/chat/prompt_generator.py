@@ -113,4 +113,4 @@ def generate_doc_qa(query: str, history: List[History], docs: List[str], fallbac
 
     max_tokens_remain = max(50, max_tokens_remain)
 
-    return prompt_template, context, max_tokens_remain
+    return prompt_template, context, max_tokens_remain, current_token_length

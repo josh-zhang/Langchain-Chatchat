@@ -17,6 +17,10 @@ chat_box = ChatBox(
         "chatchat_icon_blue_square_v2.png"
     )
 )
+feedback_kwargs = {
+    "feedback_type": "thumbs",
+    "optional_text_label": "欢迎提供您的宝贵反馈",
+}
 
 
 def get_messages_history(history_len: int, content_in_expander: bool = False) -> List[Dict]:
@@ -63,6 +67,18 @@ def support_iframe(ftype):
     return ftype in ["text/plain", "application/pdf", "text/html"]
 
 
+def chat_init():
+    conv_names = list(st.session_state["conversation_ids"].keys())
+    index = 0
+    if st.session_state.get("cur_conv_name") in conv_names:
+        index = conv_names.index(st.session_state.get("cur_conv_name"))
+    # conversation_name = st.selectbox("当前会话：", conv_names, index=index)
+    conversation_name = conv_names[index]
+    conversation_id = st.session_state["conversation_ids"][conversation_name]
+
+    return conversation_name, conversation_id
+
+
 def dialogue_page(api: ApiRequest):
     running_model_dict = {k: v for k, v in get_api_running_models(api)}
     running_models = list(running_model_dict.keys())
@@ -73,7 +89,6 @@ def dialogue_page(api: ApiRequest):
         return
 
     st.session_state.dialogue_mode = "闲聊"
-
     st.session_state.setdefault("conversation_ids", {})
     st.session_state["conversation_ids"].setdefault(chat_box.cur_chat_name, uuid.uuid4().hex)
 
@@ -86,14 +101,8 @@ def dialogue_page(api: ApiRequest):
 
     with st.sidebar:
         # 多会话
-        conv_names = list(st.session_state["conversation_ids"].keys())
-        index = 0
-        if st.session_state.get("cur_conv_name") in conv_names:
-            index = conv_names.index(st.session_state.get("cur_conv_name"))
-        # conversation_name = st.selectbox("当前会话：", conv_names, index=index)
-        conversation_name = conv_names[index]
+        conversation_name, conversation_id = chat_init()
         chat_box.use_chat_name(conversation_name)
-        conversation_id = st.session_state["conversation_ids"][conversation_name]
 
         def on_llm_change():
             if llm_model:
@@ -114,6 +123,10 @@ def dialogue_page(api: ApiRequest):
                                  # format_func=llm_model_format_func,
                                  on_change=on_llm_change,
                                  key="llm_model")
+
+        cur_max_tokens = running_model_dict[st.session_state["cur_llm_model"]]
+        cm = st.session_state["cur_llm_model"]
+        st.caption(f"[{cm}]共支持{cur_max_tokens}词元")
 
         temperature = st.slider("生成温度：", 0.0, 1.0, TEMPERATURE, 0.05)
         history_len = st.number_input("历史对话轮数：", 0, 20, HISTORY_LEN)
@@ -158,26 +171,21 @@ def dialogue_page(api: ApiRequest):
                           reason=reason)
         st.session_state["need_rerun"] = True
 
-    feedback_kwargs = {
-        "feedback_type": "thumbs",
-        "optional_text_label": "欢迎反馈您打分的理由",
-    }
-
-    if prompt := st.chat_input("请输入对话内容，换行请使用Shift+Enter。输入/help查看自定义命令 ", key="prompt",
-                               max_chars=4000):
+    if prompt := st.chat_input("请输入对话内容，换行请使用Shift+Enter。", key="prompt", max_chars=4000):
         history = get_messages_history(history_len)
 
         chat_box.user_say(prompt)
         chat_box.ai_say("正在思考...")
+
         text = ""
         message_id = ""
         r = api.chat_chat(prompt,
                           history=history,
                           conversation_id=conversation_id,
-                          model=llm_model,
+                          model=st.session_state["cur_llm_model"],
                           prompt_name=prompt_template_name,
                           temperature=temperature,
-                          max_tokens=running_model_dict[llm_model])
+                          max_tokens=running_model_dict[st.session_state["cur_llm_model"]])
         for t in r:
             if error_msg := check_error_msg(t):  # check whether error occured
                 st.error(error_msg)
@@ -190,10 +198,12 @@ def dialogue_page(api: ApiRequest):
             "message_id": message_id,
         }
         chat_box.update_msg(text, streaming=False, metadata=metadata)  # 更新最终的字符串，去除光标
-        chat_box.show_feedback(**feedback_kwargs,
-                               key=message_id,
-                               on_submit=on_feedback,
-                               kwargs={"message_id": message_id, "history_index": len(chat_box.history) - 1})
+
+        if message_id:
+            chat_box.show_feedback(**feedback_kwargs,
+                                   key=message_id,
+                                   on_submit=on_feedback,
+                                   kwargs={"message_id": message_id, "history_index": len(chat_box.history) - 1})
 
     if st.session_state.get("need_rerun"):
         st.session_state["need_rerun"] = False
@@ -229,13 +239,13 @@ def file_dialogue_page(api: ApiRequest):
         return
 
     st.session_state.dialogue_mode = "文件问答"
-
     st.session_state.setdefault("conversation_ids", {})
     st.session_state["conversation_ids"].setdefault(chat_box.cur_chat_name, uuid.uuid4().hex)
     st.session_state.setdefault("file_chat_id", None)
     st.session_state.setdefault("file_chat_value", None)
     st.session_state.setdefault("file_chat_content", "")
     st.session_state.setdefault("file_chat_type", None)
+    st.session_state.setdefault("cur_token_counts", 0)
 
     if not chat_box.chat_inited:
         st.toast(
@@ -246,14 +256,8 @@ def file_dialogue_page(api: ApiRequest):
 
     with st.sidebar:
         # 多会话
-        conv_names = list(st.session_state["conversation_ids"].keys())
-        index = 0
-        if st.session_state.get("cur_conv_name") in conv_names:
-            index = conv_names.index(st.session_state.get("cur_conv_name"))
-        # conversation_name = st.selectbox("当前会话：", conv_names, index=index)
-        conversation_name = conv_names[index]
+        conversation_name, conversation_id = chat_init()
         chat_box.use_chat_name(conversation_name)
-        conversation_id = st.session_state["conversation_ids"][conversation_name]
 
         with st.expander("文件问答配置", True):
             doc_type = st.selectbox(
@@ -319,6 +323,11 @@ def file_dialogue_page(api: ApiRequest):
                                  on_change=on_llm_change,
                                  key="llm_model")
 
+        cur_max_tokens = running_model_dict[st.session_state["cur_llm_model"]]
+        cur_tokens_left = cur_max_tokens - st.session_state["cur_token_counts"]
+        cm = st.session_state["cur_llm_model"]
+        st.caption(f"对话剩余{cur_tokens_left}词元 [{cm}]共支持{cur_max_tokens}词元")
+
         temperature = st.slider("生成温度：", 0.0, 1.0, TEMPERATURE, 0.05)
         history_len = st.number_input("历史对话轮数：", 0, 20, HISTORY_LEN)
 
@@ -345,12 +354,24 @@ def file_dialogue_page(api: ApiRequest):
                                                                  value=st.session_state["file_chat_content"],
                                                                  height=int(ui_width)).strip()
 
-    prompt = st.chat_input("请输入对话内容，换行请使用Shift+Enter。输入/help查看自定义命令 ", key="prompt",
+    prompt = st.chat_input("请输入对话内容，换行请使用Shift+Enter。", key="prompt",
                            max_chars=2000)
 
     with col2:
         if prompt:
             chat_box.output_messages()
+
+            def on_feedback(
+                    feedback,
+                    message_id: str = "",
+                    history_index: int = -1,
+            ):
+                reason = feedback["text"]
+                score_int = chat_box.set_feedback(feedback=feedback, history_index=history_index)
+                api.chat_feedback(message_id=message_id,
+                                  score=score_int,
+                                  reason=reason)
+                st.session_state["need_rerun"] = True
 
             history = get_messages_history(history_len)
 
@@ -373,6 +394,7 @@ def file_dialogue_page(api: ApiRequest):
                 Markdown("...", in_expander=True, title="文件搜索结果", state="complete"),
             ])
             text = ""
+            message_id = ""
             d = None
             for d in api.file_chat(prompt,
                                    knowledge_id=file_chat_id,
@@ -380,17 +402,37 @@ def file_dialogue_page(api: ApiRequest):
                                    top_k=kb_top_k,
                                    score_threshold=score_threshold,
                                    history=history,
-                                   model=llm_model,
+                                   conversation_id=conversation_id,
+                                   model=st.session_state["cur_llm_model"],
                                    # prompt_name=prompt_template_name,
                                    temperature=temperature,
-                                   max_tokens=running_model_dict[llm_model]):
+                                   max_tokens=running_model_dict[st.session_state["cur_llm_model"]]):
                 if error_msg := check_error_msg(d):  # check whether error occured
                     st.error(error_msg)
-                elif chunk := d.get("answer"):
+                    break
+
+                if chunk := d.get("answer"):
                     text += chunk
                     chat_box.update_msg(text, element_index=0)
-            chat_box.update_msg(text, element_index=0, streaming=False)
+
+                message_id = d.get("message_id", "")
+
+            metadata = {
+                "message_id": message_id,
+            }
+            chat_box.update_msg(text, element_index=0, streaming=False, metadata=metadata)
+
+            if message_id:
+                chat_box.show_feedback(**feedback_kwargs,
+                                       key=message_id,
+                                       on_submit=on_feedback,
+                                       kwargs={"message_id": message_id, "history_index": len(chat_box.history) - 1})
+
             if d:
+                token_counts = d.get("token_counts", -1)
+                if token_counts >= 0:
+                    st.session_state["cur_token_counts"] = token_counts
+
                 chat_box.update_msg("\n\n".join(d.get("docs", [])), element_index=1, streaming=False)
 
     if st.session_state.get("need_rerun"):
@@ -405,12 +447,12 @@ def file_dialogue_page(api: ApiRequest):
                 "清空对话",
                 use_container_width=True,
         ):
-            # st.session_state.setdefault("conversation_ids", {})
-            # st.session_state["conversation_ids"].setdefault(chat_box.cur_chat_name, uuid.uuid4().hex)
             st.session_state["file_chat_id"] = None
             st.session_state["file_chat_value"] = None
             st.session_state["file_chat_content"] = ""
             st.session_state["file_chat_type"] = None
+            st.session_state["cur_token_counts"] = 0
+
             chat_box.reset_history()
             st.rerun()
 
@@ -433,10 +475,10 @@ def kb_dialogue_page(api: ApiRequest):
         return
 
     st.session_state.dialogue_mode = "知识库问答"
-
     st.session_state.setdefault("conversation_ids", {})
     st.session_state["conversation_ids"].setdefault(chat_box.cur_chat_name, uuid.uuid4().hex)
     st.session_state.setdefault("cur_source_docs", [])
+    st.session_state.setdefault("cur_token_counts", 0)
 
     if not chat_box.chat_inited:
         st.toast(
@@ -447,14 +489,8 @@ def kb_dialogue_page(api: ApiRequest):
 
     with st.sidebar:
         # 多会话
-        conv_names = list(st.session_state["conversation_ids"].keys())
-        index = 0
-        if st.session_state.get("cur_conv_name") in conv_names:
-            index = conv_names.index(st.session_state.get("cur_conv_name"))
-        # conversation_name = st.selectbox("当前会话：", conv_names, index=index)
-        conversation_name = conv_names[index]
+        conversation_name, conversation_id = chat_init()
         chat_box.use_chat_name(conversation_name)
-        conversation_id = st.session_state["conversation_ids"][conversation_name]
 
         with st.expander("知识库配置", True):
             kb_list = get_knowledge_bases(api)
@@ -513,6 +549,11 @@ def kb_dialogue_page(api: ApiRequest):
                                  on_change=on_llm_change,
                                  key="llm_model")
 
+        cur_max_tokens = running_model_dict[st.session_state["cur_llm_model"]]
+        cur_tokens_left = cur_max_tokens - st.session_state["cur_token_counts"]
+        cm = st.session_state["cur_llm_model"]
+        st.caption(f"对话剩余{cur_tokens_left}词元 [{cm}]共支持{cur_max_tokens}词元")
+
         temperature = st.slider("生成温度：", 0.0, 1.0, TEMPERATURE, 0.05)
         history_len = st.number_input("历史对话轮数：", 0, 20, HISTORY_LEN)
 
@@ -531,13 +572,7 @@ def kb_dialogue_page(api: ApiRequest):
                           reason=reason)
         st.session_state["need_rerun"] = True
 
-    feedback_kwargs = {
-        "feedback_type": "thumbs",
-        "optional_text_label": "欢迎反馈您打分的理由",
-    }
-
-    if prompt := st.chat_input("请输入对话内容，换行请使用Shift+Enter。输入/help查看自定义命令 ", key="prompt",
-                               max_chars=2000):
+    if prompt := st.chat_input("请输入对话内容，换行请使用Shift+Enter。", key="prompt", max_chars=2000):
         history = get_messages_history(history_len)
 
         chat_box.user_say(prompt)
@@ -545,7 +580,9 @@ def kb_dialogue_page(api: ApiRequest):
             f"正在查询知识库 `{kb_dict[selected_kb]}` ...",
             Markdown("...", in_expander=True, title="知识库搜索结果", state="complete"),
         ])
+
         text = ""
+        message_id = ""
         d = None
         for d in api.knowledge_base_chat(prompt,
                                          knowledge_base_name=selected_kb,
@@ -553,19 +590,38 @@ def kb_dialogue_page(api: ApiRequest):
                                          top_k=kb_top_k,
                                          score_threshold=score_threshold,
                                          history=history,
+                                         conversation_id=conversation_id,
                                          source=st.session_state[
                                              "cur_source_docs"] if kb_search_type == '继续问答' else [],
-                                         model=llm_model,
+                                         model=st.session_state["cur_llm_model"],
                                          # prompt_name=prompt_template_name,
                                          temperature=temperature,
-                                         max_tokens=running_model_dict[llm_model]):
+                                         max_tokens=running_model_dict[st.session_state["cur_llm_model"]]):
             if error_msg := check_error_msg(d):  # check whether error occured
                 st.error(error_msg)
-            elif chunk := d.get("answer"):
+                break
+
+            if chunk := d.get("answer"):
                 text += chunk
                 chat_box.update_msg(text, element_index=0)
-        chat_box.update_msg(text, element_index=0, streaming=False)
+                message_id = d.get("message_id", "")
+
+        metadata = {
+            "message_id": message_id,
+        }
+        chat_box.update_msg(text, element_index=0, streaming=False, metadata=metadata)
+
+        if message_id:
+            chat_box.show_feedback(**feedback_kwargs,
+                                   key=message_id,
+                                   on_submit=on_feedback,
+                                   kwargs={"message_id": message_id, "history_index": len(chat_box.history) - 1})
+
         if d:
+            token_counts = d.get("token_counts", -1)
+            if token_counts >= 0:
+                st.session_state["cur_token_counts"] = token_counts
+
             this_search_type = d.get("search_type", "重新搜索")
 
             if this_search_type == "重新搜索":
@@ -599,6 +655,8 @@ def kb_dialogue_page(api: ApiRequest):
                 use_container_width=True,
         ):
             st.session_state["cur_source_docs"] = []
+            st.session_state["cur_token_counts"] = 0
+
             chat_box.reset_history()
             st.rerun()
 

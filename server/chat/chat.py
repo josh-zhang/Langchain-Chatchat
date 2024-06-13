@@ -7,14 +7,12 @@ from sse_starlette.sse import EventSourceResponse
 from langchain.prompts.chat import ChatPromptTemplate
 from langchain.chains import LLMChain
 from langchain.callbacks import AsyncIteratorCallbackHandler
-from langchain.prompts import PromptTemplate
 
 from server.chat.utils import History
 from server.utils import get_prompt_template, get_ChatOpenAI, wrap_done
 from server.db.repository import add_message_to_db
 from configs import LLM_MODEL, TEMPERATURE
 from server.callback_handler.conversation_callback_handler import ConversationCallbackHandler
-from server.memory.conversation_db_buffer_memory import ConversationBufferDBMemory
 
 
 async def chat(query: str = Body(..., description="用户输入", examples=["恼羞成怒"]),
@@ -51,9 +49,9 @@ async def chat(query: str = Body(..., description="用户输入", examples=["恼
         # 负责保存llm response到message db
         message_id = add_message_to_db(chat_type="llm_chat", query=query, conversation_id=conversation_id)
         conversation_callback = ConversationCallbackHandler(conversation_id=conversation_id, message_id=message_id,
-                                                            chat_type="llm_chat",
-                                                            query=query)
+                                                            chat_type="llm_chat", query=query)
         callbacks.append(conversation_callback)
+
         # if isinstance(max_tokens, int) and max_tokens <= 0:
         #     max_tokens = None
 
@@ -71,14 +69,14 @@ async def chat(query: str = Body(..., description="用户输入", examples=["恼
             input_msg = History(role="user", content=prompt_template).to_msg_template(False)
             chat_prompt = ChatPromptTemplate.from_messages(
                 [i.to_msg_template() for i in history] + [input_msg])
-        elif conversation_id and history_len > 0:  # 前端要求从数据库取历史消息
-            # 使用memory 时必须 prompt 必须含有memory.memory_key 对应的变量
-            prompt = get_prompt_template("llm_chat", "with_history")[1]
-            chat_prompt = PromptTemplate.from_template(prompt)
-            # 根据conversation_id 获取message 列表进而拼凑 memory
-            memory = ConversationBufferDBMemory(conversation_id=conversation_id,
-                                                llm=model,
-                                                message_limit=history_len)
+        # elif conversation_id and history_len > 0:  # 前端要求从数据库取历史消息
+        #     # 使用memory 时必须 prompt 必须含有memory.memory_key 对应的变量
+        #     prompt = get_prompt_template("llm_chat", "with_history")[1]
+        #     chat_prompt = PromptTemplate.from_template(prompt)
+        #     # 根据conversation_id 获取message 列表进而拼凑 memory
+        #     memory = ConversationBufferDBMemory(conversation_id=conversation_id,
+        #                                         llm=model,
+        #                                         message_limit=history_len)
         else:
             prompt_template = get_prompt_template("llm_chat", prompt_name)[1]
             input_msg = History(role="user", content=prompt_template).to_msg_template(False)

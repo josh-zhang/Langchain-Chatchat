@@ -158,7 +158,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 key="embed_model",
             )
 
-            search_enhance = st.checkbox("开启向量库检索加强", True)
+            search_enhance = st.checkbox("开启向量库加强检索", True)
 
             submit_create_kb = st.form_submit_button(
                 "新建",

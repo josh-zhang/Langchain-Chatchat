@@ -15,6 +15,7 @@ from server.knowledge_base.kb_job.gen_qa import gen_qa_task, JobExecutor, JobFut
 from server.knowledge_base.utils import (validate_kb_name, get_file_path, files2docs_in_thread,
                                          KnowledgeFile, DocumentWithScores, get_doc_path, create_compressed_archive)
 from configs import (VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, BM_25_FACTOR, LITELLM_SERVER,
+                     USE_BM25, USE_RERANK, USE_MERGE, DENSE_FACTOR, SPARSE_FACTOR,
                      CHUNK_SIZE, OVERLAP_SIZE, ZH_TITLE_ENHANCE, logger, log_verbose, BASE_TEMP_DIR)
 
 
@@ -28,13 +29,12 @@ def search_docs(
                                                   "SCORE越小，相关度越高，"
                                                   "取到1相当于不筛选，建议设置在0.5左右",
                                       ge=0, le=1),
-        use_bm25: bool = Body(True, description="是否添加BM25召回"),
-        use_rerank: bool = Body(True, description="是否重拍"),
-        use_merge: bool = Body(True, description="是否合并临近段落"),
-        dense_top_k_factor: float = Body(3.0, description="密集匹配向量数"),
-        sparse_top_k_factor: float = Body(1.0, description="稀疏匹配向量数"),
-        sparse_factor: float = Body(BM_25_FACTOR, description="稀疏匹配系数"),
-        # limit_before_rerank: bool = Body(False, description="是否在重排前限制token总数"),
+        use_bm25: bool = Body(USE_BM25, description="是否添加BM25召回"),
+        use_rerank: bool = Body(USE_RERANK, description="是否重拍"),
+        use_merge: bool = Body(USE_MERGE, description="是否合并临近段落"),
+        dense_top_k_factor: float = Body(DENSE_FACTOR, description="密集匹配向量数", ge=0),
+        sparse_top_k_factor: float = Body(SPARSE_FACTOR, description="稀疏匹配向量数", ge=0),
+        sparse_factor: float = Body(BM_25_FACTOR, description="稀疏匹配系数", ge=0),
         # file_name: str = Body("", description="文件名称，支持 sql 通配符"),
         # metadata: dict = Body({}, description="根据 metadata 进行过滤，仅支持一级键"),
 ) -> List[DocumentWithScores]:
@@ -46,7 +46,7 @@ def search_docs(
     leave_for_context_min = 500
     max_tokens_for_context = max_tokens - leave_for_prompt
     max_tokens_for_context = max(leave_for_context_min, max_tokens_for_context)
-    max_tokens_for_context_reank = 18000 # for single instance of bge rerank v2
+    max_tokens_for_context_reank = 18000  # for single instance of bge rerank v2
 
     dense_topk = int(top_k * dense_top_k_factor)
     sparse_topk = int(top_k * sparse_top_k_factor)
@@ -62,7 +62,6 @@ def search_docs(
 
     logger.info(f"{len(docs)} docs after search")
 
-    # if limit_before_rerank:
     docs, count_tokens = kb.limit_tokens_rerank(docs, max_tokens_for_context_reank)
 
     logger.info(f"rerank tokens {count_tokens}, {len(docs)} docs after token filter")

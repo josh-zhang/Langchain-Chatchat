@@ -16,7 +16,7 @@ from configs import (
     ZH_TITLE_ENHANCE,
     VECTOR_SEARCH_TOP_K,
     HTTPX_DEFAULT_TIMEOUT,
-    SEARCH_ENHANCE,
+    USE_BM25,
     logger,
     log_verbose,
     API_SERVER_HOST_MAPPING,
@@ -339,6 +339,7 @@ class ApiRequest:
             query: str,
             knowledge_base_name: str,
             search_type: str,
+            conversation_id: str = None,
             top_k: int = VECTOR_SEARCH_TOP_K,
             score_threshold: float = SCORE_THRESHOLD,
             history: List[Dict] = [],
@@ -354,6 +355,7 @@ class ApiRequest:
         '''
         data = {
             "query": query,
+            "conversation_id": conversation_id,
             "knowledge_base_name": knowledge_base_name,
             "search_type": search_type,
             "top_k": top_k,
@@ -421,6 +423,7 @@ class ApiRequest:
             query: str,
             knowledge_id: str,
             knowledge_content: str,
+            conversation_id: str = None,
             top_k: int = VECTOR_SEARCH_TOP_K,
             score_threshold: float = SCORE_THRESHOLD,
             history: List[Dict] = [],
@@ -435,6 +438,7 @@ class ApiRequest:
         '''
         data = {
             "query": query,
+            "conversation_id": conversation_id,
             "knowledge_id": knowledge_id,
             "knowledge_content": knowledge_content,
             "top_k": top_k,
@@ -474,7 +478,7 @@ class ApiRequest:
             knowledge_base_agent_guide: str,
             vector_store_type: str = DEFAULT_VS_TYPE,
             embed_model: str = EMBEDDING_MODEL,
-            search_enhance: bool = SEARCH_ENHANCE,
+            search_enhance: bool = USE_BM25,
     ):
         '''
         对应api.py/knowledge_base/create_knowledge_base接口

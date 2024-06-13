@@ -10,7 +10,7 @@ from langchain.embeddings.base import Embeddings
 from langchain.vectorstores.faiss import FAISS
 
 from configs import EMBEDDING_MODEL, CACHED_EMBED_NUM, logger, log_verbose, RERANKER_MODEL, MODEL_PATH, \
-    CACHED_RERANK_NUM, RERANKER_MAX_LENGTH
+    RERANKER_MAX_LENGTH
 from server.utils import embedding_device, get_model_path
 
 
