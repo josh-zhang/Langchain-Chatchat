@@ -24,7 +24,7 @@ from server.db.repository.knowledge_file_repository import (
 )
 from configs import (kbs_config, VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, EMBEDDING_MODEL, SEARCH_ENHANCE, RERANKER_MODEL)
 from server.knowledge_base.utils import (
-    get_kb_path, get_doc_path, KnowledgeFile, huggingface_tokenizer_length,
+    get_kb_path, get_doc_path, KnowledgeFile, huggingface_tokenizer_length, huggingface_tokenizer_length_rerank,
     list_kbs_from_folder, list_files_from_folder, DocumentWithScores
 )
 from server.knowledge_base.faq_utils import load_faq
@@ -419,6 +419,27 @@ class KBService(ABC):
             content = doc.page_content
             token_count = huggingface_tokenizer_length(content)
             doc.metadata["token_count"] = token_count
+
+            count_tokens += token_count
+
+            if count_tokens > max_tokens:
+                count_tokens -= token_count
+
+                break
+            elif count_tokens == max_tokens:
+                new_docs.append(doc)
+                break
+            else:
+                new_docs.append(doc)
+
+        return new_docs, count_tokens
+
+    def limit_tokens_rerank(self, docs, max_tokens):
+        count_tokens = 0
+        new_docs = list()
+        for doc in docs:
+            content = doc.page_content
+            token_count = huggingface_tokenizer_length_rerank(content)
 
             count_tokens += token_count
 

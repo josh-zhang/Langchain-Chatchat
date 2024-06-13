@@ -24,7 +24,8 @@ from configs import (
     text_splitter_dict,
     LLM_MODEL,
     TEXT_SPLITTER_NAME,
-    tokenizer_path_for_count_token
+    tokenizer_path_for_count_token,
+    tokenizer_path_for_count_token_rerank
 )
 from text_splitter import zh_title_enhance as func_zh_title_enhance
 from server.utils import run_in_thread_pool
@@ -32,9 +33,15 @@ from server.knowledge_base.faq_utils import load_gen_file
 
 tokenizer = AutoTokenizer.from_pretrained(tokenizer_path_for_count_token, trust_remote_code=True)
 
+tokenizer_rerank = AutoTokenizer.from_pretrained(tokenizer_path_for_count_token_rerank, trust_remote_code=True)
+
 
 def huggingface_tokenizer_length(text: str) -> int:
     return len(tokenizer.encode(text))
+
+
+def huggingface_tokenizer_length_rerank(text: str) -> int:
+    return len(tokenizer_rerank.encode(text))
 
 
 def truncate_string_by_token_limit(text, token_limit):

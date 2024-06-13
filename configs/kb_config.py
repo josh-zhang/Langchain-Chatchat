@@ -126,4 +126,6 @@ BM_25_FACTOR = 0.4
 
 tokenizer_path_for_count_token = "/opt/projects/hf_models/qwen1.5-14b-chat-gptq-int4"
 
+tokenizer_path_for_count_token_rerank = "/opt/projects/hf_models/bge-reranker-v2-m3"
+
 MILVUS_NPROBE = 10

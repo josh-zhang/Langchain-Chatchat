@@ -34,7 +34,7 @@ def search_docs(
         dense_top_k_factor: float = Body(3.0, description="密集匹配向量数"),
         sparse_top_k_factor: float = Body(1.0, description="稀疏匹配向量数"),
         sparse_factor: float = Body(BM_25_FACTOR, description="稀疏匹配系数"),
-        limit_before_rerank: bool = Body(False, description="是否在重排前限制token总数"),
+        # limit_before_rerank: bool = Body(False, description="是否在重排前限制token总数"),
         # file_name: str = Body("", description="文件名称，支持 sql 通配符"),
         # metadata: dict = Body({}, description="根据 metadata 进行过滤，仅支持一级键"),
 ) -> List[DocumentWithScores]:
@@ -46,6 +46,7 @@ def search_docs(
     leave_for_context_min = 500
     max_tokens_for_context = max_tokens - leave_for_prompt
     max_tokens_for_context = max(leave_for_context_min, max_tokens_for_context)
+    max_tokens_for_context_reank = 18000 # for single instance of bge rerank v2
 
     dense_topk = int(top_k * dense_top_k_factor)
     sparse_topk = int(top_k * sparse_top_k_factor)
@@ -61,10 +62,10 @@ def search_docs(
 
     logger.info(f"{len(docs)} docs after search")
 
-    if limit_before_rerank:
-        docs, count_tokens = kb.limit_tokens(docs, max_tokens_for_context)
+    # if limit_before_rerank:
+    docs, count_tokens = kb.limit_tokens_rerank(docs, max_tokens_for_context_reank)
 
-        logger.info(f"{len(docs)} docs after token filter 1")
+    logger.info(f"rerank tokens {count_tokens}, {len(docs)} docs after token filter")
 
     if use_rerank and len(docs) > top_k:
         _docs = [d.page_content for d in docs]
@@ -79,10 +80,9 @@ def search_docs(
             rerank_results.append(doc)
         docs = rerank_results
 
-    if not limit_before_rerank:
-        docs, count_tokens = kb.limit_tokens(docs, max_tokens_for_context)
+    docs, count_tokens = kb.limit_tokens(docs, max_tokens_for_context)
 
-        logger.info(f"{len(docs)} docs after token filter 2")
+    logger.info(f"llm tokens {count_tokens}, {len(docs)} docs after token filter")
 
     if use_merge and docs:
         docs = kb.combine_docs(docs)
