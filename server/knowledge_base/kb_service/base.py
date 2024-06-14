@@ -794,8 +794,8 @@ class KBService(ABC):
         return list(kbs_config.keys())
 
     @classmethod
-    def list_kbs(cls, owner):
-        return list_kbs_from_db(owner)
+    def list_kbs(cls, kb_owner):
+        return list_kbs_from_db(kb_owner)
 
     def exists(self, kb_name: str = None):
         kb_name = kb_name or self.kb_name
@@ -911,9 +911,9 @@ class KBServiceFactory:
     #     return KBServiceFactory.get_service("default", SupportedVSType.DEFAULT)
 
 
-def get_kb_details(owner: str) -> List[Dict]:
+def get_kb_details(kb_owner: str) -> List[Dict]:
     kbs_in_folder = list_kbs_from_folder()
-    kbs_in_db = KBService.list_kbs(owner)
+    kbs_in_db = KBService.list_kbs(kb_owner)
     kbs_in_db = [i[0] for i in kbs_in_db]
     result = {}
 

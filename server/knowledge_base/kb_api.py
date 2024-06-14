@@ -7,9 +7,9 @@ from configs import EMBEDDING_MODEL, logger, log_verbose, USE_BM25
 from fastapi import Body
 
 
-def list_kbs():
+def list_kbs(kb_owner: str = Body(..., examples="")):
     # Get List of Knowledge Base
-    return ListListResponse(data=list_kbs_from_db())
+    return ListListResponse(data=list_kbs_from_db(kb_owner))
 
 
 def create_kb(kb_owner: str = Body(..., examples=""),

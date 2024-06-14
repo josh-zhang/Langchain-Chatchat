@@ -59,8 +59,8 @@ def get_api_running_models(_api):
 
 
 @st.cache_data(ttl=60)
-def get_knowledge_bases(_api):
-    return _api.list_knowledge_bases()
+def get_knowledge_bases(_api, logged_username):
+    return _api.list_knowledge_bases(logged_username)
 
 
 def support_iframe(ftype):
@@ -500,7 +500,7 @@ def kb_dialogue_page(api: ApiRequest, logged_username: str):
         chat_box.use_chat_name(conversation_name)
 
         with st.expander("知识库配置", True):
-            kb_list = get_knowledge_bases(api)
+            kb_list = get_knowledge_bases(api, logged_username)
             if kb_list is None:
                 kb_list = []
             kb_dict = {kb[0]: kb[1] for kb in kb_list}

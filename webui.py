@@ -1,5 +1,3 @@
-import sys
-
 import streamlit as st
 from auth.widgets import __login__
 

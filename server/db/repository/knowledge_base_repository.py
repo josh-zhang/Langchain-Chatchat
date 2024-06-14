@@ -26,7 +26,7 @@ def add_kb_to_db(session, kb_owner, kb_name, kb_info, kb_agent_guide, kb_summary
 def list_kbs_from_db(session, kb_owner: str, min_file_count: int = -1):
     kbs = session.query(KnowledgeBaseModel).filter(KnowledgeBaseModel.file_count > min_file_count).all()
     if kb_owner:
-        kbs = [[kb.kb_name, kb.kb_info, kb.create_time] for kb in kbs if kb.kb_owner == kb_owner]
+        kbs = [[kb.kb_name, kb.kb_info, kb.create_time] for kb in kbs if kb.kb_owner == kb_owner or kb.kb_owner == ""]
     else:
         kbs = [[kb.kb_name, kb.kb_info, kb.create_time] for kb in kbs]
     kbs = sorted(kbs, key=lambda element: element[2], reverse=True)
@@ -46,12 +46,12 @@ def load_kb_from_db(session, kb_name):
     kb = session.query(KnowledgeBaseModel).filter(KnowledgeBaseModel.kb_name.ilike(kb_name)).first()
     if kb:
         kb_owner, kb_name, kb_info, kb_agent_guide, kb_summary, vs_type, embed_model, search_enhance = (
-        kb.kb_owner, kb.kb_name, kb.kb_info,
-        kb.kb_agent_guide,
-        kb.kb_summary,
-        kb.vs_type,
-        kb.embed_model,
-        kb.search_enhance)
+            kb.kb_owner, kb.kb_name, kb.kb_info,
+            kb.kb_agent_guide,
+            kb.kb_summary,
+            kb.vs_type,
+            kb.embed_model,
+            kb.search_enhance)
     else:
         kb_owner, kb_name, kb_info, kb_agent_guide, kb_summary, vs_type, embed_model, search_enhance = None, None, None, None, None, None, None, None
     return kb_owner, kb_name, kb_info, kb_agent_guide, kb_summary, vs_type, embed_model, search_enhance
