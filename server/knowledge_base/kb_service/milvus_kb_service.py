@@ -1,3 +1,4 @@
+import shutil
 from typing import List, Dict
 
 from langchain.schema import Document
@@ -59,6 +60,10 @@ class MilvusKBService(KBService):
         if self.get_milvus("answer").col:
             self.get_milvus("answer").col.release()
             self.get_milvus("answer").col.drop()
+        try:
+            shutil.rmtree(self.kb_path)
+        except Exception:
+            ...
 
     def do_search(self, vector_name: str, query: str, top_k: int, score_threshold: float,
                   embeddings: List[float] = None):

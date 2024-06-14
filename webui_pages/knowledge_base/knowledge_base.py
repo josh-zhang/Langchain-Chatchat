@@ -370,7 +370,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
             # 将文件从向量库中删除，但不删除文件本身。
             if cols[1].button(
                     "检索时忽略选中文件",
-                    disabled=selected_rows is None or selected_rows.empty or selected_rows.iloc[0]["in_db"],
+                    disabled=selected_rows is None or selected_rows.empty or not selected_rows.iloc[0]["in_db"],
                     use_container_width=True,
             ):
                 api.delete_kb_docs(this_kb_name, file_names=selected_file_names,

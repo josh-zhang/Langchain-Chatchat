@@ -139,7 +139,7 @@ class __login__:
         if st.session_state['LOGGED_IN'] == True:
             del_logout = st.sidebar.empty()
             del_logout.markdown("#")
-            logout_click_check = del_logout.button(self.logout_button_name)
+            logout_click_check = del_logout.button(self.logout_button_name, use_container_width=True)
 
             if logout_click_check == True:
                 st.session_state['LOGOUT_BUTTON_HIT'] = True
@@ -209,7 +209,7 @@ class __login__:
         if selected_option == '创建账户':
             self.sign_up_widget()
 
-        self.logout_widget()
+        # self.logout_widget()
 
         if st.session_state['LOGGED_IN'] == True:
             main_page_sidebar.empty()
