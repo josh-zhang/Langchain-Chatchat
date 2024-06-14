@@ -70,9 +70,10 @@ class __login__:
             if st.session_state['LOGOUT_BUTTON_HIT'] == False:
                 fetched_cookies = self.cookies
                 if '__streamlit_login_signup_ui_username__' in fetched_cookies.keys():
-                    if fetched_cookies[
-                        '__streamlit_login_signup_ui_username__'] != '1c9a923f-fb21-4a91-b3f3-5f18e3f01182':
+                    un = fetched_cookies['__streamlit_login_signup_ui_username__']
+                    if un != '1c9a923f-fb21-4a91-b3f3-5f18e3f01182':
                         st.session_state['LOGGED_IN'] = True
+                        st.session_state['LOGGED_USERNAME'] = un
 
         if st.session_state['LOGGED_IN'] == False:
             st.session_state['LOGOUT_BUTTON_HIT'] = False
@@ -93,6 +94,7 @@ class __login__:
 
                     else:
                         st.session_state['LOGGED_IN'] = True
+                        st.session_state['LOGGED_USERNAME'] = username
                         self.cookies['__streamlit_login_signup_ui_username__'] = username
                         self.cookies.save()
                         del_login.empty()
@@ -132,18 +134,19 @@ class __login__:
                         register_new_usr(name_sign_up, username_sign_up, password_sign_up)
                         st.success("注册成功")
 
-    def logout_widget(self) -> None:
+    def logout_widget(self, cur_un:str) -> None:
         """
         Creates the logout widget in the sidebar only if the user is logged in.
         """
         if st.session_state['LOGGED_IN'] == True:
             del_logout = st.sidebar.empty()
             del_logout.markdown("#")
-            logout_click_check = del_logout.button(self.logout_button_name, use_container_width=True)
+            logout_click_check = del_logout.button(f"用户[{cur_un}]{self.logout_button_name}", use_container_width=True)
 
             if logout_click_check == True:
                 st.session_state['LOGOUT_BUTTON_HIT'] = True
                 st.session_state['LOGGED_IN'] = False
+                st.session_state['LOGGED_USERNAME'] = ""
                 self.cookies['__streamlit_login_signup_ui_username__'] = '1c9a923f-fb21-4a91-b3f3-5f18e3f01182'
                 del_logout.empty()
                 st.rerun()
@@ -187,6 +190,9 @@ class __login__:
         if 'LOGGED_IN' not in st.session_state:
             st.session_state['LOGGED_IN'] = False
 
+        if 'LOGGED_USERNAME' not in st.session_state:
+            st.session_state['LOGGED_USERNAME'] = ""
+
         if 'LOGOUT_BUTTON_HIT' not in st.session_state:
             st.session_state['LOGOUT_BUTTON_HIT'] = False
 
@@ -220,4 +226,4 @@ class __login__:
         if self.hide_footer_bool == True:
             self.hide_footer()
 
-        return st.session_state['LOGGED_IN']
+        return st.session_state['LOGGED_IN'], st.session_state['LOGGED_USERNAME']

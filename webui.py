@@ -27,11 +27,9 @@ if __name__ == "__main__":
 
     __login__obj = __login__(width=200, height=250, hide_menu_bool=False, hide_footer_bool=False)
 
-    LOGGED_IN = __login__obj.build_login_ui()
+    LOGGED_IN, LOGGED_USERNAME = __login__obj.build_login_ui()
 
     if LOGGED_IN == True:
-        is_lite = "lite" in sys.argv
-
         pages = {
             "知识库对话": {
                 "icon": "chat",
@@ -76,6 +74,6 @@ if __name__ == "__main__":
             )
 
         if selected_page in pages:
-            pages[selected_page]["func"](api=api)
+            pages[selected_page]["func"](api=api, logged_username=LOGGED_USERNAME)
 
-        __login__obj.logout_widget()
+        __login__obj.logout_widget(LOGGED_USERNAME)

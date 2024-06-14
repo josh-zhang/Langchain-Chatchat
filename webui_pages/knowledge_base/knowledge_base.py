@@ -74,9 +74,9 @@ def get_embed_models(_api):
     return _api.list_embed_models()
 
 
-def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
+def knowledge_base_page(api: ApiRequest, logged_username: str):
     selected_kb_index = 0
-    kb_details = get_kb_details()
+    kb_details = get_kb_details(logged_username)
     kb_name_dict = {x["kb_name"]: x for x in kb_details}
     exist_kb_names = list(kb_name_dict.keys())
     exist_kb_infos = [x["kb_info"] for x in kb_details]
@@ -158,6 +158,13 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 key="embed_model",
             )
 
+            is_public = st.checkbox("知识库是否公开", True)
+
+            if is_public:
+                kb_owner = ""
+            else:
+                kb_owner = logged_username
+
             search_enhance = st.checkbox("开启向量库加强检索", True)
 
             submit_create_kb = st.form_submit_button(
@@ -182,6 +189,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                     st.error(f"知识库名称为 {new_kb_info} 的知识库已经存在，请直接使用。如需重新创建，请先删除现有知识库")
                 else:
                     ret = api.create_knowledge_base(
+                        kb_owner=kb_owner,
                         knowledge_base_name=new_kb_name,
                         knowledge_base_info=new_kb_info,
                         knowledge_base_agent_guide=new_kb_agent_guide,
@@ -406,29 +414,10 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 type="primary",
         ):
             # st.toast(f"为知识库{this_kb_name}生成问答")
-            ret = api.gen_qa_for_knowledge_base(this_kb_name, LLM_MODEL)
+            ret = api.gen_qa_for_knowledge_base(logged_username, this_kb_name, LLM_MODEL)
             st.toast(ret.get("msg", " "))
             time.sleep(1)
             st.rerun()
-
-        # if cols[2].button(
-        #         "依据源文件重建向量库",
-        #         use_container_width=True,
-        # ):
-        #     with st.spinner("向量库重构中，请耐心等待，勿刷新或关闭页面。"):
-        #         empty = st.empty()
-        #         empty.progress(0.0, "")
-        #         for d in api.recreate_vector_store(this_kb_name,
-        #                                            this_kb_info,
-        #                                            this_kb_agent_guide,
-        #                                            chunk_size=chunk_size,
-        #                                            chunk_overlap=chunk_overlap,
-        #                                            zh_title_enhance=zh_title_enhance):
-        #             if msg := check_error_msg(d):
-        #                 st.toast(msg)
-        #             else:
-        #                 empty.progress(d["finished"] / d["total"], d["msg"])
-        #         st.rerun()
 
         if cols[2].button(
                 "删除知识库",

@@ -473,6 +473,7 @@ class ApiRequest:
 
     def create_knowledge_base(
             self,
+            kb_owner: str,
             knowledge_base_name: str,
             knowledge_base_info: str,
             knowledge_base_agent_guide: str,
@@ -484,6 +485,7 @@ class ApiRequest:
         对应api.py/knowledge_base/create_knowledge_base接口
         '''
         data = {
+            "kb_owner": kb_owner,
             "knowledge_base_name": knowledge_base_name,
             "kb_info": knowledge_base_info,
             "kb_agent_guide": knowledge_base_agent_guide,
@@ -680,6 +682,7 @@ class ApiRequest:
 
     def gen_qa_for_knowledge_base(
             self,
+            job_owner: str,
             knowledge_base_name: str,
             model_name: str,
     ):
@@ -687,6 +690,7 @@ class ApiRequest:
         对应api.py/knowledge_base/gen_qa_for_knowledge_base接口
         '''
         data = {
+            "job_owner": job_owner,
             "knowledge_base_name": knowledge_base_name,
             "model_name": model_name,
         }

@@ -474,6 +474,7 @@ def download_kb_files(
 
 
 def gen_qa_for_kb(
+        job_owner: str = Body(...),
         knowledge_base_name: str = Body(..., examples=["samples"]),
         model_name: str = Body(...),
 ):
@@ -487,7 +488,8 @@ def gen_qa_for_kb(
         future = JobFutures.get(knowledge_base_name)
 
         if future is None or future.done():
-            new_future = JobExecutor.submit(gen_qa_task, knowledge_base_name, kb_info, model_name, LITELLM_SERVER, 3)
+            new_future = JobExecutor.submit(gen_qa_task, job_owner, knowledge_base_name, kb_info, model_name,
+                                            LITELLM_SERVER, 3)
             JobFutures[knowledge_base_name] = new_future
             FuturesAtomic.release()
             return BaseResponse(code=200, msg=f"使用{model_name}的文档问答生成任务提交成功")

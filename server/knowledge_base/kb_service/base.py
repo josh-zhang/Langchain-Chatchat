@@ -100,12 +100,14 @@ def merge_scores(x, y, is_max=False):
 class KBService(ABC):
 
     def __init__(self,
+                 kb_owner: str,
                  knowledge_base_name: str,
                  kb_info: str,
                  kb_agent_guide: str,
                  search_enhance: bool = USE_BM25,
                  embed_model: str = EMBEDDING_MODEL,
                  ):
+        self.kb_owner = kb_owner,
         self.kb_name = knowledge_base_name
         self.kb_info = kb_info
         self.kb_agent_guide = kb_agent_guide
@@ -139,8 +141,8 @@ class KBService(ABC):
         self.do_create_kb("answer")
         self.do_create_kb("query")
 
-        status = add_kb_to_db(self.kb_name, self.kb_info, self.kb_agent_guide, self.kb_summary, self.vs_type(),
-                              self.embed_model, self.search_enhance)
+        status = add_kb_to_db(self.kb_owner, self.kb_name, self.kb_info, self.kb_agent_guide, self.kb_summary,
+                              self.vs_type(), self.embed_model, self.search_enhance)
 
         return status
 
@@ -662,19 +664,19 @@ class KBService(ABC):
                 pass
         return docs
 
-    def get_relative_source_path(self, filepath: str):
-        '''
-        将文件路径转化为相对路径，保证查询时一致
-        '''
-        relative_path = filepath
-        if os.path.isabs(relative_path):
-            try:
-                relative_path = Path(filepath).relative_to(self.doc_path)
-            except Exception as e:
-                print(f"cannot convert absolute path ({source}) to relative path. error is : {e}")
-
-        relative_path = str(relative_path.as_posix().strip("/"))
-        return relative_path
+    # def get_relative_source_path(self, filepath: str):
+    #     '''
+    #     将文件路径转化为相对路径，保证查询时一致
+    #     '''
+    #     relative_path = filepath
+    #     if os.path.isabs(relative_path):
+    #         try:
+    #             relative_path = Path(filepath).relative_to(self.doc_path)
+    #         except Exception as e:
+    #             print(f"cannot convert absolute path ({source}) to relative path. error is : {e}")
+    #
+    #     relative_path = str(relative_path.as_posix().strip("/"))
+    #     return relative_path
 
     def do_rerank(
             self,
@@ -792,8 +794,8 @@ class KBService(ABC):
         return list(kbs_config.keys())
 
     @classmethod
-    def list_kbs(cls):
-        return list_kbs_from_db()
+    def list_kbs(cls, owner):
+        return list_kbs_from_db(owner)
 
     def exists(self, kb_name: str = None):
         kb_name = kb_name or self.kb_name
@@ -864,7 +866,8 @@ class KBService(ABC):
 class KBServiceFactory:
 
     @staticmethod
-    def get_service(kb_name: str,
+    def get_service(kb_owner: str,
+                    kb_name: str,
                     kb_info: str,
                     kb_agent_guide: str,
                     vector_store_type: Union[str, SupportedVSType],
@@ -875,7 +878,7 @@ class KBServiceFactory:
         #     vector_store_type = getattr(SupportedVSType, vector_store_type.upper())
         # if SupportedVSType.MILVUS == vector_store_type:
         from server.knowledge_base.kb_service.milvus_kb_service import MilvusKBService
-        return MilvusKBService(kb_name, kb_info, kb_agent_guide, search_enhance, embed_model=embed_model)
+        return MilvusKBService(kb_owner, kb_name, kb_info, kb_agent_guide, search_enhance, embed_model=embed_model)
         # else:
         #     from server.knowledge_base.kb_service.faiss_kb_service import FaissKBService
         #     return FaissKBService(kb_name, kb_info, kb_agent_guide, search_enhance, embed_model=embed_model)
@@ -897,19 +900,20 @@ class KBServiceFactory:
 
     @staticmethod
     def get_service_by_name(kb_name: str) -> Optional[KBService]:
-        kb_name, kb_info, kb_agent_guide, _, vs_type, embed_model, search_enhance = load_kb_from_db(kb_name)
+        kb_owner, kb_name, kb_info, kb_agent_guide, _, vs_type, embed_model, search_enhance = load_kb_from_db(kb_name)
         if kb_name is None:  # kb not in db, just return None
             return None
-        return KBServiceFactory.get_service(kb_name, kb_info, kb_agent_guide, vs_type, embed_model, search_enhance)
+        return KBServiceFactory.get_service(kb_owner, kb_name, kb_info, kb_agent_guide, vs_type, embed_model,
+                                            search_enhance)
 
     # @staticmethod
     # def get_default():
     #     return KBServiceFactory.get_service("default", SupportedVSType.DEFAULT)
 
 
-def get_kb_details() -> List[Dict]:
+def get_kb_details(owner: str) -> List[Dict]:
     kbs_in_folder = list_kbs_from_folder()
-    kbs_in_db = KBService.list_kbs()
+    kbs_in_db = KBService.list_kbs(owner)
     kbs_in_db = [i[0] for i in kbs_in_db]
     result = {}
 
@@ -927,20 +931,20 @@ def get_kb_details() -> List[Dict]:
             "in_db": True,
         }
 
-    for kb_name in kbs_in_folder:
-        if kb_name not in result:
-            result[kb_name] = {
-                "kb_name": kb_name,
-                "vs_type": "",
-                "kb_info": "",
-                "kb_agent_guide": "",
-                "kb_summary": "",
-                "embed_model": "",
-                "file_count": 0,
-                "create_time": None,
-                "in_folder": True,
-                "in_db": kb_name in kbs_in_db,
-            }
+    # for kb_name in kbs_in_folder:
+    #     if kb_name not in result:
+    #         result[kb_name] = {
+    #             "kb_name": kb_name,
+    #             "vs_type": "",
+    #             "kb_info": "",
+    #             "kb_agent_guide": "",
+    #             "kb_summary": "",
+    #             "embed_model": "",
+    #             "file_count": 0,
+    #             "create_time": None,
+    #             "in_folder": True,
+    #             "in_db": kb_name in kbs_in_db,
+    #         }
 
     for kb_name in kbs_in_db:
         kb_detail = get_kb_detail(kb_name)

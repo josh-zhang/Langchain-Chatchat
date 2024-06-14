@@ -79,7 +79,7 @@ def chat_init():
     return conversation_name, conversation_id
 
 
-def dialogue_page(api: ApiRequest):
+def dialogue_page(api: ApiRequest, logged_username: str):
     running_model_dict = {k: v for k, v in get_api_running_models(api)}
     running_models = list(running_model_dict.keys())
     default_model = LLM_MODEL
@@ -230,7 +230,7 @@ def dialogue_page(api: ApiRequest):
     )
 
 
-def file_dialogue_page(api: ApiRequest):
+def file_dialogue_page(api: ApiRequest, logged_username: str):
     running_model_dict = {k: v for k, v in get_api_running_models(api)}
     running_models = list(running_model_dict.keys())
     default_model = LLM_MODEL
@@ -471,7 +471,7 @@ def file_dialogue_page(api: ApiRequest):
     )
 
 
-def kb_dialogue_page(api: ApiRequest):
+def kb_dialogue_page(api: ApiRequest, logged_username: str):
     running_model_dict = {k: v for k, v in get_api_running_models(api)}
     running_models = list(running_model_dict.keys())
     default_model = LLM_MODEL
