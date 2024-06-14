@@ -326,7 +326,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                 enable_enterprise_modules=False
             )
 
-            selected_rows = doc_grid.get("selected_rows", [])
+            selected_rows = doc_grid.get("selected_rows", None)
 
             cols = st.columns(3)
 
@@ -344,7 +344,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
             #         "",
             #         disabled=True,
             #         use_container_width=True, )
-            if not selected_rows:
+            if selected_rows is None or selected_rows.empty:
                 cols[0].link_button(
                     "下载选中文件",
                     "",
@@ -352,7 +352,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                     disabled=True,
                 )
             else:
-                selected_file_name = selected_rows[0]["file_name"]
+                selected_file_name = selected_rows.iloc[0]["file_name"]
                 cols[0].link_button(
                     "下载选中文件",
                     f"{get_api_address_from_client()}/knowledge_base/download_doc?knowledge_base_name={this_kb_name}&file_name={selected_file_name}",
@@ -360,13 +360,17 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
                     disabled=False,
                 )
 
-            selected_file_names = [row["file_name"] for row in selected_rows]
-            selected_document_loaders = [file_loader_dict[file_name] for file_name in selected_file_names]
+            if selected_rows is None or selected_rows.empty:
+                selected_file_names = []
+                selected_document_loaders = []
+            else:
+                selected_file_names = [row["file_name"] for _, row in selected_rows.iterrows()]
+                selected_document_loaders = [file_loader_dict[file_name] for file_name in selected_file_names]
 
             # 将文件从向量库中删除，但不删除文件本身。
             if cols[1].button(
                     "检索时忽略选中文件",
-                    disabled=not (selected_rows and selected_rows[0]["in_db"]),
+                    disabled=selected_rows is None or selected_rows.empty or selected_rows.iloc[0]["in_db"],
                     use_container_width=True,
             ):
                 api.delete_kb_docs(this_kb_name, file_names=selected_file_names,
@@ -375,7 +379,7 @@ def knowledge_base_page(api: ApiRequest, is_lite: bool = None):
 
             if cols[2].button(
                     "从知识库中删除选中文件",
-                    disabled=not selected_rows,
+                    disabled=selected_rows is None or selected_rows.empty,
                     use_container_width=True,
             ):
                 api.delete_kb_docs(this_kb_name, file_names=selected_file_names,

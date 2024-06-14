@@ -91,6 +91,7 @@ def dialogue_page(api: ApiRequest):
     st.session_state.dialogue_mode = "闲聊"
     st.session_state.setdefault("conversation_ids", {})
     st.session_state["conversation_ids"].setdefault(chat_box.cur_chat_name, uuid.uuid4().hex)
+    st.session_state.setdefault("cur_llm_model", default_model)
 
     if not chat_box.chat_inited:
         st.toast(
@@ -111,7 +112,7 @@ def dialogue_page(api: ApiRequest):
                 #     st.session_state["prev_llm_model"] = llm_model
                 st.session_state["cur_llm_model"] = st.session_state.llm_model
 
-        cur_llm_model = st.session_state.get("cur_llm_model", default_model)
+        cur_llm_model = st.session_state["cur_llm_model"]
         if cur_llm_model in running_models:
             index = running_models.index(cur_llm_model)
         else:
@@ -124,9 +125,9 @@ def dialogue_page(api: ApiRequest):
                                  on_change=on_llm_change,
                                  key="llm_model")
 
-        cur_max_tokens = running_model_dict[st.session_state["cur_llm_model"]]
         cm = st.session_state["cur_llm_model"]
-        st.caption(f"[{cm}]共支持{cur_max_tokens}词元")
+        cur_max_tokens = running_model_dict[cm]
+        st.caption(f"{cm}模型 | 共支持{cur_max_tokens}单词")
 
         temperature = st.slider("生成温度：", 0.0, 1.0, TEMPERATURE, 0.05)
         history_len = st.number_input("历史对话轮数：", 0, 20, HISTORY_LEN)
@@ -246,6 +247,7 @@ def file_dialogue_page(api: ApiRequest):
     st.session_state.setdefault("file_chat_content", "")
     st.session_state.setdefault("file_chat_type", None)
     st.session_state.setdefault("cur_token_counts", 0)
+    st.session_state.setdefault("cur_llm_model", default_model)
 
     if not chat_box.chat_inited:
         st.toast(
@@ -310,7 +312,7 @@ def file_dialogue_page(api: ApiRequest):
         #         return f"{x} (运行中)"
         #     return x
 
-        cur_llm_model = st.session_state.get("cur_llm_model", default_model)
+        cur_llm_model = st.session_state["cur_llm_model"]
         if cur_llm_model in running_models:
             index = running_models.index(cur_llm_model)
         else:
@@ -323,10 +325,9 @@ def file_dialogue_page(api: ApiRequest):
                                  on_change=on_llm_change,
                                  key="llm_model")
 
-        cur_max_tokens = running_model_dict[st.session_state["cur_llm_model"]]
-        cur_tokens_left = cur_max_tokens - st.session_state["cur_token_counts"]
         cm = st.session_state["cur_llm_model"]
-        st.caption(f"对话剩余{cur_tokens_left}词元 [{cm}]共支持{cur_max_tokens}词元")
+        cur_max_tokens = running_model_dict[cm]
+        st.caption(f"{cm}模型 | 共支持{cur_max_tokens}单词")
 
         temperature = st.slider("生成温度：", 0.0, 1.0, TEMPERATURE, 0.05)
         history_len = st.number_input("历史对话轮数：", 0, 20, HISTORY_LEN)
@@ -435,6 +436,11 @@ def file_dialogue_page(api: ApiRequest):
 
                 chat_box.update_msg("\n\n".join(d.get("docs", [])), element_index=1, streaming=False)
 
+    cm = st.session_state["cur_llm_model"]
+    cur_max_tokens = running_model_dict[cm]
+    cur_tokens_left = cur_max_tokens - st.session_state["cur_token_counts"]
+    st.caption(f"{cm}模型 | 共支持{cur_max_tokens}单词 | 当前剩余{cur_tokens_left}单词")
+
     if st.session_state.get("need_rerun"):
         st.session_state["need_rerun"] = False
         st.rerun()
@@ -479,6 +485,7 @@ def kb_dialogue_page(api: ApiRequest):
     st.session_state["conversation_ids"].setdefault(chat_box.cur_chat_name, uuid.uuid4().hex)
     st.session_state.setdefault("cur_source_docs", [])
     st.session_state.setdefault("cur_token_counts", 0)
+    st.session_state.setdefault("cur_llm_model", default_model)
 
     if not chat_box.chat_inited:
         st.toast(
@@ -536,7 +543,7 @@ def kb_dialogue_page(api: ApiRequest):
         #         return f"{x} (运行中)"
         #     return x
 
-        cur_llm_model = st.session_state.get("cur_llm_model", default_model)
+        cur_llm_model = st.session_state["cur_llm_model"]
         if cur_llm_model in running_models:
             index = running_models.index(cur_llm_model)
         else:
@@ -549,10 +556,9 @@ def kb_dialogue_page(api: ApiRequest):
                                  on_change=on_llm_change,
                                  key="llm_model")
 
-        cur_max_tokens = running_model_dict[st.session_state["cur_llm_model"]]
-        cur_tokens_left = cur_max_tokens - st.session_state["cur_token_counts"]
         cm = st.session_state["cur_llm_model"]
-        st.caption(f"对话剩余{cur_tokens_left}词元 [{cm}]共支持{cur_max_tokens}词元")
+        cur_max_tokens = running_model_dict[cm]
+        st.caption(f"{cm}模型 | 共支持{cur_max_tokens}单词")
 
         temperature = st.slider("生成温度：", 0.0, 1.0, TEMPERATURE, 0.05)
         history_len = st.number_input("历史对话轮数：", 0, 20, HISTORY_LEN)
@@ -641,6 +647,11 @@ def kb_dialogue_page(api: ApiRequest):
             else:
                 chat_box.update_msg(f"<span style='color:red'>继续利用上方搜索结果进行问答</span>",
                                     element_index=1, streaming=False)
+
+    cm = st.session_state["cur_llm_model"]
+    cur_max_tokens = running_model_dict[cm]
+    cur_tokens_left = cur_max_tokens - st.session_state["cur_token_counts"]
+    st.caption(f"{cm}模型 | 共支持{cur_max_tokens}单词 | 当前剩余{cur_tokens_left}单词")
 
     if st.session_state.get("need_rerun"):
         st.session_state["need_rerun"] = False
