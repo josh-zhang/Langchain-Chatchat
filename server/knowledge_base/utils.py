@@ -31,9 +31,9 @@ from text_splitter import zh_title_enhance as func_zh_title_enhance
 from server.utils import run_in_thread_pool
 from server.knowledge_base.faq_utils import load_gen_file
 
-# tokenizer = AutoTokenizer.from_pretrained(tokenizer_path_for_count_token, trust_remote_code=True)
+tokenizer = AutoTokenizer.from_pretrained(tokenizer_path_for_count_token, trust_remote_code=True)
 
-# tokenizer_rerank = AutoTokenizer.from_pretrained(tokenizer_path_for_count_token_rerank, trust_remote_code=True)
+tokenizer_rerank = AutoTokenizer.from_pretrained(tokenizer_path_for_count_token_rerank, trust_remote_code=True)
 
 
 def huggingface_tokenizer_length(text: str) -> int:
