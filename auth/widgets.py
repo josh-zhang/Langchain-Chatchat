@@ -141,7 +141,7 @@ class __login__:
         if st.session_state['LOGGED_IN'] == True:
             del_logout = st.sidebar.empty()
             del_logout.markdown("#")
-            logout_click_check = del_logout.button(f"用户[{cur_un}]{self.logout_button_name}", use_container_width=True)
+            logout_click_check = del_logout.button(f"用户 - {cur_un} | {self.logout_button_name}", use_container_width=True)
 
             if logout_click_check == True:
                 st.session_state['LOGOUT_BUTTON_HIT'] = True

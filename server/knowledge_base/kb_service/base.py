@@ -107,7 +107,7 @@ class KBService(ABC):
                  search_enhance: bool = USE_BM25,
                  embed_model: str = EMBEDDING_MODEL,
                  ):
-        self.kb_owner = kb_owner,
+        self.kb_owner = kb_owner
         self.kb_name = knowledge_base_name
         self.kb_info = kb_info
         self.kb_agent_guide = kb_agent_guide

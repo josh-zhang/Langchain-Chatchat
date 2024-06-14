@@ -4,10 +4,10 @@ from server.knowledge_base.utils import validate_kb_name, validate_kb_info
 from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.db.repository.knowledge_base_repository import list_kbs_from_db
 from configs import EMBEDDING_MODEL, logger, log_verbose, USE_BM25
-from fastapi import Body
+from fastapi import Body, Query
 
 
-def list_kbs(kb_owner: str = Body(..., examples="")):
+def list_kbs(kb_owner: str = Query("")):
     # Get List of Knowledge Base
     return ListListResponse(data=list_kbs_from_db(kb_owner))
 

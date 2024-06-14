@@ -470,7 +470,7 @@ class ApiRequest:
         data = {
             "kb_owner": kb_owner
         }
-        response = self.get("/knowledge_base/list_knowledge_bases", json=data)
+        response = self.get("/knowledge_base/list_knowledge_bases", params=data)
         return self._get_response_value(response,
                                         as_json=True,
                                         value_func=lambda r: r.get("data", []))

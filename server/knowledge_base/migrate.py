@@ -1,7 +1,7 @@
 from configs import (
     EMBEDDING_MODEL, DEFAULT_VS_TYPE, ZH_TITLE_ENHANCE,
     CHUNK_SIZE, OVERLAP_SIZE,
-    logger, log_verbose
+    logger, log_verbose, USE_BM25
 )
 from server.knowledge_base.utils import (
     get_file_path, list_kbs_from_folder,
@@ -116,7 +116,8 @@ def folder2db(
 
     kb_names = kb_names or list_kbs_from_folder()
     for kb_name in kb_names:
-        kb = KBServiceFactory.get_service("", kb_name, f"关于{kb_name}的介绍", f"关于{kb_name}的介绍", vs_type, embed_model)
+        kb = KBServiceFactory.get_service("", kb_name, f"关于{kb_name}的介绍",
+                                          f"关于{kb_name}的介绍", vs_type, embed_model, USE_BM25)
         if not kb.exists():
             kb.create_kb()
 
