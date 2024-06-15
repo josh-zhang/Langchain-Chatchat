@@ -478,6 +478,7 @@ class ApiRequest:
     def create_knowledge_base(
             self,
             kb_owner: str,
+            kb_viewer: str,
             knowledge_base_name: str,
             knowledge_base_info: str,
             knowledge_base_agent_guide: str,
@@ -490,7 +491,8 @@ class ApiRequest:
         '''
         data = {
             "kb_owner": kb_owner,
-            "knowledge_base_name": knowledge_base_name,
+            "kb_viewer": kb_viewer,
+            "kb_name": knowledge_base_name,
             "kb_info": knowledge_base_info,
             "kb_agent_guide": knowledge_base_agent_guide,
             "vector_store_type": vector_store_type,
@@ -506,14 +508,20 @@ class ApiRequest:
 
     def delete_knowledge_base(
             self,
+            operator: str,
             knowledge_base_name: str,
     ):
         '''
         对应api.py/knowledge_base/delete_knowledge_base接口
         '''
+        data = {
+            "operator": operator,
+            "knowledge_base_name": knowledge_base_name,
+        }
+
         response = self.post(
             "/knowledge_base/delete_knowledge_base",
-            json=f"{knowledge_base_name}",
+            json=data,
         )
         return self._get_response_value(response, as_json=True)
 
@@ -563,6 +571,7 @@ class ApiRequest:
             self,
             files: List[Union[str, Path, bytes]],
             document_loader_name: str,
+            operator: str,
             knowledge_base_name: str,
             override: bool = False,
             to_vector_store: bool = True,
@@ -588,6 +597,7 @@ class ApiRequest:
 
         files = [convert_file(file) for file in files]
         data = {
+            "operator": operator,
             "knowledge_base_name": knowledge_base_name,
             "document_loader_name": document_loader_name,
             "override": override,
@@ -612,6 +622,7 @@ class ApiRequest:
 
     def delete_kb_docs(
             self,
+            operator: str,
             knowledge_base_name: str,
             file_names: List[str],
             document_loaders: List[str],
@@ -622,6 +633,7 @@ class ApiRequest:
         对应api.py/knowledge_base/delete_docs接口
         '''
         data = {
+            "operator": operator,
             "knowledge_base_name": knowledge_base_name,
             "file_names": file_names,
             "document_loaders": document_loaders,

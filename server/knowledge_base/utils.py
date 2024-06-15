@@ -82,6 +82,14 @@ def validate_kb_info(kb_info: str) -> bool:
     return True
 
 
+def validate_kb_owner(kb_info: str) -> bool:
+    # 检查是否包含预期外的字符或路径攻击关键字
+    if kb_info is None or not kb_info.strip():
+        return False
+
+    return True
+
+
 def get_kb_path(knowledge_base_name: str):
     return os.path.join(KB_ROOT_PATH, knowledge_base_name)
 

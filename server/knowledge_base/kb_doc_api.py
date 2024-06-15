@@ -205,6 +205,7 @@ def _save_files_in_thread(files: List[UploadFile],
 
 
 def upload_docs(
+        operator: str = Form(..., description="操作用户", examples=["admin"]),
         files: List[UploadFile] = File(..., description="上传文件，支持多文件"),
         knowledge_base_name: str = Form(..., description="知识库名称", examples=["samples"]),
         document_loader_name: str = Form(..., description="文件加载类型", examples=["default"]),
@@ -226,6 +227,9 @@ def upload_docs(
     kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
     if kb is None:
         return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}")
+
+    if kb.kb_owner != operator:
+        return BaseResponse(code=404, msg=f"只有 {knowledge_base_name} 创建者 {kb.kb_owner} 可以操作")
 
     failed_files = {}
     file_names = list(docs.keys())
@@ -263,6 +267,7 @@ def upload_docs(
 
 
 def delete_docs(
+        operator: str = Form(..., description="操作用户", examples=["admin"]),
         knowledge_base_name: str = Body(..., examples=["samples"]),
         file_names: List[str] = Body(..., examples=[["file_name.md", "test.txt"]]),
         document_loaders: List[str] = Body(...),
@@ -276,6 +281,9 @@ def delete_docs(
     kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
     if kb is None:
         return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}")
+
+    if kb.kb_owner != operator:
+        return BaseResponse(code=404, msg=f"只有 {knowledge_base_name} 创建者 {kb.kb_owner} 可以操作")
 
     failed_files = {}
     for file_name, document_loader_name in zip(file_names, document_loaders):
@@ -481,39 +489,42 @@ def gen_qa_for_kb(
     kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
     if not kb.exists():
         return BaseResponse(code=404, msg=f"未找到知识库 ‘{knowledge_base_name}’")
-    else:
-        kb_info = kb.kb_info
 
-        FuturesAtomic.acquire()
-        future = JobFutures.get(knowledge_base_name)
+    if kb.kb_owner != job_owner:
+        return BaseResponse(code=404, msg=f"只有 {knowledge_base_name} 创建者 {kb.kb_owner} 可以操作")
 
-        if future is None or future.done():
-            new_future = JobExecutor.submit(gen_qa_task, job_owner, knowledge_base_name, kb_info, model_name,
-                                            LITELLM_SERVER, 3)
-            JobFutures[knowledge_base_name] = new_future
-            FuturesAtomic.release()
-            return BaseResponse(code=200, msg=f"使用{model_name}的文档问答生成任务提交成功")
-        else:
-            FuturesAtomic.release()
-            return BaseResponse(code=404, msg=f"上次任务仍在运行中，请等待任务完成后再提交新任务")
+    kb_info = kb.kb_info
 
-
-def get_gen_qa_result(
-        knowledge_base_name: str = Body(..., examples=["samples"]),
-):
     FuturesAtomic.acquire()
     future = JobFutures.get(knowledge_base_name)
 
-    if future is None:
+    if future is None or future.done():
+        new_future = JobExecutor.submit(gen_qa_task, job_owner, knowledge_base_name, kb_info, model_name,
+                                        LITELLM_SERVER, 3)
+        JobFutures[knowledge_base_name] = new_future
         FuturesAtomic.release()
-        return BaseResponse(code=404, msg=f"无效的任务ID")
-    elif future.done():
-        result = future.result()
-        FuturesAtomic.release()
-        return BaseResponse(code=200, msg=f"任务已结束", json={"task_result": result})
+        return BaseResponse(code=200, msg=f"使用{model_name}的文档问答生成任务提交成功")
     else:
         FuturesAtomic.release()
-        return BaseResponse(code=202, msg=f"任务正在运行中")
+        return BaseResponse(code=404, msg=f"上次任务仍在运行中，请等待任务完成后再提交新任务")
+
+
+# def get_gen_qa_result(
+#         knowledge_base_name: str = Body(..., examples=["samples"]),
+# ):
+#     FuturesAtomic.acquire()
+#     future = JobFutures.get(knowledge_base_name)
+#
+#     if future is None:
+#         FuturesAtomic.release()
+#         return BaseResponse(code=404, msg=f"无效的任务ID")
+#     elif future.done():
+#         result = future.result()
+#         FuturesAtomic.release()
+#         return BaseResponse(code=200, msg=f"任务已结束", json={"task_result": result})
+#     else:
+#         FuturesAtomic.release()
+#         return BaseResponse(code=202, msg=f"任务正在运行中")
 
 # def files2docs(files: List[UploadFile] = File(..., description="上传文件，支持多文件"),
 #                 knowledge_base_name: str = Form(..., description="知识库名称", examples=["samples"]),

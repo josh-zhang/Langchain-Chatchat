@@ -116,8 +116,8 @@ def gen_qa_task(kb_owner, knowledge_base_name, kb_info, model_name, url, concurr
             # return BaseResponse(code=500, msg=msg)
             return
 
-    kb = KBServiceFactory.get_service(kb_owner, new_kb_name, new_kb_info, new_kb_agent_guide, "milvus",
-                                      EMBEDDING_MODEL, USE_BM25)
+    kb = KBServiceFactory.get_service(kb_owner, kb_owner, new_kb_name, new_kb_info, new_kb_agent_guide,
+                                      EMBEDDING_MODEL, USE_BM25, "milvus")
     status = kb.create_kb()
     if not status:
         msg = f"创建知识库出错"

@@ -480,6 +480,12 @@ def kb_dialogue_page(api: ApiRequest, logged_username: str):
         st.info("对话系统异常，暂时无法访问对话功能")
         return
 
+    kb_list = get_knowledge_bases(api, logged_username)
+    if kb_list is None:
+        kb_list = []
+    kb_dict = {kb[0]: kb[1] for kb in kb_list}
+    kb_name_list = [kb[0] for kb in kb_list]
+
     st.session_state.dialogue_mode = "知识库问答"
     st.session_state.setdefault("conversation_ids", {})
     st.session_state["conversation_ids"].setdefault(chat_box.cur_chat_name, uuid.uuid4().hex)
@@ -500,12 +506,6 @@ def kb_dialogue_page(api: ApiRequest, logged_username: str):
         chat_box.use_chat_name(conversation_name)
 
         with st.expander("知识库配置", True):
-            kb_list = get_knowledge_bases(api, logged_username)
-            if kb_list is None:
-                kb_list = []
-            kb_dict = {kb[0]: kb[1] for kb in kb_list}
-            kb_name_list = [kb[0] for kb in kb_list]
-
             def format_func(option):
                 return kb_dict[option]
 

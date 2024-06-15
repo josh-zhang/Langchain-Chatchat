@@ -101,13 +101,15 @@ class KBService(ABC):
 
     def __init__(self,
                  kb_owner: str,
+                 kb_viewer: str,
                  knowledge_base_name: str,
                  kb_info: str,
                  kb_agent_guide: str,
-                 search_enhance: bool = USE_BM25,
                  embed_model: str = EMBEDDING_MODEL,
+                 search_enhance: bool = USE_BM25,
                  ):
         self.kb_owner = kb_owner
+        self.kb_viewer = kb_viewer
         self.kb_name = knowledge_base_name
         self.kb_info = kb_info
         self.kb_agent_guide = kb_agent_guide
@@ -141,8 +143,8 @@ class KBService(ABC):
         self.do_create_kb("answer")
         self.do_create_kb("query")
 
-        status = add_kb_to_db(self.kb_owner, self.kb_name, self.kb_info, self.kb_agent_guide, self.kb_summary,
-                              self.vs_type(), self.embed_model, self.search_enhance)
+        status = add_kb_to_db(self.kb_owner, self.kb_viewer, self.kb_name, self.kb_info, self.kb_agent_guide,
+                              self.kb_summary, self.vs_type(), self.embed_model, self.search_enhance)
 
         return status
 
@@ -867,18 +869,19 @@ class KBServiceFactory:
 
     @staticmethod
     def get_service(kb_owner: str,
+                    kb_viewer: str,
                     kb_name: str,
                     kb_info: str,
                     kb_agent_guide: str,
+                    embed_model: str,
+                    search_enhance: bool,
                     vector_store_type: Union[str, SupportedVSType],
-                    embed_model: str = EMBEDDING_MODEL,
-                    search_enhance: bool = USE_BM25,
                     ) -> KBService:
         # if isinstance(vector_store_type, str):
         #     vector_store_type = getattr(SupportedVSType, vector_store_type.upper())
         # if SupportedVSType.MILVUS == vector_store_type:
         from server.knowledge_base.kb_service.milvus_kb_service import MilvusKBService
-        return MilvusKBService(kb_owner, kb_name, kb_info, kb_agent_guide, search_enhance, embed_model=embed_model)
+        return MilvusKBService(kb_owner, kb_viewer, kb_name, kb_info, kb_agent_guide, embed_model, search_enhance)
         # else:
         #     from server.knowledge_base.kb_service.faiss_kb_service import FaissKBService
         #     return FaissKBService(kb_name, kb_info, kb_agent_guide, search_enhance, embed_model=embed_model)
@@ -900,18 +903,18 @@ class KBServiceFactory:
 
     @staticmethod
     def get_service_by_name(kb_name: str) -> Optional[KBService]:
-        kb_owner, kb_name, kb_info, kb_agent_guide, _, vs_type, embed_model, search_enhance = load_kb_from_db(kb_name)
+        kb_owner, kb_viewer, kb_name, kb_info, kb_agent_guide, _, vs_type, embed_model, search_enhance = load_kb_from_db(kb_name)
         if kb_name is None:  # kb not in db, just return None
             return None
-        return KBServiceFactory.get_service(kb_owner, kb_name, kb_info, kb_agent_guide, vs_type, embed_model,
-                                            search_enhance)
+        return KBServiceFactory.get_service(kb_owner, kb_viewer, kb_name, kb_info, kb_agent_guide, embed_model,
+                                            search_enhance, vs_type)
 
     # @staticmethod
     # def get_default():
     #     return KBServiceFactory.get_service("default", SupportedVSType.DEFAULT)
 
 
-def get_kb_details(kb_owner: str) -> List[Dict]:
+def get_kb_details_for_mg(kb_owner: str) -> List[Dict]:
     kbs_in_folder = list_kbs_from_folder()
     kbs_in_db = KBService.list_kbs(kb_owner)
     kbs_in_db = [i[0] for i in kbs_in_db]
@@ -920,6 +923,8 @@ def get_kb_details(kb_owner: str) -> List[Dict]:
     for kb_name in kbs_in_db:
         result[kb_name] = {
             "kb_name": kb_name,
+            "kb_owner": "",
+            "kb_viewer": "",
             "vs_type": "",
             "kb_info": "",
             "kb_agent_guide": "",

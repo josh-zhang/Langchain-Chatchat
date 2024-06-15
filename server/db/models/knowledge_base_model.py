@@ -10,6 +10,7 @@ class KnowledgeBaseModel(Base):
     __tablename__ = 'knowledge_base'
     id = Column(Integer, primary_key=True, autoincrement=True, comment='知识库ID')
     kb_owner = Column(String(100), comment='知识库所有者')
+    kb_viewer = Column(String(100), comment='知识库使用者')
     kb_name = Column(String(50), comment='知识库名称')
     kb_info = Column(String(200), comment='知识库简介(用于Agent)')
     kb_agent_guide = Column(String(200), comment='知识库Agent介绍')
@@ -23,6 +24,6 @@ class KnowledgeBaseModel(Base):
     def __repr__(self):
         return (
             f"<KnowledgeBase(id='{self.id}', kb_owner='{self.kb_owner}', kb_name='{self.kb_name}',"
-            f"kb_info='{self.kb_info},kb_agent_guide='{self.kb_agent_guide}, "
+            f"kb_info='{self.kb_info},kb_agent_guide='{self.kb_agent_guide}, kb_viewer='{self.kb_viewer}', "
             f"kb_summary='{self.kb_summary}, vs_type='{self.vs_type}', search_enhance='{self.search_enhance}',"
             f"embed_model='{self.embed_model}', file_count='{self.file_count}', create_time='{self.create_time}')>")

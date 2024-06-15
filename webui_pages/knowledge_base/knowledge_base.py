@@ -8,7 +8,7 @@ from st_aggrid import AgGrid, JsCode
 from st_aggrid.grid_options_builder import GridOptionsBuilder
 
 from server.knowledge_base.utils import get_file_path, LOADER_DICT
-from server.knowledge_base.kb_service.base import get_kb_details, get_kb_file_details
+from server.knowledge_base.kb_service.base import get_kb_details_for_mg, get_kb_file_details
 from configs import kbs_config
 from webui_pages.utils import *
 
@@ -76,7 +76,7 @@ def get_embed_models(_api):
 
 def knowledge_base_page(api: ApiRequest, logged_username: str):
     selected_kb_index = 0
-    kb_details = get_kb_details(logged_username)
+    kb_details = get_kb_details_for_mg(logged_username)
     kb_name_dict = {x["kb_name"]: x for x in kb_details}
     exist_kb_names = list(kb_name_dict.keys())
     exist_kb_infos = [x["kb_info"] for x in kb_details]
@@ -88,9 +88,6 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
         st.error(
             "获取知识库信息错误，请检查是否已按照 `README.md` 中 `4 知识库初始化与迁移` 步骤完成初始化或迁移，或是否为数据库连接错误。")
         st.stop()
-
-    # if "selected_kb_info" not in st.session_state:
-    #     st.session_state["selected_kb_info"] = ""
 
     def format_selected_kb(kb_name: str) -> str:
         if kb := kb_name_dict.get(kb_name):
@@ -117,7 +114,6 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
             now = datetime.datetime.now()
             now_str = now.strftime('%Y%m%d_%H%M%S')
             suggested_id = f"{now_str}"
-            # suggested_name = f"{now_str}源文件"
 
             new_kb_name = st.text_input(
                 "请输入知识库编号（仅支持英文字母、数字和下划线）",
@@ -126,7 +122,6 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
                 value=suggested_id,
                 max_chars=50,
             )
-
             new_kb_info = st.text_input(
                 "请输入知识库名称（不能为空）",
                 placeholder="知识库名称",
@@ -161,9 +156,9 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
             is_public = st.checkbox("知识库是否公开", True)
 
             if is_public:
-                kb_owner = ""
+                kb_viewer = ""
             else:
-                kb_owner = logged_username
+                kb_viewer = logged_username
 
             search_enhance = st.checkbox("开启向量库加强检索", True)
 
@@ -189,7 +184,8 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
                     st.error(f"知识库名称为 {new_kb_info} 的知识库已经存在，请直接使用。如需重新创建，请先删除现有知识库")
                 else:
                     ret = api.create_knowledge_base(
-                        kb_owner=kb_owner,
+                        kb_owner=logged_username,
+                        kb_viewer=kb_viewer,
                         knowledge_base_name=new_kb_name,
                         knowledge_base_info=new_kb_info,
                         knowledge_base_agent_guide=new_kb_agent_guide,
@@ -205,70 +201,81 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
     elif selected_kb:
         this_kb_name = selected_kb
         this_kb_info = kb_name_dict[this_kb_name]['kb_info']
-        # st.session_state["selected_kb_info"] = kb_dict[kb]['kb_info']
+        this_kb_owner = kb_name_dict[this_kb_name]['kb_owner']
+        this_kb_kb_viewer = kb_name_dict[this_kb_name]['kb_viewer']
+        if this_kb_kb_viewer == "":
+            this_kb_kb_viewer = "公开知识库"
+        is_editable = this_kb_owner == logged_username
+
         st.text_input("知识库编号", value=this_kb_name, max_chars=None,
+                      key=None, help=None, on_change=None, args=None, kwargs=None, disabled=True)
+        st.text_input("知识库创建者", value=this_kb_owner, max_chars=None,
+                      key=None, help=None, on_change=None, args=None, kwargs=None, disabled=True)
+        st.text_input("知识库使用者", value=this_kb_kb_viewer, max_chars=None,
                       key=None, help=None, on_change=None, args=None, kwargs=None, disabled=True)
         st.text_area("知识库介绍", value=kb_name_dict[this_kb_name]['kb_agent_guide'], max_chars=None,
                      key=None, help=None, on_change=None, args=None, kwargs=None, disabled=True)
 
-        # 上传文件
-        st.divider()
+        if is_editable:
+            # 上传文件
+            st.divider()
 
-        doc_type = st.selectbox(
-            "上传文件类型",
-            ["普通文件", "知识库网页文件", "FAQ表格文件"],
-            key="doc_type")
+            doc_type = st.selectbox(
+                "上传文件类型",
+                ["普通文件", "知识库网页文件", "FAQ表格文件"],
+                key="doc_type")
 
-        if doc_type == "FAQ表格文件":
-            support_types = ["xlsx"]
-            document_loader_name = "CustomExcelLoader"
-        elif doc_type == "知识库网页文件":
-            support_types = ["html"]
-            document_loader_name = "CustomHTMLLoader"
-            st.info("注意：请以 [知识标题.html] 形式命名上传知识库网页文件")
-        else:
-            support_types = [i for ls in LOADER_DICT.values() for i in ls]
-            document_loader_name = "default"
+            if doc_type == "FAQ表格文件":
+                support_types = ["xlsx"]
+                document_loader_name = "CustomExcelLoader"
+            elif doc_type == "知识库网页文件":
+                support_types = ["html"]
+                document_loader_name = "CustomHTMLLoader"
+                st.info("注意：请以 [知识标题.html] 形式命名上传知识库网页文件")
+            else:
+                support_types = [i for ls in LOADER_DICT.values() for i in ls]
+                document_loader_name = "default"
 
-        files = st.file_uploader("将上传文件直接拖拽到下方区域（支持文件格式如下）：",
-                                 support_types,
-                                 help=f"支持文件格式包含 {support_types}",
-                                 accept_multiple_files=True)
+            files = st.file_uploader("将上传文件直接拖拽到下方区域（支持文件格式如下）：",
+                                     support_types,
+                                     help=f"支持文件格式包含 {support_types}",
+                                     accept_multiple_files=True)
 
-        if doc_type == "FAQ表格文件":
-            chunk_size = 0
-            chunk_overlap = 0
-            zh_title_enhance = False
-        else:
-            with st.expander(
-                    "文件处理配置",
-                    expanded=False,
-            ):
-                cols = st.columns(2)
-                chunk_size = cols[0].number_input("单段文本最大长度：", 1, 8000, CHUNK_SIZE)
-                chunk_overlap = cols[1].number_input("相邻文本重合长度：", 0, chunk_size, OVERLAP_SIZE)
-                # cols[2].write("")
-                # cols[2].write("")
-                # zh_title_enhance = cols[2].checkbox("开启中文标题加强", ZH_TITLE_ENHANCE)
+            if doc_type == "FAQ表格文件":
+                chunk_size = 0
+                chunk_overlap = 0
                 zh_title_enhance = False
+            else:
+                with st.expander(
+                        "文件处理配置",
+                        expanded=False,
+                ):
+                    cols = st.columns(2)
+                    chunk_size = cols[0].number_input("单段文本最大长度：", 1, 8000, CHUNK_SIZE)
+                    chunk_overlap = cols[1].number_input("相邻文本重合长度：", 0, chunk_size, OVERLAP_SIZE)
+                    # cols[2].write("")
+                    # cols[2].write("")
+                    # zh_title_enhance = cols[2].checkbox("开启中文标题加强", ZH_TITLE_ENHANCE)
+                    zh_title_enhance = False
 
-        if st.button(
-                "添加上传文件到知识库",
-                disabled=len(files) == 0,
-        ):
-            ret = api.upload_kb_docs(files,
-                                     knowledge_base_name=this_kb_name,
-                                     document_loader_name=document_loader_name,
-                                     override=True,
-                                     chunk_size=chunk_size,
-                                     chunk_overlap=chunk_overlap,
-                                     zh_title_enhance=zh_title_enhance)
-            if msg := check_success_msg(ret):
-                st.toast(msg, icon="✔")
-            elif msg := check_error_msg(ret):
-                st.toast(msg, icon="✖")
+            if st.button(
+                    "添加上传文件到知识库",
+                    disabled=len(files) == 0,
+            ):
+                ret = api.upload_kb_docs(files,
+                                         operator=logged_username,
+                                         knowledge_base_name=this_kb_name,
+                                         document_loader_name=document_loader_name,
+                                         override=True,
+                                         chunk_size=chunk_size,
+                                         chunk_overlap=chunk_overlap,
+                                         zh_title_enhance=zh_title_enhance)
+                if msg := check_success_msg(ret):
+                    st.toast(msg, icon="✔")
+                elif msg := check_error_msg(ret):
+                    st.toast(msg, icon="✖")
 
-        # 知识库详情
+        # 知识库文件管理
         st.divider()
 
         # st.info("请选择文件，点击按钮进行操作。")
@@ -338,20 +345,6 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
 
             cols = st.columns(3)
 
-            # file_name, file_path = file_exists(this_kb_name, selected_rows)
-            # if file_path:
-            #     with open(file_path, "rb") as fp:
-            #         cols[0].download_button(
-            #             "下载选中文档",
-            #             fp,
-            #             file_name=file_name,
-            #             use_container_width=True, )
-            # else:
-            #     cols[0].download_button(
-            #         "下载选中文档",
-            #         "",
-            #         disabled=True,
-            #         use_container_width=True, )
             if selected_rows is None or selected_rows.empty:
                 cols[0].link_button(
                     "下载选中文件",
@@ -378,23 +371,24 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
             # 将文件从向量库中删除，但不删除文件本身。
             if cols[1].button(
                     "检索时忽略选中文件",
-                    disabled=selected_rows is None or selected_rows.empty or not selected_rows.iloc[0]["in_db"],
+                    disabled=not is_editable or selected_rows is None or selected_rows.empty or not selected_rows.iloc[0]["in_db"],
                     use_container_width=True,
             ):
-                api.delete_kb_docs(this_kb_name, file_names=selected_file_names,
+                api.delete_kb_docs(logged_username, this_kb_name, file_names=selected_file_names,
                                    document_loaders=selected_document_loaders)
                 st.rerun()
 
             if cols[2].button(
                     "从知识库中删除选中文件",
-                    disabled=selected_rows is None or selected_rows.empty,
+                    disabled=not is_editable or selected_rows is None or selected_rows.empty,
                     use_container_width=True,
             ):
-                api.delete_kb_docs(this_kb_name, file_names=selected_file_names,
+                api.delete_kb_docs(logged_username, this_kb_name, file_names=selected_file_names,
                                    document_loaders=selected_document_loaders,
                                    delete_content=True)
                 st.rerun()
 
+        # 知识库管理
         st.divider()
 
         cols = st.columns(3)
@@ -410,7 +404,7 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
         if cols[1].button(
                 "为知识库中'知识库网页文件'生成问答",
                 use_container_width=True,
-                disabled=not has_kf_html,
+                disabled=not is_editable or not has_kf_html,
                 type="primary",
         ):
             # st.toast(f"为知识库{this_kb_name}生成问答")
@@ -422,9 +416,10 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
         if cols[2].button(
                 "删除知识库",
                 type="primary",
+                disabled=not is_editable,
                 use_container_width=True,
         ):
-            ret = api.delete_knowledge_base(this_kb_name)
+            ret = api.delete_knowledge_base(logged_username, this_kb_name)
             st.toast(ret.get("msg", " "))
             time.sleep(1)
             st.rerun()
