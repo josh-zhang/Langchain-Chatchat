@@ -519,7 +519,7 @@ def kb_dialogue_page(api: ApiRequest, logged_username: str):
                 format_func=format_func,
                 key="selected_kb",
             )
-            kb_top_k = st.number_input("搜索知识条数：", 1, 20, VECTOR_SEARCH_TOP_K)
+            kb_top_k = st.number_input("搜索知识条数：", 1, VECTOR_SEARCH_TOP_K * 3, VECTOR_SEARCH_TOP_K)
 
             ## Bge 模型会超过1
             score_threshold = st.slider(f"搜索门槛 (门槛越高相似度要求越高，默认为{SCORE_THRESHOLD})：", 0.0, 1.0,

@@ -48,8 +48,8 @@ def search_docs(
     max_tokens_for_context = max(leave_for_context_min, max_tokens_for_context)
     max_tokens_for_context_reank = 18000  # for single instance of bge rerank v2
 
-    dense_topk = int(top_k * dense_top_k_factor)
-    sparse_topk = int(top_k * sparse_top_k_factor)
+    dense_topk = int(top_k * dense_top_k_factor + 20)
+    sparse_topk = int(top_k * sparse_top_k_factor + 20 * BM_25_FACTOR)
 
     # logger.info(f"top_k {top_k}")
     # logger.info(f"dense_topk {dense_topk}")
@@ -507,7 +507,6 @@ def gen_qa_for_kb(
     else:
         FuturesAtomic.release()
         return BaseResponse(code=404, msg=f"上次任务仍在运行中，请等待任务完成后再提交新任务")
-
 
 # def get_gen_qa_result(
 #         knowledge_base_name: str = Body(..., examples=["samples"]),

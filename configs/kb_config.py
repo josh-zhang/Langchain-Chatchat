@@ -22,13 +22,19 @@ CACHED_EMBED_NUM = 1
 CACHED_MEMO_VS_NUM = 10
 
 # 知识库中单段文本长度(不适用MarkdownHeaderTextSplitter)
-CHUNK_SIZE = 800
+CHUNK_SIZE = 900
 
 # 知识库中相邻文本重合长度(不适用MarkdownHeaderTextSplitter)
 OVERLAP_SIZE = 100
 
 # 知识库匹配向量数量
-VECTOR_SEARCH_TOP_K = 5
+VECTOR_SEARCH_TOP_K = 10
+USE_BM25 = True
+USE_RERANK = True
+USE_MERGE = True
+BM_25_FACTOR = 0.4
+DENSE_FACTOR = 0.2
+SPARSE_FACTOR = DENSE_FACTOR * BM_25_FACTOR
 
 # 知识库匹配的距离阈值，取值范围在0-1之间，SCORE越小，距离越小从而相关度越高，
 # 取到1相当于不筛选，实测bge-large的距离得分大部分在0.01-0.7之间，
@@ -119,13 +125,6 @@ TEXT_SPLITTER_NAME = "ChineseRecursiveTextSplitter"
 
 # Embedding模型定制词语的词表文件
 EMBEDDING_KEYWORD_FILE = "embedding_keywords.txt"
-
-USE_BM25 = True
-USE_RERANK = True
-USE_MERGE = True
-BM_25_FACTOR = 0.4
-DENSE_FACTOR = 3.0
-SPARSE_FACTOR = 1.0
 
 tokenizer_path_for_count_token = "/opt/projects/hf_models/qwen1.5-14b-chat-gptq-int4"
 
