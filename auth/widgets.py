@@ -9,7 +9,6 @@ from .utils import check_usr_pass
 from .utils import check_valid_name
 from .utils import check_unique_usr
 from .utils import register_new_usr
-from configs import LLM_MODEL
 
 
 class __login__:
@@ -138,7 +137,6 @@ class __login__:
     def reset_cache(self):
         st.session_state["cur_token_counts"] = 0
         st.session_state["need_rerun"] = False
-        st.session_state["cur_llm_model"] = LLM_MODEL
         st.session_state["conversation_ids"] = {}
 
         if "cur_source_docs" in st.session_state:
@@ -164,6 +162,8 @@ class __login__:
 
             if logout_click_check == True:
                 # clean cache
+                self.reset_cache()
+
                 st.session_state['LOGOUT_BUTTON_HIT'] = True
                 st.session_state['LOGGED_IN'] = False
                 st.session_state['LOGGED_USERNAME'] = ""

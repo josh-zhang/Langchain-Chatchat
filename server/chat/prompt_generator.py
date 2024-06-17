@@ -89,7 +89,7 @@ def generate_doc_qa(query: str, history: List[History], docs: List[str], fallbac
 
     # iterate over all documents
     if context:
-        context = truncate_string_by_token_limit(context, max_tokens_for_context)
+        context, _ = truncate_string_by_token_limit(context, max_tokens_for_context)
     else:
         for inum, doc in enumerate(docs):
             if not doc:

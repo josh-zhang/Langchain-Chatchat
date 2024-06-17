@@ -376,9 +376,11 @@ def file_dialogue_page(api: ApiRequest, logged_username: str):
                 ai_say,
                 Markdown("...", in_expander=True, title="文件搜索结果", state="complete"),
             ])
+
             text = ""
             message_id = ""
-            d = None
+            token_counts = -1
+            source_documents = []
             for d in api.file_chat(prompt,
                                    knowledge_id=file_chat_id,
                                    knowledge_content=knowledge_content,
@@ -398,25 +400,24 @@ def file_dialogue_page(api: ApiRequest, logged_username: str):
                     text += chunk
                     chat_box.update_msg(text, element_index=0)
 
+                token_counts = d.get("token_counts", -1)
                 message_id = d.get("message_id", "")
+                source_documents = d.get("docs", [])
+
+            if token_counts >= 0:
+                st.session_state["cur_token_counts"] = token_counts
 
             metadata = {
                 "message_id": message_id,
             }
             chat_box.update_msg(text, element_index=0, streaming=False, metadata=metadata)
+            chat_box.update_msg("\n\n".join(source_documents), element_index=1, streaming=False)
 
             if message_id:
                 chat_box.show_feedback(**feedback_kwargs,
                                        key=message_id,
                                        on_submit=on_feedback,
                                        kwargs={"message_id": message_id, "history_index": len(chat_box.history) - 1})
-
-            if d:
-                token_counts = d.get("token_counts", -1)
-                if token_counts >= 0:
-                    st.session_state["cur_token_counts"] = token_counts
-
-                chat_box.update_msg("\n\n".join(d.get("docs", [])), element_index=1, streaming=False)
 
     cm = st.session_state["cur_llm_model"]
     cur_max_tokens = running_model_dict[cm]
@@ -559,7 +560,10 @@ def kb_dialogue_page(api: ApiRequest, logged_username: str):
 
         text = ""
         message_id = ""
-        d = None
+        this_search_type = "重新搜索"
+        source_documents = []
+        source_documents_content = []
+        token_counts = -1
         for d in api.knowledge_base_chat(prompt,
                                          knowledge_base_name=st.session_state.selected_kb,
                                          search_type=st.session_state.kb_search_type,
@@ -572,7 +576,7 @@ def kb_dialogue_page(api: ApiRequest, logged_username: str):
                                          model=st.session_state["cur_llm_model"],
                                          temperature=st.session_state.temperature,
                                          max_tokens=running_model_dict[st.session_state["cur_llm_model"]]):
-            if error_msg := check_error_msg(d):  # check whether error occured
+            if error_msg := check_error_msg(d):
                 st.error(error_msg)
                 break
 
@@ -581,41 +585,37 @@ def kb_dialogue_page(api: ApiRequest, logged_username: str):
                 chat_box.update_msg(text, element_index=0)
                 message_id = d.get("message_id", "")
 
+            token_counts = d.get("token_counts", -1)
+            this_search_type = d.get("search_type", "重新搜索")
+            source_documents = d.get("docs", [])
+            source_documents_content = d.get("docs_content", [])
+
+        if token_counts >= 0:
+            st.session_state["cur_token_counts"] = token_counts
+
         metadata = {
             "message_id": message_id,
         }
         chat_box.update_msg(text, element_index=0, streaming=False, metadata=metadata)
 
-        if message_id:
-            chat_box.show_feedback(**feedback_kwargs,
-                                   key=message_id,
-                                   on_submit=on_feedback,
-                                   kwargs={"message_id": message_id, "history_index": len(chat_box.history) - 1})
+        if this_search_type == "重新搜索":
+            if source_documents:
+                source = ""
+                for i, j in zip(source_documents, source_documents_content):
+                    source += i + j + "\n\n"
 
-        if d:
-            token_counts = d.get("token_counts", -1)
-            if token_counts >= 0:
-                st.session_state["cur_token_counts"] = token_counts
-
-            this_search_type = d.get("search_type", "重新搜索")
-
-            if this_search_type == "重新搜索":
-                source_documents = d.get("docs", [])
-                source_documents_content = d.get("docs_content", [])
-
-                if source_documents:
-                    source = ""
-                    for i, j in zip(source_documents, source_documents_content):
-                        source += i + j + "\n\n"
-
-                    st.session_state["cur_source_docs"] = source_documents_content
-                else:
-                    source = f"<span style='color:red'>未找到相关文档,该回答为大模型自身能力解答！</span>"
-
-                chat_box.update_msg(source, element_index=1, streaming=False)
+                st.session_state["cur_source_docs"] = source_documents_content
             else:
-                chat_box.update_msg(f"<span style='color:red'>继续利用上方搜索结果进行问答</span>",
-                                    element_index=1, streaming=False)
+                source = f"<span style='color:red'>未找到相关文档,该回答为大模型自身能力解答！</span>"
+
+            chat_box.update_msg(source, element_index=1, streaming=False)
+        else:
+            chat_box.update_msg(f"<span style='color:red'>继续利用上方搜索结果进行问答</span>",
+                                element_index=1, streaming=False)
+
+        if message_id:
+            chat_box.show_feedback(**feedback_kwargs, key=message_id, on_submit=on_feedback,
+                                   kwargs={"message_id": message_id, "history_index": len(chat_box.history) - 1})
 
     cm = st.session_state["cur_llm_model"]
     cur_max_tokens = running_model_dict[cm]

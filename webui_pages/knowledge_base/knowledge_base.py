@@ -78,14 +78,14 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
     exist_kb_names = list(kb_name_dict.keys())
     exist_kb_infos = [x["kb_info"] for x in kb_details]
 
-    try:
-        selected_kb_index = 0
-        if st.session_state["selected_kb_name"] in exist_kb_names:
-            selected_kb_index = exist_kb_names.index(st.session_state["selected_kb_name"])
-    except Exception as e:
-        st.error(
-            "获取知识库信息错误，请检查是否已按照 `README.md` 中 `4 知识库初始化与迁移` 步骤完成初始化或迁移，或是否为数据库连接错误。")
-        st.stop()
+    # try:
+    #     selected_kb_index = 0
+    #     if st.session_state["selected_kb_name"] in exist_kb_names:
+    #         selected_kb_index = exist_kb_names.index(st.session_state["selected_kb_name"])
+    # except Exception as e:
+    #     st.error(
+    #         "获取知识库信息错误，请检查是否已按照 `README.md` 中 `4 知识库初始化与迁移` 步骤完成初始化或迁移，或是否为数据库连接错误。")
+    #     st.stop()
 
     def format_selected_kb(kb_name: str) -> str:
         if kb := kb_name_dict.get(kb_name):
@@ -97,7 +97,6 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
         "请选择知识库（或新建）",
         exist_kb_names + ["- 创建新的知识库 -"],
         format_func=format_selected_kb,
-        index=selected_kb_index,
         key="selected_kb_name"
     )
 
@@ -109,30 +108,23 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
             return
 
         with st.form("新建知识库"):
-
-            now = datetime.datetime.now()
-            now_str = now.strftime('%Y%m%d_%H%M%S')
-            suggested_id = f"{now_str}"
-
-            _ = st.text_input(
-                "请输入知识库编号（仅支持英文字母、数字和下划线）",
-                placeholder="新知识库编号 (仅支持英文字母、数字和下划线)",
-                key="new_kb_name",
-                value=suggested_id,
-                max_chars=50,
-            )
+            # _ = st.text_input(
+            #     "请输入知识库编号（仅支持英文字母、数字和下划线）",
+            #     placeholder="新知识库编号 (仅支持英文字母、数字和下划线)",
+            #     key="new_kb_name",
+            #     value=suggested_id,
+            #     max_chars=50,
+            # )
             _ = st.text_input(
                 "请输入知识库名称（不能为空）",
                 placeholder="知识库名称",
                 key="new_kb_info",
-                value="",
                 max_chars=100,
             )
             _ = st.text_area(
                 "请输入知识库介绍",
                 placeholder="知识库介绍",
                 key="new_kb_agent_guide",
-                value="",
                 max_chars=200,
             )
 
@@ -161,44 +153,41 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
 
             _ = st.checkbox("开启向量库加强检索", True, key="search_enhance")
 
-            _ = st.form_submit_button(
-                "新建",
-                # disabled=not is_valid,
-                use_container_width=True,
-                key="submit_create_kb"
-            )
+            if st.form_submit_button("新建", use_container_width=True):
+                new_kb_info = st.session_state.new_kb_info
 
-        if st.session_state.submit_create_kb:
-            new_kb_name = st.session_state.new_kb_name
-            new_kb_info = st.session_state.new_kb_info
-
-            _, is_valid = validate_and_clean_input(new_kb_name)
-
-            if not new_kb_name or not new_kb_name.strip():
-                st.error(f"知识库编号不能为空")
-            elif not is_valid:
-                st.error("新建知识库编号中仅支持包含英文字母、数字和下划线")
-            elif new_kb_name in kb_name_dict:
-                st.error(f"知识库编号为 {new_kb_name} 的知识库已经存在，请直接使用。如需重新创建，请先删除现有知识库")
-            else:
                 if not new_kb_info or not new_kb_info.strip():
                     st.error(f"知识库名称不能为空")
-                elif new_kb_info in exist_kb_infos:
+
+                now = datetime.datetime.now()
+                new_kb_name = now.strftime('%Y%m%d_%H%M%S')
+
+                if not new_kb_name or not new_kb_name.strip():
+                    st.error(f"知识库编号不能为空")
+
+                all_kb_details = get_kb_details_for_mg("admin")
+                all_kb_name_dict = {x["kb_name"]: x for x in all_kb_details}
+                all_exist_kb_infos = [x["kb_info"] for x in all_kb_details]
+
+                if new_kb_info in all_exist_kb_infos:
                     st.error(f"知识库名称为 {new_kb_info} 的知识库已经存在，请直接使用。如需重新创建，请先删除现有知识库")
-                else:
-                    ret = api.create_knowledge_base(
-                        kb_owner=logged_username,
-                        kb_viewer=kb_viewer,
-                        knowledge_base_name=new_kb_name,
-                        knowledge_base_info=new_kb_info,
-                        knowledge_base_agent_guide=st.session_state.new_kb_agent_guide,
-                        vector_store_type=st.session_state.vs_type,
-                        embed_model=st.session_state.embed_model,
-                        search_enhance=st.session_state.search_enhance,
-                    )
-                    st.toast(ret.get("msg", " "))
-                    st.session_state["selected_kb_name"] = st.session_state.new_kb_name
-                    st.rerun()
+
+                if new_kb_name in all_kb_name_dict:
+                    st.error(
+                        f"知识库编号为 {new_kb_name} 的知识库已经存在，请直接使用。如需重新创建，请先删除现有知识库")
+
+                ret = api.create_knowledge_base(
+                    kb_owner=logged_username,
+                    kb_viewer=kb_viewer,
+                    knowledge_base_name=new_kb_name,
+                    knowledge_base_info=new_kb_info,
+                    knowledge_base_agent_guide=st.session_state.new_kb_agent_guide,
+                    vector_store_type=st.session_state.vs_type,
+                    embed_model=st.session_state.embed_model,
+                    search_enhance=st.session_state.search_enhance,
+                )
+                st.toast(ret.get("msg", " "))
+                st.rerun()
 
     elif st.session_state.selected_kb_name:
         this_kb_name = st.session_state.selected_kb_name
@@ -209,14 +198,14 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
             this_kb_kb_viewer = "公开知识库"
         is_editable = this_kb_owner == logged_username
 
+        st.text_area("知识库介绍", value=kb_name_dict[this_kb_name]['kb_agent_guide'], max_chars=None,
+                     key=None, help=None, on_change=None, args=None, kwargs=None, disabled=True)
         st.text_input("知识库编号", value=this_kb_name, max_chars=None,
                       key=None, help=None, on_change=None, args=None, kwargs=None, disabled=True)
         st.text_input("知识库创建者", value=this_kb_owner, max_chars=None,
                       key=None, help=None, on_change=None, args=None, kwargs=None, disabled=True)
         st.text_input("知识库使用者", value=this_kb_kb_viewer, max_chars=None,
                       key=None, help=None, on_change=None, args=None, kwargs=None, disabled=True)
-        st.text_area("知识库介绍", value=kb_name_dict[this_kb_name]['kb_agent_guide'], max_chars=None,
-                     key=None, help=None, on_change=None, args=None, kwargs=None, disabled=True)
 
         if is_editable:
             # 上传文件
