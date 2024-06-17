@@ -82,24 +82,25 @@ def chat_init():
 def dialogue_page(api: ApiRequest, logged_username: str):
     running_model_dict = {k: v for k, v in get_api_running_models(api)}
     running_models = list(running_model_dict.keys())
-    default_model = LLM_MODEL
-    prompt_dict = get_prompts("llm_chat")
-    prompt_templates_kb_list = list(prompt_dict.keys())
+    if LLM_MODEL in running_models:
+        running_models.remove(LLM_MODEL)
+        running_models.insert(0, LLM_MODEL)
 
     if not running_models:
-        st.info("对话系统异常，暂时无法访问对话功能")
-        return
+        st.error("对话系统异常，暂时无法访问对话功能")
+
+    prompt_dict = get_prompts("llm_chat")
+    prompt_templates_kb_list = list(prompt_dict.keys())
 
     st.session_state.dialogue_mode = "闲聊"
     st.session_state.setdefault("conversation_ids", {})
     st.session_state["conversation_ids"].setdefault(chat_box.cur_chat_name, uuid.uuid4().hex)
-    st.session_state.setdefault("cur_llm_model", default_model)
     st.session_state.setdefault("prompt_template_select", prompt_templates_kb_list[0])
 
     if not chat_box.chat_inited:
         st.toast(
             f"欢迎使用智能对话系统! \n\n"
-            f"当前运行的模型`{default_model}`, 您可以开始提问了."
+            f"当前运行的模型`{running_models[0]}`, 您可以开始提问了."
         )
         chat_box.init_session()
 
@@ -108,23 +109,9 @@ def dialogue_page(api: ApiRequest, logged_username: str):
         conversation_name, conversation_id = chat_init()
         chat_box.use_chat_name(conversation_name)
 
-        # def on_llm_change():
-        #     if llm_model:
-        #         # config = api.get_model_config(llm_model)
-        #         # if not config.get("online_api"):  # 只有本地model_worker可以切换模型
-        #         #     st.session_state["prev_llm_model"] = llm_model
-        #         st.session_state["cur_llm_model"] = st.session_state.llm_model
-
-        cur_llm_model = st.session_state["cur_llm_model"]
-        if cur_llm_model in running_models:
-            index = running_models.index(cur_llm_model)
-        else:
-            index = 0
-
         _ = st.selectbox("选择对话模型：",
                          running_models,
-                         index,
-                         key=cur_llm_model)
+                         key="cur_llm_model")
 
         cm = st.session_state["cur_llm_model"]
         cur_max_tokens = running_model_dict[cm]
@@ -227,11 +214,13 @@ def dialogue_page(api: ApiRequest, logged_username: str):
 def file_dialogue_page(api: ApiRequest, logged_username: str):
     running_model_dict = {k: v for k, v in get_api_running_models(api)}
     running_models = list(running_model_dict.keys())
-    default_model = LLM_MODEL
 
     if not running_models:
-        st.info("对话系统异常，暂时无法访问对话功能")
-        return
+        st.error("对话系统异常，暂时无法访问对话功能")
+
+    if LLM_MODEL in running_models:
+        running_models.remove(LLM_MODEL)
+        running_models.insert(0, LLM_MODEL)
 
     st.session_state.dialogue_mode = "文件问答"
     st.session_state.setdefault("conversation_ids", {})
@@ -241,12 +230,11 @@ def file_dialogue_page(api: ApiRequest, logged_username: str):
     st.session_state.setdefault("file_chat_content", "")
     st.session_state.setdefault("file_chat_type", None)
     st.session_state.setdefault("cur_token_counts", 0)
-    st.session_state.setdefault("cur_llm_model", default_model)
 
     if not chat_box.chat_inited:
         st.toast(
             f"欢迎使用文件问答系统! \n\n"
-            f"当前运行的模型`{default_model}`, 您可以开始提问了."
+            f"当前运行的模型`{running_models[0]}`, 您可以开始提问了."
         )
         chat_box.init_session()
 
@@ -294,15 +282,8 @@ def file_dialogue_page(api: ApiRequest, logged_username: str):
                 kb_top_k = VECTOR_SEARCH_TOP_K
                 score_threshold = float(SCORE_THRESHOLD)
 
-        cur_llm_model = st.session_state["cur_llm_model"]
-        if cur_llm_model in running_models:
-            index = running_models.index(cur_llm_model)
-        else:
-            index = 0
-
         _ = st.selectbox("选择对话模型：",
                          running_models,
-                         index,
                          key="cur_llm_model")
 
         cm = st.session_state["cur_llm_model"]
@@ -457,7 +438,9 @@ def file_dialogue_page(api: ApiRequest, logged_username: str):
 def kb_dialogue_page(api: ApiRequest, logged_username: str):
     running_model_dict = {k: v for k, v in get_api_running_models(api)}
     running_models = list(running_model_dict.keys())
-    default_model = LLM_MODEL
+    if LLM_MODEL in running_models:
+        running_models.remove(LLM_MODEL)
+        running_models.insert(0, LLM_MODEL)
 
     if not running_models:
         st.info("对话系统异常，暂时无法访问对话功能")
@@ -474,12 +457,11 @@ def kb_dialogue_page(api: ApiRequest, logged_username: str):
     st.session_state["conversation_ids"].setdefault(chat_box.cur_chat_name, uuid.uuid4().hex)
     st.session_state.setdefault("cur_source_docs", [])
     st.session_state.setdefault("cur_token_counts", 0)
-    st.session_state.setdefault("cur_llm_model", default_model)
 
     if not chat_box.chat_inited:
         st.toast(
             f"欢迎使用知识库问答系统! \n\n"
-            f"当前运行的模型`{default_model}`, 您可以开始提问了."
+            f"当前运行的模型`{running_models[0]}`, 您可以开始提问了."
         )
         chat_box.init_session()
 
@@ -516,15 +498,8 @@ def kb_dialogue_page(api: ApiRequest, logged_username: str):
             _ = st.slider(f"搜索门槛 (门槛越高相似度要求越高，默认为{SCORE_THRESHOLD})：", 0.0, 1.0,
                           float(SCORE_THRESHOLD), 0.01, key="score_threshold")
 
-        cur_llm_model = st.session_state["cur_llm_model"]
-        if cur_llm_model in running_models:
-            index = running_models.index(cur_llm_model)
-        else:
-            index = 0
-
         _ = st.selectbox("选择对话模型：",
                          running_models,
-                         index,
                          key="cur_llm_model")
 
         cm = st.session_state["cur_llm_model"]
