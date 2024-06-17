@@ -83,6 +83,8 @@ def dialogue_page(api: ApiRequest, logged_username: str):
     running_model_dict = {k: v for k, v in get_api_running_models(api)}
     running_models = list(running_model_dict.keys())
     default_model = LLM_MODEL
+    prompt_dict = get_prompts("llm_chat")
+    prompt_templates_kb_list = list(prompt_dict.keys())
 
     if not running_models:
         st.info("对话系统异常，暂时无法访问对话功能")
@@ -92,6 +94,7 @@ def dialogue_page(api: ApiRequest, logged_username: str):
     st.session_state.setdefault("conversation_ids", {})
     st.session_state["conversation_ids"].setdefault(chat_box.cur_chat_name, uuid.uuid4().hex)
     st.session_state.setdefault("cur_llm_model", default_model)
+    st.session_state.setdefault("prompt_template_select", prompt_templates_kb_list[0])
 
     if not chat_box.chat_inited:
         st.toast(
@@ -105,12 +108,12 @@ def dialogue_page(api: ApiRequest, logged_username: str):
         conversation_name, conversation_id = chat_init()
         chat_box.use_chat_name(conversation_name)
 
-        def on_llm_change():
-            if llm_model:
-                # config = api.get_model_config(llm_model)
-                # if not config.get("online_api"):  # 只有本地model_worker可以切换模型
-                #     st.session_state["prev_llm_model"] = llm_model
-                st.session_state["cur_llm_model"] = st.session_state.llm_model
+        # def on_llm_change():
+        #     if llm_model:
+        #         # config = api.get_model_config(llm_model)
+        #         # if not config.get("online_api"):  # 只有本地model_worker可以切换模型
+        #         #     st.session_state["prev_llm_model"] = llm_model
+        #         st.session_state["cur_llm_model"] = st.session_state.llm_model
 
         cur_llm_model = st.session_state["cur_llm_model"]
         if cur_llm_model in running_models:
@@ -118,12 +121,10 @@ def dialogue_page(api: ApiRequest, logged_username: str):
         else:
             index = 0
 
-        llm_model = st.selectbox("选择对话模型：",
-                                 running_models,
-                                 index,
-                                 # format_func=llm_model_format_func,
-                                 on_change=on_llm_change,
-                                 key="llm_model")
+        _ = st.selectbox("选择对话模型：",
+                         running_models,
+                         index,
+                         key=cur_llm_model)
 
         cm = st.session_state["cur_llm_model"]
         cur_max_tokens = running_model_dict[cm]
@@ -131,12 +132,6 @@ def dialogue_page(api: ApiRequest, logged_username: str):
 
         temperature = st.slider("生成温度：", 0.0, 1.0, TEMPERATURE, 0.05)
         history_len = st.number_input("历史对话轮数：", 0, 20, HISTORY_LEN)
-
-        prompt_dict = get_prompts("llm_chat")
-        prompt_templates_kb_list = list(prompt_dict.keys())
-
-        if "prompt_template_select" not in st.session_state:
-            st.session_state.prompt_template_select = prompt_templates_kb_list[0]
 
         def prompt_change():
             st.toast(f"已切换为 {prompt_dict[st.session_state.prompt_template_select][0]} 模板。")
@@ -152,10 +147,9 @@ def dialogue_page(api: ApiRequest, logged_username: str):
             format_func=prompt_format_func,
             key="prompt_template_select",
         )
-        prompt_template_name = st.session_state.prompt_template_select
 
         with st.expander("当前提示词", False):
-            st.text(f"{prompt_dict[prompt_template_name][1]}")
+            st.text(f"{prompt_dict[st.session_state.prompt_template_select][1]}")
 
     # Display chat messages from history on app rerun
     chat_box.output_messages()
@@ -184,7 +178,7 @@ def dialogue_page(api: ApiRequest, logged_username: str):
                           history=history,
                           conversation_id=conversation_id,
                           model=st.session_state["cur_llm_model"],
-                          prompt_name=prompt_template_name,
+                          prompt_name=st.session_state.prompt_template_select,
                           temperature=temperature,
                           max_tokens=running_model_dict[st.session_state["cur_llm_model"]])
         for t in r:
@@ -300,37 +294,23 @@ def file_dialogue_page(api: ApiRequest, logged_username: str):
                 kb_top_k = VECTOR_SEARCH_TOP_K
                 score_threshold = float(SCORE_THRESHOLD)
 
-        def on_llm_change():
-            if llm_model:
-                # config = api.get_model_config(llm_model)
-                # if not config.get("online_api"):  # 只有本地model_worker可以切换模型
-                #     st.session_state["prev_llm_model"] = llm_model
-                st.session_state["cur_llm_model"] = st.session_state.llm_model
-
-        # def llm_model_format_func(x):
-        #     if x in running_models:
-        #         return f"{x} (运行中)"
-        #     return x
-
         cur_llm_model = st.session_state["cur_llm_model"]
         if cur_llm_model in running_models:
             index = running_models.index(cur_llm_model)
         else:
             index = 0
 
-        llm_model = st.selectbox("选择对话模型：",
-                                 running_models,
-                                 index,
-                                 # format_func=llm_model_format_func,
-                                 on_change=on_llm_change,
-                                 key="llm_model")
+        _ = st.selectbox("选择对话模型：",
+                         running_models,
+                         index,
+                         key="cur_llm_model")
 
         cm = st.session_state["cur_llm_model"]
         cur_max_tokens = running_model_dict[cm]
         st.caption(f"{cm}模型 | 共支持{cur_max_tokens}单词")
 
-        temperature = st.slider("生成温度：", 0.0, 1.0, TEMPERATURE, 0.05)
-        history_len = st.number_input("历史对话轮数：", 0, 20, HISTORY_LEN)
+        _ = st.slider("生成温度：", 0.0, 1.0, TEMPERATURE, 0.05, key="temperature")
+        _ = st.number_input("历史对话轮数：", 0, 20, HISTORY_LEN, key="history_len")
 
     col1, col2 = st.columns(spec=[1, 1], gap="small")
 
@@ -344,16 +324,18 @@ def file_dialogue_page(api: ApiRequest, logged_username: str):
         file_type = st.session_state["file_chat_type"]
         file_value = st.session_state["file_chat_value"]
         if file_type and file_value and support_iframe(file_type):
-            st.session_state["file_chat_content"] = st.text_area("请输入参考信息",
-                                                                 value=st.session_state["file_chat_content"],
-                                                                 height=200).strip()
+            _ = st.text_area("请输入参考信息",
+                             value=st.session_state["file_chat_content"],
+                             height=200,
+                             key="file_chat_content").strip()
 
             html_template = f'<iframe src="data:{file_type};base64,{file_value}" type"{file_type}" width={str(ui_width)} height={str(ui_width * 4 / 3)}></iframe>'
             st.markdown(html_template, unsafe_allow_html=True)
         else:
-            st.session_state["file_chat_content"] = st.text_area("请输入参考信息",
-                                                                 value=st.session_state["file_chat_content"],
-                                                                 height=int(ui_width)).strip()
+            _ = st.text_area("请输入参考信息",
+                             value=st.session_state["file_chat_content"],
+                             height=int(ui_width),
+                             key="file_chat_content").strip()
 
     prompt = st.chat_input("请输入对话内容，换行请使用Shift+Enter。", key="prompt",
                            max_chars=2000)
@@ -374,7 +356,7 @@ def file_dialogue_page(api: ApiRequest, logged_username: str):
                                   reason=reason)
                 st.session_state["need_rerun"] = True
 
-            history = get_messages_history(history_len)
+            history = get_messages_history(st.session_state.history_len)
 
             file_chat_id = st.session_state["file_chat_id"]
             knowledge_content = st.session_state["file_chat_content"]
@@ -406,7 +388,7 @@ def file_dialogue_page(api: ApiRequest, logged_username: str):
                                    conversation_id=conversation_id,
                                    model=st.session_state["cur_llm_model"],
                                    # prompt_name=prompt_template_name,
-                                   temperature=temperature,
+                                   temperature=st.session_state.temperature,
                                    max_tokens=running_model_dict[st.session_state["cur_llm_model"]]):
                 if error_msg := check_error_msg(d):  # check whether error occured
                     st.error(error_msg)
@@ -512,36 +494,26 @@ def kb_dialogue_page(api: ApiRequest, logged_username: str):
             def on_kb_change():
                 st.toast(f"已加载知识库： {kb_dict[st.session_state.selected_kb]}")
 
-            selected_kb = st.selectbox(
+            _ = st.selectbox(
                 "选择知识库：",
                 kb_name_list,
                 on_change=on_kb_change,
                 format_func=format_func,
                 key="selected_kb",
             )
-            kb_top_k = st.number_input("搜索知识条数：", 1, VECTOR_SEARCH_TOP_K * 3, VECTOR_SEARCH_TOP_K)
-
-            ## Bge 模型会超过1
-            score_threshold = st.slider(f"搜索门槛 (门槛越高相似度要求越高，默认为{SCORE_THRESHOLD})：", 0.0, 1.0,
-                                        float(SCORE_THRESHOLD), 0.01)
 
             has_source = 0 if st.session_state["cur_source_docs"] else 1
-            kb_search_type = st.radio('问答搜索方式', ['继续问答', '重新搜索'],
-                                      index=has_source,
-                                      captions=["AI根据新的输入重新搜索知识库进行问答",
-                                                "AI根据上方搜索结果进行问答"])
+            _ = st.radio('问答搜索方式', ['继续问答', '重新搜索'],
+                         index=has_source,
+                         captions=["AI根据新的输入重新搜索知识库进行问答",
+                                   "AI根据上方搜索结果进行问答"],
+                         key="kb_search_type")
 
-        def on_llm_change():
-            if llm_model:
-                # config = api.get_model_config(llm_model)
-                # if not config.get("online_api"):  # 只有本地model_worker可以切换模型
-                #     st.session_state["prev_llm_model"] = llm_model
-                st.session_state["cur_llm_model"] = st.session_state.llm_model
+            _ = st.number_input("搜索知识条数：", 1, VECTOR_SEARCH_TOP_K * 3, VECTOR_SEARCH_TOP_K, key="kb_top_k")
 
-        # def llm_model_format_func(x):
-        #     if x in running_models:
-        #         return f"{x} (运行中)"
-        #     return x
+            ## Bge 模型会超过1
+            _ = st.slider(f"搜索门槛 (门槛越高相似度要求越高，默认为{SCORE_THRESHOLD})：", 0.0, 1.0,
+                          float(SCORE_THRESHOLD), 0.01, key="score_threshold")
 
         cur_llm_model = st.session_state["cur_llm_model"]
         if cur_llm_model in running_models:
@@ -549,19 +521,17 @@ def kb_dialogue_page(api: ApiRequest, logged_username: str):
         else:
             index = 0
 
-        llm_model = st.selectbox("选择对话模型：",
-                                 running_models,
-                                 index,
-                                 # format_func=llm_model_format_func,
-                                 on_change=on_llm_change,
-                                 key="llm_model")
+        _ = st.selectbox("选择对话模型：",
+                         running_models,
+                         index,
+                         key="cur_llm_model")
 
         cm = st.session_state["cur_llm_model"]
         cur_max_tokens = running_model_dict[cm]
         st.caption(f"{cm}模型 | 共支持{cur_max_tokens}单词")
 
-        temperature = st.slider("生成温度：", 0.0, 1.0, TEMPERATURE, 0.05)
-        history_len = st.number_input("历史对话轮数：", 0, 20, HISTORY_LEN)
+        _ = st.slider("生成温度：", 0.0, 1.0, TEMPERATURE, 0.05, key="temperature")
+        _ = st.number_input("历史对话轮数：", 0, 20, HISTORY_LEN, key="history_len")
 
     # Display chat messages from history on app rerun
     chat_box.output_messages()
@@ -579,11 +549,11 @@ def kb_dialogue_page(api: ApiRequest, logged_username: str):
         st.session_state["need_rerun"] = True
 
     if prompt := st.chat_input("请输入对话内容，换行请使用Shift+Enter。", key="prompt", max_chars=2000):
-        history = get_messages_history(history_len)
+        history = get_messages_history(st.session_state.history_len)
 
         chat_box.user_say(prompt)
         chat_box.ai_say([
-            f"正在查询知识库 `{kb_dict[selected_kb]}` ...",
+            f"正在查询知识库 `{kb_dict[st.session_state.selected_kb]}` ...",
             Markdown("...", in_expander=True, title="知识库搜索结果", state="complete"),
         ])
 
@@ -591,17 +561,16 @@ def kb_dialogue_page(api: ApiRequest, logged_username: str):
         message_id = ""
         d = None
         for d in api.knowledge_base_chat(prompt,
-                                         knowledge_base_name=selected_kb,
-                                         search_type=kb_search_type,
-                                         top_k=kb_top_k,
-                                         score_threshold=score_threshold,
+                                         knowledge_base_name=st.session_state.selected_kb,
+                                         search_type=st.session_state.kb_search_type,
+                                         top_k=st.session_state.kb_top_k,
+                                         score_threshold=st.session_state.score_threshold,
                                          history=history,
                                          conversation_id=conversation_id,
                                          source=st.session_state[
-                                             "cur_source_docs"] if kb_search_type == '继续问答' else [],
+                                             "cur_source_docs"] if st.session_state.kb_search_type == '继续问答' else [],
                                          model=st.session_state["cur_llm_model"],
-                                         # prompt_name=prompt_template_name,
-                                         temperature=temperature,
+                                         temperature=st.session_state.temperature,
                                          max_tokens=running_model_dict[st.session_state["cur_llm_model"]]):
             if error_msg := check_error_msg(d):  # check whether error occured
                 st.error(error_msg)

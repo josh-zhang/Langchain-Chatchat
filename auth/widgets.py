@@ -9,6 +9,7 @@ from .utils import check_usr_pass
 from .utils import check_valid_name
 from .utils import check_unique_usr
 from .utils import register_new_usr
+from configs import LLM_MODEL
 
 
 class __login__:
@@ -134,16 +135,35 @@ class __login__:
                         register_new_usr(name_sign_up, username_sign_up, password_sign_up)
                         st.success("注册成功")
 
-    def logout_widget(self, cur_un:str) -> None:
+    def reset_cache(self):
+        st.session_state["cur_token_counts"] = 0
+        st.session_state["need_rerun"] = False
+        st.session_state["cur_llm_model"] = LLM_MODEL
+        st.session_state["conversation_ids"] = {}
+
+        if "cur_source_docs" in st.session_state:
+            st.session_state["cur_source_docs"] = []
+        if "file_chat_id" in st.session_state:
+            st.session_state["file_chat_id"] = None
+        if "file_chat_value" in st.session_state:
+            st.session_state["file_chat_value"] = None
+        if "file_chat_content" in st.session_state:
+            st.session_state["file_chat_content"] = ""
+        if "file_chat_type" in st.session_state:
+            st.session_state["file_chat_type"] = None
+
+    def logout_widget(self, cur_un: str) -> None:
         """
         Creates the logout widget in the sidebar only if the user is logged in.
         """
         if st.session_state['LOGGED_IN'] == True:
             del_logout = st.sidebar.empty()
             del_logout.markdown("#")
-            logout_click_check = del_logout.button(f"用户 - {cur_un} | {self.logout_button_name}", use_container_width=True)
+            logout_click_check = del_logout.button(f"用户 - {cur_un} | {self.logout_button_name}",
+                                                   use_container_width=True)
 
             if logout_click_check == True:
+                # clean cache
                 st.session_state['LOGOUT_BUTTON_HIT'] = True
                 st.session_state['LOGGED_IN'] = False
                 st.session_state['LOGGED_USERNAME'] = ""

@@ -12,8 +12,6 @@ from server.knowledge_base.kb_service.base import get_kb_details_for_mg, get_kb_
 from configs import kbs_config
 from webui_pages.utils import *
 
-# SENTENCE_SIZE = 100
-
 cell_renderer = JsCode("""function(params) {if(params.value==true){return '✓'}else{return '×'}}""")
 
 
@@ -30,7 +28,7 @@ def validate_and_clean_input(user_input):
 
 
 def is_vaild_kb_file(kb_filename):
-    return True
+    return kb_filename.endswith("html")
 
 
 def config_aggrid(
@@ -75,14 +73,14 @@ def get_embed_models(_api):
 
 
 def knowledge_base_page(api: ApiRequest, logged_username: str):
-    selected_kb_index = 0
     kb_details = get_kb_details_for_mg(logged_username)
     kb_name_dict = {x["kb_name"]: x for x in kb_details}
     exist_kb_names = list(kb_name_dict.keys())
     exist_kb_infos = [x["kb_info"] for x in kb_details]
 
     try:
-        if "selected_kb_name" in st.session_state and st.session_state["selected_kb_name"] in exist_kb_names:
+        selected_kb_index = 0
+        if st.session_state["selected_kb_name"] in exist_kb_names:
             selected_kb_index = exist_kb_names.index(st.session_state["selected_kb_name"])
     except Exception as e:
         st.error(
@@ -95,14 +93,15 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
         else:
             return kb_name
 
-    selected_kb = st.selectbox(
+    _ = st.selectbox(
         "请选择知识库（或新建）",
         exist_kb_names + ["- 创建新的知识库 -"],
         format_func=format_selected_kb,
-        index=selected_kb_index
+        index=selected_kb_index,
+        key="selected_kb_name"
     )
 
-    if selected_kb == "- 创建新的知识库 -":
+    if st.session_state.selected_kb_name == "- 创建新的知识库 -":
         embed_models = get_embed_models(api)
 
         if not embed_models:
@@ -115,24 +114,24 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
             now_str = now.strftime('%Y%m%d_%H%M%S')
             suggested_id = f"{now_str}"
 
-            new_kb_name = st.text_input(
+            _ = st.text_input(
                 "请输入知识库编号（仅支持英文字母、数字和下划线）",
                 placeholder="新知识库编号 (仅支持英文字母、数字和下划线)",
-                key="kb_name",
+                key="new_kb_name",
                 value=suggested_id,
                 max_chars=50,
             )
-            new_kb_info = st.text_input(
+            _ = st.text_input(
                 "请输入知识库名称（不能为空）",
                 placeholder="知识库名称",
-                key="kb_info",
+                key="new_kb_info",
                 value="",
                 max_chars=100,
             )
-            new_kb_agent_guide = st.text_area(
+            _ = st.text_area(
                 "请输入知识库介绍",
                 placeholder="知识库介绍",
-                key="kb_agent_guide",
+                key="new_kb_agent_guide",
                 value="",
                 max_chars=200,
             )
@@ -140,35 +139,39 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
             cols = st.columns(2)
 
             vs_types = list(kbs_config.keys())
-            vs_type = cols[0].selectbox(
+            _ = cols[0].selectbox(
                 "向量库类型",
                 vs_types,
                 index=vs_types.index(DEFAULT_VS_TYPE),
                 key="vs_type",
             )
-            embed_model = cols[1].selectbox(
+            _ = cols[1].selectbox(
                 "向量库模型",
                 embed_models,
                 index=0,
                 key="embed_model",
             )
 
-            is_public = st.checkbox("知识库是否公开", True)
+            _ = st.checkbox("知识库是否公开", True, key="is_public")
 
-            if is_public:
+            if st.session_state.is_public:
                 kb_viewer = ""
             else:
                 kb_viewer = logged_username
 
-            search_enhance = st.checkbox("开启向量库加强检索", True)
+            _ = st.checkbox("开启向量库加强检索", True, key="search_enhance")
 
-            submit_create_kb = st.form_submit_button(
+            _ = st.form_submit_button(
                 "新建",
                 # disabled=not is_valid,
                 use_container_width=True,
+                key="submit_create_kb"
             )
 
-        if submit_create_kb:
+        if st.session_state.submit_create_kb:
+            new_kb_name = st.session_state.new_kb_name
+            new_kb_info = st.session_state.new_kb_info
+
             _, is_valid = validate_and_clean_input(new_kb_name)
 
             if not new_kb_name or not new_kb_name.strip():
@@ -188,18 +191,17 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
                         kb_viewer=kb_viewer,
                         knowledge_base_name=new_kb_name,
                         knowledge_base_info=new_kb_info,
-                        knowledge_base_agent_guide=new_kb_agent_guide,
-                        vector_store_type=vs_type,
-                        embed_model=embed_model,
-                        search_enhance=search_enhance,
+                        knowledge_base_agent_guide=st.session_state.new_kb_agent_guide,
+                        vector_store_type=st.session_state.vs_type,
+                        embed_model=st.session_state.embed_model,
+                        search_enhance=st.session_state.search_enhance,
                     )
                     st.toast(ret.get("msg", " "))
-                    st.session_state["selected_kb_name"] = new_kb_name
-                    # st.session_state["selected_kb_info"] = kb_info
+                    st.session_state["selected_kb_name"] = st.session_state.new_kb_name
                     st.rerun()
 
-    elif selected_kb:
-        this_kb_name = selected_kb
+    elif st.session_state.selected_kb_name:
+        this_kb_name = st.session_state.selected_kb_name
         this_kb_info = kb_name_dict[this_kb_name]['kb_info']
         this_kb_owner = kb_name_dict[this_kb_name]['kb_owner']
         this_kb_kb_viewer = kb_name_dict[this_kb_name]['kb_viewer']
@@ -371,7 +373,8 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
             # 将文件从向量库中删除，但不删除文件本身。
             if cols[1].button(
                     "检索时忽略选中文件",
-                    disabled=not is_editable or selected_rows is None or selected_rows.empty or not selected_rows.iloc[0]["in_db"],
+                    disabled=not is_editable or selected_rows is None or selected_rows.empty or not
+                    selected_rows.iloc[0]["in_db"],
                     use_container_width=True,
             ):
                 api.delete_kb_docs(logged_username, this_kb_name, file_names=selected_file_names,
