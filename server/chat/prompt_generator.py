@@ -109,7 +109,7 @@ def generate_doc_qa(query: str, history: List[History], docs: List[str], fallbac
 
     max_tokens_remain = max_tokens - current_token_length - 100
 
-    logger.info(f"docQA max_tokens_remain {max_tokens_remain} prompt_template: {prompt_template}")
+    logger.info(f"docQA max_tokens_remain {max_tokens_remain}")
 
     max_tokens_remain = max(50, max_tokens_remain)
 
