@@ -74,7 +74,8 @@ def get_prompt(fallback: str, history: List[History], has_context: bool) -> str:
     return prompt_template
 
 
-def generate_doc_qa(query: str, history: List[History], docs: List[str], fallback: str, max_tokens, model_name, context: str = ""):
+def generate_doc_qa(query: str, history: List[History], docs: List[str], fallback: str, max_tokens, model_name,
+                    context: str = ""):
     has_context = len(context) > 0 or len(docs) > 0
 
     prompt_template = get_prompt(fallback, history, has_context)

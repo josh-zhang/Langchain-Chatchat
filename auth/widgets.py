@@ -145,8 +145,6 @@ class __login__:
             st.session_state["file_chat_id"] = None
         if "file_chat_value" in st.session_state:
             st.session_state["file_chat_value"] = None
-        if "file_chat_content" in st.session_state:
-            st.session_state["file_chat_content"] = ""
         if "file_chat_type" in st.session_state:
             st.session_state["file_chat_type"] = None
 

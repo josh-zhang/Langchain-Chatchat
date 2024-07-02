@@ -153,7 +153,7 @@ def dialogue_page(api: ApiRequest, logged_username: str):
                           reason=reason)
         st.session_state["need_rerun"] = True
 
-    if prompt := st.chat_input("请输入对话内容，换行请使用Shift+Enter。", key="prompt", max_chars=4000):
+    if prompt := st.chat_input("请输入对话内容，换行请使用Shift+Enter。", key="prompt", max_chars=10000):
         history = get_messages_history(history_len)
 
         chat_box.user_say(prompt)
@@ -272,15 +272,11 @@ def file_dialogue_page(api: ApiRequest, logged_username: str):
             if st.button("开始上传", disabled=not single_file):
                 st.session_state["file_chat_id"] = upload_temp_docs([single_file], document_loader_name, api)
 
-            if st.session_state["file_chat_id"]:
-                kb_top_k = st.number_input("搜索知识条数：", 1, 20, VECTOR_SEARCH_TOP_K)
+            kb_top_k = st.number_input("搜索知识条数：", 1, 20, VECTOR_SEARCH_TOP_K)
 
-                ## Bge 模型会超过1
-                score_threshold = st.slider(f"搜索门槛 (门槛越高相似度要求越高，默认为{SCORE_THRESHOLD})：", 0.0, 1.0,
-                                            float(SCORE_THRESHOLD), 0.01)
-            else:
-                kb_top_k = VECTOR_SEARCH_TOP_K
-                score_threshold = float(SCORE_THRESHOLD)
+            ## Bge 模型会超过1
+            score_threshold = st.slider(f"搜索门槛 (门槛越高相似度要求越高，默认为{SCORE_THRESHOLD})：", 0.0, 1.0,
+                                        float(SCORE_THRESHOLD), 0.01)
 
         _ = st.selectbox("选择对话模型：",
                          running_models,
@@ -319,7 +315,7 @@ def file_dialogue_page(api: ApiRequest, logged_username: str):
                              key="file_chat_content").strip()
 
     prompt = st.chat_input("请输入对话内容，换行请使用Shift+Enter。", key="prompt",
-                           max_chars=2000)
+                           max_chars=4000)
 
     with col2:
         if prompt:
@@ -419,7 +415,6 @@ def file_dialogue_page(api: ApiRequest, logged_username: str):
         ):
             st.session_state["file_chat_id"] = None
             st.session_state["file_chat_value"] = None
-            st.session_state["file_chat_content"] = ""
             st.session_state["file_chat_type"] = None
             st.session_state["cur_token_counts"] = 0
 
@@ -524,7 +519,7 @@ def kb_dialogue_page(api: ApiRequest, logged_username: str):
                           reason=reason)
         st.session_state["need_rerun"] = True
 
-    if prompt := st.chat_input("请输入对话内容，换行请使用Shift+Enter。", key="prompt", max_chars=2000):
+    if prompt := st.chat_input("请输入对话内容，换行请使用Shift+Enter。", key="prompt", max_chars=4000):
         history = get_messages_history(st.session_state.history_len)
 
         chat_box.user_say(prompt)
