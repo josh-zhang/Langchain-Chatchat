@@ -31,7 +31,8 @@ from text_splitter import zh_title_enhance as func_zh_title_enhance
 from server.utils import run_in_thread_pool
 from server.knowledge_base.faq_utils import load_gen_file
 
-tokenizers = {k: AutoTokenizer.from_pretrained(v, trust_remote_code=True) for k, v in tokenizer_path_for_count_token}
+tokenizers = {k: AutoTokenizer.from_pretrained(v, trust_remote_code=True) for k, v in
+              tokenizer_path_for_count_token.items()}
 
 tokenizer_rerank = AutoTokenizer.from_pretrained(tokenizer_path_for_count_token_rerank, trust_remote_code=True)
 
