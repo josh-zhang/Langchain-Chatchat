@@ -22,6 +22,7 @@ from configs import (VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, BM_25_FACTOR, LITELLM
 def search_docs(
         query: str = Body("", description="用户输入", examples=["你好"]),
         knowledge_base_name: str = Body(..., description="知识库名称", examples=["samples"]),
+        model_name: str = Body(..., description="大模型名称"),
         top_k: int = Body(VECTOR_SEARCH_TOP_K, description="匹配向量数"),
         max_tokens: int = Body(3000, description="最大参考字数"),
         score_threshold: float = Body(SCORE_THRESHOLD,
@@ -79,7 +80,7 @@ def search_docs(
             rerank_results.append(doc)
         docs = rerank_results
 
-    docs, count_tokens = kb.limit_tokens(docs, max_tokens_for_context)
+    docs, count_tokens = kb.limit_tokens(docs, max_tokens_for_context, model_name)
 
     logger.info(f"llm tokens {count_tokens}, {len(docs)} docs after token filter")
 

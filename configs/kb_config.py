@@ -126,7 +126,11 @@ TEXT_SPLITTER_NAME = "ChineseRecursiveTextSplitter"
 # Embedding模型定制词语的词表文件
 EMBEDDING_KEYWORD_FILE = "embedding_keywords.txt"
 
-tokenizer_path_for_count_token = "/opt/projects/hf_models/qwen1.5-14b-chat-gptq-int4"
+tokenizer_path_for_count_token = {
+    "千问一代": "/opt/projects/hf_models/qwen1.5-14b-chat-gptq-int4",
+    "千问二代": "/opt/projects/hf_models/qwen2-72b-instruct-gptq-int4",
+    "清言四代": "/opt/projects/hf_models/glm-4-9b-chat",
+}
 
 tokenizer_path_for_count_token_rerank = "/opt/projects/hf_models/bge-reranker-v2-m3"
 

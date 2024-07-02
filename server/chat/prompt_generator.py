@@ -74,7 +74,7 @@ def get_prompt(fallback: str, history: List[History], has_context: bool) -> str:
     return prompt_template
 
 
-def generate_doc_qa(query: str, history: List[History], docs: List[str], fallback: str, max_tokens, context: str = ""):
+def generate_doc_qa(query: str, history: List[History], docs: List[str], fallback: str, max_tokens, model_name, context: str = ""):
     has_context = len(context) > 0 or len(docs) > 0
 
     prompt_template = get_prompt(fallback, history, has_context)
@@ -83,7 +83,7 @@ def generate_doc_qa(query: str, history: List[History], docs: List[str], fallbac
 
     # logger.info(f"current_prompt: {current_prompt}")
 
-    current_token_length = huggingface_tokenizer_length(current_prompt)
+    current_token_length = huggingface_tokenizer_length(model_name, current_prompt)
 
     max_tokens_for_context = max_tokens - current_token_length - 500
 
@@ -105,7 +105,7 @@ def generate_doc_qa(query: str, history: List[History], docs: List[str], fallbac
 
     # logger.info(f"current_prompt: {current_prompt}")
 
-    current_token_length = huggingface_tokenizer_length(current_prompt)
+    current_token_length = huggingface_tokenizer_length(model_name, current_prompt)
 
     max_tokens_remain = max_tokens - current_token_length - 100
 

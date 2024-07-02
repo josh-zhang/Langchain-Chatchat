@@ -416,12 +416,12 @@ class KBService(ABC):
         return [DocumentWithScores(**{"page_content": d.page_content, "metadata": d.metadata}, scores=s) for d, s in
                 merged_docs_data]
 
-    def limit_tokens(self, docs, max_tokens):
+    def limit_tokens(self, docs, max_tokens, model_name):
         count_tokens = 0
         new_docs = list()
         for doc in docs:
             content = doc.page_content
-            token_count = huggingface_tokenizer_length(content)
+            token_count = huggingface_tokenizer_length(model_name, content)
             doc.metadata["token_count"] = token_count
 
             count_tokens += token_count

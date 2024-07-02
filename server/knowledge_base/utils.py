@@ -31,29 +31,41 @@ from text_splitter import zh_title_enhance as func_zh_title_enhance
 from server.utils import run_in_thread_pool
 from server.knowledge_base.faq_utils import load_gen_file
 
-tokenizer = AutoTokenizer.from_pretrained(tokenizer_path_for_count_token, trust_remote_code=True)
+tokenizers = {k: AutoTokenizer.from_pretrained(v, trust_remote_code=True) for k, v in tokenizer_path_for_count_token}
 
 tokenizer_rerank = AutoTokenizer.from_pretrained(tokenizer_path_for_count_token_rerank, trust_remote_code=True)
 
 
-def huggingface_tokenizer_length(text: str) -> int:
-    return len(tokenizer.encode(text))
+def huggingface_tokenizer_length(key: str, text: str) -> int:
+    alter_key = "千问二代"
+    if "千问" in key and "一代" in key:
+        alter_key = "千问一代"
+    elif "清言" in key:
+        alter_key = "清言四代"
+
+    return len(tokenizers[alter_key].encode(text))
 
 
 def huggingface_tokenizer_length_rerank(text: str) -> int:
     return len(tokenizer_rerank.encode(text))
 
 
-def truncate_string_by_token_limit(text, token_limit):
+def truncate_string_by_token_limit(key: str, text: str, token_limit: int):
+    alter_key = "千问二代"
+    if "千问" in key and "一代" in key:
+        alter_key = "千问一代"
+    elif "清言" in key:
+        alter_key = "清言四代"
+
     # Tokenize the string
-    tokens = tokenizer.encode(text)
+    tokens = tokenizers[alter_key].encode(text)
 
     # Check if token count exceeds the limit
     if len(tokens) > token_limit:
         # Truncate the tokens to fit within the limit
         truncated_tokens = tokens[:token_limit]
         # Decode the truncated tokens back into a string
-        truncated_text = tokenizer.decode(truncated_tokens, skip_special_tokens=True)
+        truncated_text = tokenizers[alter_key].decode(truncated_tokens, skip_special_tokens=True)
         return truncated_text, True
     elif len(tokens) == token_limit:
         return text, True

@@ -117,7 +117,7 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
 
         prompt_template, context, max_tokens_remain, input_token_counts = generate_doc_qa(query, history, text_docs,
                                                                                           "根据已知信息无法回答该问题",
-                                                                                          max_tokens)
+                                                                                          max_tokens, model_name)
 
         if "总行" in model_name:
             callback = None
@@ -176,7 +176,7 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
                 yield json.dumps({"answer": token, "message_id": message_id}, ensure_ascii=False)
 
             if outputs:
-                token_counts = huggingface_tokenizer_length(outputs) + input_token_counts
+                token_counts = huggingface_tokenizer_length(model_name, outputs) + input_token_counts
             else:
                 token_counts = input_token_counts
 
@@ -191,7 +191,7 @@ async def knowledge_base_chat(query: str = Body(..., description="用户输入",
             outputs = answer["text"]
 
             if outputs:
-                token_counts = huggingface_tokenizer_length(outputs) + input_token_counts
+                token_counts = huggingface_tokenizer_length(model_name, outputs) + input_token_counts
             else:
                 token_counts = input_token_counts
 

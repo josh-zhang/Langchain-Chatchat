@@ -150,7 +150,8 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
         if knowledge_content:
             prompt_template, _, max_tokens_remain, input_token_counts = generate_doc_qa(query, history, [],
                                                                                         "根据已知信息无法回答该问题",
-                                                                                        max_tokens, knowledge_content)
+                                                                                        max_tokens, model_name,
+                                                                                        knowledge_content)
 
             input_msg = History(role="user", content=prompt_template).to_msg_template(False)
 
@@ -181,7 +182,7 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
             prompt_template, context, max_tokens_remain, input_token_counts = generate_doc_qa(query, history,
                                                                                               text_docs,
                                                                                               "根据已知信息无法回答该问题",
-                                                                                              max_tokens)
+                                                                                              max_tokens, model_name)
 
             input_msg = History(role="user", content=prompt_template).to_msg_template(False)
 
@@ -221,7 +222,7 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
                 yield json.dumps({"answer": outputs, "message_id": message_id}, ensure_ascii=False)
 
             if outputs:
-                token_counts = huggingface_tokenizer_length(outputs) + input_token_counts
+                token_counts = huggingface_tokenizer_length(model_name, outputs) + input_token_counts
             else:
                 token_counts = input_token_counts
 
@@ -234,7 +235,7 @@ async def file_chat(query: str = Body(..., description="用户输入", examples=
             outputs = answer["text"]
 
             if outputs:
-                token_counts = huggingface_tokenizer_length(outputs) + input_token_counts
+                token_counts = huggingface_tokenizer_length(model_name, outputs) + input_token_counts
             else:
                 token_counts = input_token_counts
 
