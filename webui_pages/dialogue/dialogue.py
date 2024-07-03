@@ -182,10 +182,10 @@ def dialogue_page(api: ApiRequest, logged_username: str):
         chat_box.update_msg(text, streaming=False, metadata=metadata)  # 更新最终的字符串，去除光标
 
         if message_id:
-            chat_box.show_feedback(**feedback_kwargs,
-                                   key=message_id,
-                                   on_submit=on_feedback,
-                                   kwargs={"message_id": message_id, "history_index": len(chat_box.history) - 1})
+            history_index = len(chat_box.history) - 1
+            if len(chat_box._chat_containers) >= history_index + 1:
+                chat_box.show_feedback(**feedback_kwargs, key=message_id, on_submit=on_feedback,
+                                       kwargs={"message_id": message_id, "history_index": history_index})
 
     if st.session_state.get("need_rerun"):
         st.session_state["need_rerun"] = False
@@ -391,10 +391,10 @@ def file_dialogue_page(api: ApiRequest, logged_username: str):
             chat_box.update_msg("\n\n".join(source_documents), element_index=1, streaming=False)
 
             if message_id:
-                chat_box.show_feedback(**feedback_kwargs,
-                                       key=message_id,
-                                       on_submit=on_feedback,
-                                       kwargs={"message_id": message_id, "history_index": len(chat_box.history) - 1})
+                history_index = len(chat_box.history) - 1
+                if len(chat_box._chat_containers) >= history_index + 1:
+                    chat_box.show_feedback(**feedback_kwargs, key=message_id, on_submit=on_feedback,
+                                           kwargs={"message_id": message_id, "history_index": history_index})
 
     cm = st.session_state["cur_llm_model"]
     cur_max_tokens = running_model_dict[cm]
@@ -584,8 +584,10 @@ def kb_dialogue_page(api: ApiRequest, logged_username: str):
                                 element_index=1, streaming=False)
 
         if message_id:
-            chat_box.show_feedback(**feedback_kwargs, key=message_id, on_submit=on_feedback,
-                                   kwargs={"message_id": message_id, "history_index": len(chat_box.history) - 1})
+            history_index = len(chat_box.history) - 1
+            if len(chat_box._chat_containers) >= history_index + 1:
+                chat_box.show_feedback(**feedback_kwargs, key=message_id, on_submit=on_feedback,
+                                       kwargs={"message_id": message_id, "history_index": history_index})
 
     cm = st.session_state["cur_llm_model"]
     cur_max_tokens = running_model_dict[cm]
