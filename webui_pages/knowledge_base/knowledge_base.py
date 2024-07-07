@@ -274,6 +274,7 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
         file_loader_dict = dict()
         count_kb_files = len(kb_file_details)
         has_kf_html = False
+        has_faq_excel = False
 
         for kb_file_detail in kb_file_details:
             file_name = kb_file_detail['file_name']
@@ -281,6 +282,7 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
             file_loader_dict[file_name] = loader
             if loader == "CustomExcelLoader":
                 kb_file_detail['file_type'] = "FAQ表格文件"
+                has_faq_excel = True
             elif loader == "CustomHTMLLoader":
                 kb_file_detail['file_type'] = "知识库网页文件"
                 if is_vaild_kb_file(file_name):
@@ -395,7 +397,7 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
             )
 
             if cols[1].button(
-                    "为知识库中'知识库网页文件'生成问答",
+                    "为知识库中知识库网页文件生成问答",
                     use_container_width=True,
                     disabled=not is_editable or not has_kf_html,
                     type="primary",
@@ -407,9 +409,9 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
                 st.rerun()
 
             if cols[2].button(
-                    "为知识库中'知识库网页文件'生成问答",
+                    "为知识库中问答文件生成相似问",
                     use_container_width=True,
-                    disabled=not is_editable or not has_kf_html,
+                    disabled=not is_editable or not has_faq_excel,
                     type="primary",
             ):
                 # st.toast(f"为知识库{this_kb_name}生成问答")

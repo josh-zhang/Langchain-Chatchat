@@ -301,13 +301,13 @@ def process_sys_reg(raw_text):
     return final_list
 
 
-def check_faq_is_generated(faq_file):
-    this_df = pandas.read_excel(faq_file, dtype=str)
-    col_names = this_df.columns.values.tolist()
-    if "生成序号" in col_names and "生成问题" in col_names:
-        return True, this_df
-    else:
-        return False, this_df
+# def check_faq_is_generated(faq_file):
+#     this_df = pandas.read_excel(faq_file, dtype=str)
+#     col_names = this_df.columns.values.tolist()
+#     if "生成序号" in col_names and "生成问题" in col_names:
+#         return True, this_df
+#     else:
+#         return False, this_df
 
 
 def check_faq_is_unitx(faq_filepath):
@@ -319,15 +319,13 @@ def check_faq_is_unitx(faq_filepath):
         return False
 
 
-def load_df_generated(this_df):
+def load_df_generated(this_df, q_key, a_key):
     query_list = list()
-    # this_df = pandas.read_excel(faq_file, dtype=str)
-    this_df.set_index('生成序号')
     this_df.fillna("", inplace=True)
     logger.info(f"this_df {this_df.shape}")
     for idx, row in this_df.iterrows():
-        raw_q = row["生成问题"]
-        raw_a = row["生成答案"]
+        raw_q = row[q_key]
+        raw_a = row[a_key]
         if is_valid_std_query(raw_q, raw_a):
             l_query = StandardQuery(idx, raw_q, raw_a)
             query_list.append(l_query)
@@ -469,10 +467,12 @@ def load_faq(faq_filepath):
     if is_unitx:
         raw_query_obj_list = load_df_raw_unitx(faq_filepath)
     else:
-        is_generated, this_df = check_faq_is_generated(faq_filepath)
-
-        if is_generated:
-            raw_query_obj_list = load_df_generated(this_df)
+        this_df = pandas.read_excel(faq_filepath, dtype=str)
+        col_names = this_df.columns.values.tolist()
+        if "生成问题" in col_names and "生成答案" in col_names:
+            raw_query_obj_list = load_df_generated(this_df, "生成问题", "生成答案")
+        elif "标问" in col_names and "标答" in col_names:
+            raw_query_obj_list = load_df_generated(this_df, "标问", "标答")
         else:
             raw_query_obj_list = load_df_raw(this_df, faq_filepath)
 
