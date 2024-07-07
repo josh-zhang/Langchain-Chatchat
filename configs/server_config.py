@@ -48,3 +48,5 @@ XINFERENCE_API = {
 }
 
 QA_JOB_SCRIPT_PATH = "/opt/projects/qabot-be/deploy/main.py"
+
+GEN_SIMQ_JOB_SCRIPT_PATH = "/opt/projects/llm_agent_tools/gen_question.py"

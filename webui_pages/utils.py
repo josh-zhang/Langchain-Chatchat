@@ -716,6 +716,26 @@ class ApiRequest:
         )
         return self._get_response_value(response, as_json=True)
 
+    def gen_simq_for_knowledge_base(
+            self,
+            job_owner: str,
+            knowledge_base_name: str,
+            model_name: str,
+    ):
+        '''
+        对应api.py/knowledge_base/gen_qa_for_knowledge_base接口
+        '''
+        data = {
+            "job_owner": job_owner,
+            "knowledge_base_name": knowledge_base_name,
+            "model_name": model_name,
+        }
+        response = self.post(
+            "/knowledge_base/gen_simq_for_knowledge_base",
+            json=data,
+        )
+        return self._get_response_value(response, as_json=True)
+
     def download_knowledge_base_files(
             self,
             knowledge_base_name: str,

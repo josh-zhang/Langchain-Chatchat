@@ -383,35 +383,70 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
         # 知识库管理
         st.divider()
 
-        cols = st.columns(3)
+        if logged_username == "kefu":
+            cols = st.columns(4)
 
-        cols[0].link_button(
-            "下载知识库中所有文件",
-            f"{get_api_address_from_client()}/knowledge_base/download_knowledge_base_files?knowledge_base_name={this_kb_name}",
-            disabled=count_kb_files == 0,
-            type="primary",
-            use_container_width=True,
-        )
-
-        if cols[1].button(
-                "为知识库中'知识库网页文件'生成问答",
-                use_container_width=True,
-                disabled=not is_editable or not has_kf_html,
+            cols[0].link_button(
+                "下载知识库中所有文件",
+                f"{get_api_address_from_client()}/knowledge_base/download_knowledge_base_files?knowledge_base_name={this_kb_name}",
+                disabled=count_kb_files == 0,
                 type="primary",
-        ):
-            # st.toast(f"为知识库{this_kb_name}生成问答")
-            ret = api.gen_qa_for_knowledge_base(logged_username, this_kb_name, LLM_MODEL)
-            st.toast(ret.get("msg", " "))
-            time.sleep(1)
-            st.rerun()
-
-        if cols[2].button(
-                "删除知识库",
-                type="primary",
-                disabled=not is_editable,
                 use_container_width=True,
-        ):
-            ret = api.delete_knowledge_base(logged_username, this_kb_name)
-            st.toast(ret.get("msg", " "))
-            time.sleep(1)
-            st.rerun()
+            )
+
+            if cols[1].button(
+                    "为知识库中'知识库网页文件'生成问答",
+                    use_container_width=True,
+                    disabled=not is_editable or not has_kf_html,
+                    type="primary",
+            ):
+                # st.toast(f"为知识库{this_kb_name}生成问答")
+                ret = api.gen_qa_for_knowledge_base(logged_username, this_kb_name, LLM_MODEL)
+                st.toast(ret.get("msg", " "))
+                time.sleep(1)
+                st.rerun()
+
+            if cols[2].button(
+                    "为知识库中'知识库网页文件'生成问答",
+                    use_container_width=True,
+                    disabled=not is_editable or not has_kf_html,
+                    type="primary",
+            ):
+                # st.toast(f"为知识库{this_kb_name}生成问答")
+                ret = api.gen_simq_for_knowledge_base(logged_username, this_kb_name, LLM_MODEL)
+                st.toast(ret.get("msg", " "))
+                time.sleep(1)
+                st.rerun()
+
+            if cols[3].button(
+                    "删除知识库",
+                    type="primary",
+                    disabled=not is_editable,
+                    use_container_width=True,
+            ):
+                ret = api.delete_knowledge_base(logged_username, this_kb_name)
+                st.toast(ret.get("msg", " "))
+                time.sleep(1)
+                st.rerun()
+
+        else:
+            cols = st.columns(2)
+
+            cols[0].link_button(
+                "下载知识库中所有文件",
+                f"{get_api_address_from_client()}/knowledge_base/download_knowledge_base_files?knowledge_base_name={this_kb_name}",
+                disabled=count_kb_files == 0,
+                type="primary",
+                use_container_width=True,
+            )
+
+            if cols[1].button(
+                    "删除知识库",
+                    type="primary",
+                    disabled=not is_editable,
+                    use_container_width=True,
+            ):
+                ret = api.delete_knowledge_base(logged_username, this_kb_name)
+                st.toast(ret.get("msg", " "))
+                time.sleep(1)
+                st.rerun()

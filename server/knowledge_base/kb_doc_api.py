@@ -11,7 +11,9 @@ from server.knowledge_base.kb_service.base import KBServiceFactory
 from server.db.repository.knowledge_file_repository import get_file_detail, list_docs_from_db, list_answer_from_db, \
     list_question_from_db
 from server.utils import BaseResponse, ListResponse, run_in_thread_pool
-from server.knowledge_base.kb_job.gen_qa import gen_qa_task, JobExecutor, JobFutures, FuturesAtomic
+from server.knowledge_base.kb_job.gen_qa import gen_qa_task
+from server.knowledge_base.kb_job.gen_simq import gen_simq_task
+from server.knowledge_base.kb_job.job_utils import JobExecutor, JobFutures, FuturesAtomic
 from server.knowledge_base.utils import (validate_kb_name, get_file_path, files2docs_in_thread,
                                          KnowledgeFile, DocumentWithScores, get_doc_path, create_compressed_archive)
 from configs import (VECTOR_SEARCH_TOP_K, SCORE_THRESHOLD, BM_25_FACTOR, LITELLM_SERVER,
@@ -507,141 +509,33 @@ def gen_qa_for_kb(
         return BaseResponse(code=200, msg=f"使用{model_name}的文档问答生成任务提交成功")
     else:
         FuturesAtomic.release()
-        return BaseResponse(code=404, msg=f"上次任务仍在运行中，请等待任务完成后再提交新任务")
-
-# def get_gen_qa_result(
-#         knowledge_base_name: str = Body(..., examples=["samples"]),
-# ):
-#     FuturesAtomic.acquire()
-#     future = JobFutures.get(knowledge_base_name)
-#
-#     if future is None:
-#         FuturesAtomic.release()
-#         return BaseResponse(code=404, msg=f"无效的任务ID")
-#     elif future.done():
-#         result = future.result()
-#         FuturesAtomic.release()
-#         return BaseResponse(code=200, msg=f"任务已结束", json={"task_result": result})
-#     else:
-#         FuturesAtomic.release()
-#         return BaseResponse(code=202, msg=f"任务正在运行中")
-
-# def files2docs(files: List[UploadFile] = File(..., description="上传文件，支持多文件"),
-#                 knowledge_base_name: str = Form(..., description="知识库名称", examples=["samples"]),
-#                 override: bool = Form(False, description="覆盖已有文件"),
-#                 save: bool = Form(True, description="是否将文件保存到知识库目录")):
-#     def save_files(files, knowledge_base_name, override):
-#         for result in _save_files_in_thread(files, knowledge_base_name=knowledge_base_name, override=override):
-#             yield json.dumps(result, ensure_ascii=False)
-
-#     def files_to_docs(files):
-#         for result in files2docs_in_thread(files):
-#             yield json.dumps(result, ensure_ascii=False)
+        return BaseResponse(code=404, msg=f"后台已有任务运行，请等待任务完成后再提交新任务")
 
 
-# def update_docs_by_id(
-#         knowledge_base_name: str = Body(..., description="知识库名称", examples=["samples"]),
-#         docs: Dict[str, Document] = Body(..., description="要更新的文档内容，形如：{id: Document, ...}")
-# ) -> BaseResponse:
-#     '''
-#     按照文档 ID 更新文档内容
-#     '''
-#     kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
-#     if kb is None:
-#         return BaseResponse(code=500, msg=f"指定的知识库 {knowledge_base_name} 不存在")
-#     if kb.update_doc_by_ids(docs=docs):
-#         return BaseResponse(msg=f"文档更新成功")
-#     else:
-#         return BaseResponse(msg=f"文档更新失败")
-# def update_info(
-#         knowledge_base_name: str = Body(..., description="知识库名称", examples=["samples"]),
-#         kb_info: str = Body(..., description="知识库介绍", examples=["这是一个知识库"]),
-# ):
-#     if not validate_kb_name(knowledge_base_name):
-#         return BaseResponse(code=403, msg="Don't attack me")
-#
-#     kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
-#     if kb is None:
-#         return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}")
-#     kb.update_info(kb_info)
-#
-#     return BaseResponse(code=200, msg=f"知识库介绍修改完成", data={"kb_info": kb_info})
-# def update_agent_guide(
-#         knowledge_base_name: str = Body(..., description="知识库名称", examples=["samples"]),
-#         kb_agent_guide: str = Body(..., description="知识库Agent介绍", examples=["这是一个知识库"]),
-# ):
-#     if not validate_kb_name(knowledge_base_name):
-#         return BaseResponse(code=403, msg="Don't attack me")
-#
-#     kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
-#     if kb is None:
-#         return BaseResponse(code=404, msg=f"未找到知识库 {knowledge_base_name}")
-#     kb.update_agent_guide(kb_agent_guide)
-#
-#     return BaseResponse(code=200, msg=f"知识库介绍修改完成", data={"kb_agent_guide": kb_agent_guide})
+def gen_simq_for_kb(
+        job_owner: str = Body(...),
+        knowledge_base_name: str = Body(..., examples=["samples"]),
+        model_name: str = Body(...),
+):
+    kb = KBServiceFactory.get_service_by_name(knowledge_base_name)
+    if not kb.exists():
+        return BaseResponse(code=404, msg=f"未找到知识库 ‘{knowledge_base_name}’")
 
+    if kb.kb_owner != job_owner:
+        return BaseResponse(code=404, msg=f"只有 {knowledge_base_name} 创建者 {kb.kb_owner} 可以操作")
 
-# def recreate_vector_store(
-#         knowledge_base_name: str = Body(..., examples=["samples"]),
-#         kb_info: str = Body(..., examples=["samples_introduction"]),
-#         kb_agent_guide: str = Body(..., examples=["samples_introduction_for_agent"]),
-#         allow_empty_kb: bool = Body(True),
-#         vs_type: str = Body(DEFAULT_VS_TYPE),
-#         embed_model: str = Body(EMBEDDING_MODEL),
-#         chunk_size: int = Body(CHUNK_SIZE, description="知识库中单段文本最大长度"),
-#         chunk_overlap: int = Body(OVERLAP_SIZE, description="知识库中相邻文本重合长度"),
-#         zh_title_enhance: bool = Body(ZH_TITLE_ENHANCE, description="是否开启中文标题加强"),
-#         not_refresh_vs_cache: bool = Body(False, description="暂不保存向量库（用于FAISS）"),
-#         search_enhance: bool = Body(SEARCH_ENHANCE),
-# ):
-#     """
-#     recreate vector store from the content.
-#     this is usefull when user can copy files to content folder directly instead of upload through network.
-#     by default, get_service_by_name only return knowledge base in the info.db and having document files in it.
-#     set allow_empty_kb to True make it applied on empty knowledge base which it not in the info.db or having no documents.
-#     """
-#
-#     def output():
-#         kb = KBServiceFactory.get_service(knowledge_base_name, kb_info, kb_agent_guide, vs_type, embed_model,
-#                                           search_enhance)
-#         if not kb.exists() and not allow_empty_kb:
-#             yield {"code": 404, "msg": f"未找到知识库 ‘{knowledge_base_name}’"}
-#         else:
-#             if kb.exists():
-#                 kb.clear_vs()
-#             kb.create_kb()
-#             files = list_files_from_folder(knowledge_base_name)
-#             kb_files = [(file, knowledge_base_name) for file in files]
-#             i = 0
-#             for status, result in files2docs_in_thread(kb_files,
-#                                                        chunk_size=chunk_size,
-#                                                        chunk_overlap=chunk_overlap,
-#                                                        zh_title_enhance=zh_title_enhance):
-#                 if status:
-#                     kb_name, file_name, docs = result
-#                     kb_file = KnowledgeFile(filename=file_name, knowledge_base_name=kb_name)
-#                     kb_file.splited_docs = docs
-#                     yield json.dumps({
-#                         "code": 200,
-#                         "msg": f"({i + 1} / {len(files)}): {file_name}",
-#                         "total": len(files),
-#                         "finished": i + 1,
-#                         "doc": file_name,
-#                     }, ensure_ascii=False)
-#                     kb.add_doc(kb_file, not_refresh_vs_cache=True)
-#                 else:
-#                     kb_name, file_name, error = result
-#                     msg = f"添加文件‘{file_name}’到知识库‘{knowledge_base_name}’时出错：{error}。已跳过。"
-#                     logger.error(msg)
-#                     yield json.dumps({
-#                         "code": 500,
-#                         "msg": msg,
-#                     })
-#                 i += 1
-#             if not not_refresh_vs_cache:
-#                 kb.save_vector_store("docs")
-#                 kb.save_vector_store("question")
-#                 kb.save_vector_store("answer")
-#                 kb.save_vector_store("query")
-#
-#     return EventSourceResponse(output())
+    kb_info = kb.kb_info
+
+    FuturesAtomic.acquire()
+    future = JobFutures.get(knowledge_base_name)
+
+    if future is None or future.done():
+        new_future = JobExecutor.submit(gen_simq_task, job_owner, knowledge_base_name, kb_info, model_name,
+                                        LITELLM_SERVER, 3)
+        JobFutures[knowledge_base_name] = new_future
+        FuturesAtomic.release()
+        return BaseResponse(code=200, msg=f"使用{model_name}的相似问生成任务提交成功")
+    else:
+        FuturesAtomic.release()
+        return BaseResponse(code=404, msg=f"后台已有任务运行，请等待任务完成后再提交新任务")
+
