@@ -44,7 +44,7 @@ def get_prompt(fallback: str, history: List[History], has_context: bool) -> str:
                     fallback=fallback))
             index += 1
 
-        citation_prompt = "如果你给出的答案里引用了上面参考信息中的内容，请在答案结尾处添加你引用的参考编号，并用两个方括号括起来。示例：[[引用1]]、[[引用2]]"
+        citation_prompt = "如果你给出的答案里引用了上面参考信息中的内容，请在答案结尾处添加你引用的参考编号，并用两个方括号D括起来。示例：[[引用1]]、[[引用2]]"
         answer_prompts.append(str(index) + ". " + citation_prompt)
         index += 1
     else:

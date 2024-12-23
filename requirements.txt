@@ -24,7 +24,7 @@ pandas>=2.0.3
 # einops>=0.7.0
 # transformers_stream_generator==0.0.4
 # llama-index==0.9.35
-hanlp
+lac
 rank_bm25
 jq>=1.6.0
 

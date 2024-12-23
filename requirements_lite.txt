@@ -28,7 +28,7 @@ pytest
 
 # online api libs
 
-zhipuai>=1.0.7 # zhipu
+# zhipuai>=1.0.7 # zhipu
 # dashscope>=1.10.0 # qwen
 # volcengine>=1.0.106 # fangzhou
 
@@ -56,7 +56,7 @@ einops>=0.7.0
 
 # Agent and Search Tools
 
-arxiv>=2.0.0
-youtube-search>=2.1.2
-duckduckgo-search>=4.9.3
-metaphor-python>=0.1.23
+# arxiv>=2.0.0
+# youtube-search>=2.1.2
+# duckduckgo-search>=4.9.3
+# metaphor-python>=0.1.23
