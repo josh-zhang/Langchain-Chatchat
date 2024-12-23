@@ -15,7 +15,7 @@ def list_kbs(kb_owner: str = Query("")):
 
 def get_knowledge_base_details(kb_owner: str = Query(""), kb_name: str = Query("")):
     # Get List of Knowledge Base
-    return DictResponse(data=get_kb_detail(kb_name, kb_owner))
+    return DictResponse(data=get_kb_detail(kb_name))
 
 
 def get_knowledge_base_file_details(kb_name: str = Query("")):

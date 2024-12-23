@@ -72,12 +72,10 @@ def get_embed_models(_api):
     return _api.list_embed_models()
 
 
-@st.cache_data(ttl=60)
 def list_knowledge_bases(_api, logged_username):
     return _api.list_knowledge_bases(logged_username)
 
 
-@st.cache_data(ttl=60)
 def get_kb_file_details(_api, this_kb_name):
     return _api.get_kb_file_details(this_kb_name)
 
