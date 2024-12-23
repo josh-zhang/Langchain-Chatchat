@@ -475,6 +475,38 @@ class ApiRequest:
                                         as_json=True,
                                         value_func=lambda r: r.get("data", []))
 
+    def get_knowledge_base_details(
+            self,
+            kb_owner: str,
+            kb_name: str
+    ):
+        '''
+        对应api.py/knowledge_base/get_knowledge_base_details
+        '''
+        data = {
+            "kb_owner": kb_owner,
+            "kb_name": kb_name
+        }
+        response = self.get("/knowledge_base/get_knowledge_base_details", params=data)
+        return self._get_response_value(response,
+                                        as_json=True,
+                                        value_func=lambda r: r.get("data", {}))
+
+    def get_kb_file_details(
+            self,
+            kb_name: str
+    ):
+        '''
+        对应api.py/knowledge_base/get_knowledge_base_file_details
+        '''
+        data = {
+            "kb_name": kb_name
+        }
+        response = self.get("/knowledge_base/get_knowledge_base_file_details", params=data)
+        return self._get_response_value(response,
+                                        as_json=True,
+                                        value_func=lambda r: r.get("data", []))
+
     def create_knowledge_base(
             self,
             kb_owner: str,

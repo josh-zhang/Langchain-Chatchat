@@ -70,9 +70,11 @@ def delete_kb_from_db(session, kb_name):
 
 
 @with_session
-def get_kb_detail(session, kb_name: str) -> dict:
+def get_kb_detail(session, kb_name: str, kb_owner=None) -> dict:
     kb: KnowledgeBaseModel = session.query(KnowledgeBaseModel).filter(KnowledgeBaseModel.kb_name.ilike(kb_name)).first()
     if kb:
+        if kb_owner and kb.kb_owner != kb_owner:
+            return {}
         return {
             "kb_owner": kb.kb_owner,
             "kb_viewer": kb.kb_viewer,

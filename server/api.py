@@ -19,8 +19,8 @@ from server.chat.chat import chat
 from server.chat.feedback import chat_feedback
 from server.embeddings_api import list_embed_models
 from server.llm_api import list_api_running_models
-from server.utils import (BaseResponse, ListResponse, ListListResponse, FastAPI, MakeFastAPIOffline,
-                          get_server_configs, get_prompt_template)
+from server.utils import (BaseResponse, ListResponse, ListListResponse, ListDictResponse, DictResponse, FastAPI,
+                          MakeFastAPIOffline, get_server_configs, get_prompt_template)
 
 nltk.data.path = [NLTK_DATA_PATH] + nltk.data.path
 
@@ -154,7 +154,8 @@ def mount_knowledge_routes(app: FastAPI):
     from server.chat.knowledge_base_chat import knowledge_base_chat
     from server.chat.file_chat import upload_temp_docs, file_chat
     # from server.chat.agent_chat import agent_chat
-    from server.knowledge_base.kb_api import list_kbs, create_kb, delete_kb
+    from server.knowledge_base.kb_api import list_kbs, create_kb, delete_kb, get_knowledge_base_details, \
+        get_knowledge_base_file_details
     from server.knowledge_base.kb_doc_api import (list_files, upload_docs, delete_docs, download_kb_files,
                                                   download_doc, gen_qa_for_kb, gen_simq_for_kb, search_docs,
                                                   count_docs, DocumentWithScores)
@@ -177,6 +178,16 @@ def mount_knowledge_routes(app: FastAPI):
             tags=["Knowledge Base Management"],
             response_model=ListListResponse,
             summary="获取知识库列表")(list_kbs)
+
+    app.get("/knowledge_base/get_knowledge_base_details",
+            tags=["Knowledge Base Management"],
+            response_model=DictResponse,
+            summary="获取知识库列表详情")(get_knowledge_base_details)
+
+    app.get("/knowledge_base/get_knowledge_base_file_details",
+            tags=["Knowledge Base Management"],
+            response_model=ListDictResponse,
+            summary="获取知识库列表详情")(get_knowledge_base_file_details)
 
     app.post("/knowledge_base/create_knowledge_base",
              tags=["Knowledge Base Management"],

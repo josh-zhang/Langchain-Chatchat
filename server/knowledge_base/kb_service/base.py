@@ -914,59 +914,59 @@ class KBServiceFactory:
     #     return KBServiceFactory.get_service("default", SupportedVSType.DEFAULT)
 
 
-def get_kb_details_for_mg(kb_owner: str) -> List[Dict]:
-    kbs_in_folder = list_kbs_from_folder()
-    kbs_in_db = KBService.list_kbs(kb_owner)
-    kbs_in_db = [i[0] for i in kbs_in_db]
-    result = {}
-
-    for kb_name in kbs_in_db:
-        result[kb_name] = {
-            "kb_name": kb_name,
-            "kb_owner": "",
-            "kb_viewer": "",
-            "vs_type": "",
-            "kb_info": "",
-            "kb_agent_guide": "",
-            "kb_summary": "",
-            "embed_model": "",
-            "file_count": 0,
-            "create_time": None,
-            "in_folder": kb_name in kbs_in_folder,
-            "in_db": True,
-        }
-
-    # for kb_name in kbs_in_folder:
-    #     if kb_name not in result:
-    #         result[kb_name] = {
-    #             "kb_name": kb_name,
-    #             "vs_type": "",
-    #             "kb_info": "",
-    #             "kb_agent_guide": "",
-    #             "kb_summary": "",
-    #             "embed_model": "",
-    #             "file_count": 0,
-    #             "create_time": None,
-    #             "in_folder": True,
-    #             "in_db": kb_name in kbs_in_db,
-    #         }
-
-    for kb_name in kbs_in_db:
-        kb_detail = get_kb_detail(kb_name)
-        if kb_detail:
-            kb_detail["in_db"] = True
-            if kb_name in result:
-                result[kb_name].update(kb_detail)
-            else:
-                kb_detail["in_folder"] = False
-                result[kb_name] = kb_detail
-
-    data = []
-    for i, v in enumerate(result.values()):
-        v['No'] = i + 1
-        data.append(v)
-
-    return data
+# def get_kb_details(kb_owner: str) -> List[Dict]:
+#     kbs_in_folder = list_kbs_from_folder()
+#     kbs_in_db = KBService.list_kbs(kb_owner)
+#     kbs_in_db = [i[0] for i in kbs_in_db]
+#     result = {}
+#
+#     for kb_name in kbs_in_db:
+#         result[kb_name] = {
+#             "kb_name": kb_name,
+#             "kb_owner": "",
+#             "kb_viewer": "",
+#             "vs_type": "",
+#             "kb_info": "",
+#             "kb_agent_guide": "",
+#             "kb_summary": "",
+#             "embed_model": "",
+#             "file_count": 0,
+#             "create_time": None,
+#             "in_folder": kb_name in kbs_in_folder,
+#             "in_db": True,
+#         }
+#
+#     # for kb_name in kbs_in_folder:
+#     #     if kb_name not in result:
+#     #         result[kb_name] = {
+#     #             "kb_name": kb_name,
+#     #             "vs_type": "",
+#     #             "kb_info": "",
+#     #             "kb_agent_guide": "",
+#     #             "kb_summary": "",
+#     #             "embed_model": "",
+#     #             "file_count": 0,
+#     #             "create_time": None,
+#     #             "in_folder": True,
+#     #             "in_db": kb_name in kbs_in_db,
+#     #         }
+#
+#     for kb_name in kbs_in_db:
+#         kb_detail = get_kb_detail(kb_name)
+#         if kb_detail:
+#             kb_detail["in_db"] = True
+#             if kb_name in result:
+#                 result[kb_name].update(kb_detail)
+#             else:
+#                 kb_detail["in_folder"] = False
+#                 result[kb_name] = kb_detail
+#
+#     data = []
+#     for i, v in enumerate(result.values()):
+#         v['No'] = i + 1
+#         data.append(v)
+#
+#     return data
 
 
 def get_kb_file_details(kb_name: str) -> List[Dict]:

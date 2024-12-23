@@ -1,7 +1,8 @@
 import urllib
-from server.utils import BaseResponse, ListListResponse
+from server.utils import BaseResponse, ListListResponse, ListDictResponse, DictResponse
 from server.knowledge_base.utils import validate_kb_name, validate_kb_info, validate_kb_owner
 from server.knowledge_base.kb_service.base import KBServiceFactory
+from server.knowledge_base.kb_service.base import get_kb_detail, get_kb_file_details
 from server.db.repository.knowledge_base_repository import list_kbs_from_db
 from configs import EMBEDDING_MODEL, logger, log_verbose, USE_BM25
 from fastapi import Body, Query
@@ -10,6 +11,16 @@ from fastapi import Body, Query
 def list_kbs(kb_owner: str = Query("")):
     # Get List of Knowledge Base
     return ListListResponse(data=list_kbs_from_db(kb_owner))
+
+
+def get_knowledge_base_details(kb_owner: str = Query(""), kb_name: str = Query("")):
+    # Get List of Knowledge Base
+    return DictResponse(data=get_kb_detail(kb_name, kb_owner))
+
+
+def get_knowledge_base_file_details(kb_name: str = Query("")):
+    # Get List of Knowledge Base
+    return ListDictResponse(data=get_kb_file_details(kb_name))
 
 
 def create_kb(kb_owner: str = Body(..., examples=""),

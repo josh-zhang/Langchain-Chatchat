@@ -8,7 +8,7 @@ from st_aggrid import AgGrid, JsCode
 from st_aggrid.grid_options_builder import GridOptionsBuilder
 
 from server.knowledge_base.utils import get_file_path, LOADER_DICT
-from server.knowledge_base.kb_service.base import get_kb_details_for_mg, get_kb_file_details
+# from server.knowledge_base.kb_service.base import get_kb_details_for_mg, get_kb_file_details
 from configs import kbs_config
 from webui_pages.utils import *
 
@@ -72,11 +72,25 @@ def get_embed_models(_api):
     return _api.list_embed_models()
 
 
+@st.cache_data(ttl=60)
+def list_knowledge_bases(_api, logged_username):
+    return _api.list_knowledge_bases(logged_username)
+
+
+@st.cache_data(ttl=60)
+def get_kb_file_details(_api, this_kb_name):
+    return _api.get_kb_file_details(this_kb_name)
+
+
+def get_kb_detail(_api, logged_username, this_kb_name):
+    return _api.get_knowledge_base_details(logged_username, this_kb_name)
+
+
 def knowledge_base_page(api: ApiRequest, logged_username: str):
-    kb_details = get_kb_details_for_mg(logged_username)
-    kb_name_dict = {x["kb_name"]: x for x in kb_details}
-    exist_kb_names = list(kb_name_dict.keys())
-    exist_kb_infos = [x["kb_info"] for x in kb_details]
+    kb_list = list_knowledge_bases(api, logged_username)
+    exist_kb_names = [kb[0] for kb in kb_list]
+    # exist_kb_infos = [kb[1] for kb in kb_list]
+    kb_name_dict = {kb[0]: kb[1] for kb in kb_list}
 
     # try:
     #     selected_kb_index = 0
@@ -89,7 +103,7 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
 
     def format_selected_kb(kb_name: str) -> str:
         if kb := kb_name_dict.get(kb_name):
-            return kb['kb_info']
+            return kb
         else:
             return kb_name
 
@@ -165,14 +179,14 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
                 if not new_kb_name or not new_kb_name.strip():
                     st.error(f"知识库编号不能为空")
 
-                all_kb_details = get_kb_details_for_mg("admin")
-                all_kb_name_dict = {x["kb_name"]: x for x in all_kb_details}
-                all_exist_kb_infos = [x["kb_info"] for x in all_kb_details]
+                all_kb_list = list_knowledge_bases(api, "admin")
+                all_exist_kb_names = [kb[0] for kb in all_kb_list]
+                all_exist_kb_infos = [kb[1] for kb in all_kb_list]
 
                 if new_kb_info in all_exist_kb_infos:
                     st.error(f"知识库名称为 {new_kb_info} 的知识库已经存在，请直接使用。如需重新创建，请先删除现有知识库")
 
-                if new_kb_name in all_kb_name_dict:
+                if new_kb_name in all_exist_kb_names:
                     st.error(
                         f"知识库编号为 {new_kb_name} 的知识库已经存在，请直接使用。如需重新创建，请先删除现有知识库")
 
@@ -191,14 +205,17 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
 
     elif st.session_state.selected_kb_name:
         this_kb_name = st.session_state.selected_kb_name
-        this_kb_info = kb_name_dict[this_kb_name]['kb_info']
-        this_kb_owner = kb_name_dict[this_kb_name]['kb_owner']
-        this_kb_kb_viewer = kb_name_dict[this_kb_name]['kb_viewer']
+
+        kb_details_dict = get_kb_detail(api, logged_username, this_kb_name)
+
+        this_kb_info = kb_details_dict['kb_info']
+        this_kb_owner = kb_details_dict['kb_owner']
+        this_kb_kb_viewer = kb_details_dict['kb_viewer']
         if this_kb_kb_viewer == "":
             this_kb_kb_viewer = "公开知识库"
         is_editable = this_kb_owner == logged_username
 
-        st.text_area("知识库介绍", value=kb_name_dict[this_kb_name]['kb_agent_guide'], max_chars=None,
+        st.text_area("知识库介绍", value=kb_details_dict['kb_agent_guide'], max_chars=None,
                      key=None, help=None, on_change=None, args=None, kwargs=None, disabled=True)
         st.text_input("知识库编号", value=this_kb_name, max_chars=None,
                       key=None, help=None, on_change=None, args=None, kwargs=None, disabled=True)
@@ -270,7 +287,7 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
         st.divider()
 
         # st.info("请选择文件，点击按钮进行操作。")
-        kb_file_details = get_kb_file_details(this_kb_name)
+        kb_file_details = get_kb_file_details(api, this_kb_name)
         file_loader_dict = dict()
         count_kb_files = len(kb_file_details)
         has_kf_html = False
