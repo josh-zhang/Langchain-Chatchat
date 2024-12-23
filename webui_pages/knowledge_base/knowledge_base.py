@@ -8,7 +8,6 @@ from st_aggrid import AgGrid, JsCode
 from st_aggrid.grid_options_builder import GridOptionsBuilder
 
 from server.knowledge_base.utils import get_file_path, LOADER_DICT
-# from server.knowledge_base.kb_service.base import get_kb_details_for_mg, get_kb_file_details
 from configs import kbs_config
 from webui_pages.utils import *
 
