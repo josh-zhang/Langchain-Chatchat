@@ -7,8 +7,7 @@ from streamlit_chatbox import *
 from streamlit_javascript import st_javascript
 
 from configs import HISTORY_LEN
-from server.knowledge_base.utils import LOADER_DICT
-from webui_pages.server_utils import get_prompts
+from webui_pages.server_utils import get_prompts, LOADER_DICT
 from webui_pages.utils import *
 
 chat_box = ChatBox(

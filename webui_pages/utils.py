@@ -27,7 +27,7 @@ import contextlib
 import json
 import os
 from io import BytesIO
-from server_utils import set_httpx_config, api_address, get_httpx_client
+from webui_pages.server_utils import set_httpx_config, api_address, get_httpx_client
 
 set_httpx_config()
 

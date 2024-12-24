@@ -8,7 +8,17 @@ from webui_pages.dialogue.dialogue import file_dialogue_page
 from webui_pages.dialogue.dialogue import kb_dialogue_page
 from webui_pages.knowledge_base.knowledge_base import knowledge_base_page
 from configs import VERSION
-from server.utils import api_address
+
+
+def api_address() -> str:
+    from configs.server_config import API_SERVER
+
+    host = API_SERVER["host"]
+    if host == "0.0.0.0":
+        host = "127.0.0.1"
+    port = API_SERVER["port"]
+    return f"http://{host}:{port}"
+
 
 api = ApiRequest(base_url=api_address())
 
