@@ -1,24 +1,12 @@
 import streamlit as st
 from auth.widgets import __login__
-
-from webui_pages.utils import *
 from streamlit_option_menu import option_menu
+
+from webui_pages.utils import ApiRequest, api_address
 from webui_pages.dialogue.dialogue import dialogue_page
 from webui_pages.dialogue.dialogue import file_dialogue_page
 from webui_pages.dialogue.dialogue import kb_dialogue_page
 from webui_pages.knowledge_base.knowledge_base import knowledge_base_page
-from configs import VERSION
-
-
-def api_address() -> str:
-    from configs.server_config import API_SERVER
-
-    host = API_SERVER["host"]
-    if host == "0.0.0.0":
-        host = "127.0.0.1"
-    port = API_SERVER["port"]
-    return f"http://{host}:{port}"
-
 
 api = ApiRequest(base_url=api_address())
 
@@ -29,7 +17,7 @@ if __name__ == "__main__":
         initial_sidebar_state="expanded",
         layout='wide',
         menu_items={
-            'About': f"""欢迎使用 知识库问答系统 {VERSION}！"""
+            'About': f"""欢迎使用 知识库问答系统！"""
         }
     )
 

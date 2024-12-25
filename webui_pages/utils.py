@@ -1,10 +1,17 @@
 # 该文件封装了对api.py的请求，可以被不同的webui使用
 # 通过ApiRequest和AsyncApiRequest支持同步/异步调用
 
-
+import json
+import os
+from io import BytesIO
 from typing import *
 from pathlib import Path
 # 此处导入的配置为发起请求（如WEBUI）机器上的配置，主要用于为前端设置默认值。分布式部署时可以与服务器上的不同
+
+import httpx
+import contextlib
+
+from webui_pages.server_utils import set_httpx_config, api_address, get_httpx_client
 from configs import (
     EMBEDDING_MODEL,
     DEFAULT_VS_TYPE,
@@ -22,12 +29,6 @@ from configs import (
     API_SERVER_HOST_MAPPING,
     API_SERVER_PORT_MAPPING
 )
-import httpx
-import contextlib
-import json
-import os
-from io import BytesIO
-from webui_pages.server_utils import set_httpx_config, api_address, get_httpx_client
 
 set_httpx_config()
 

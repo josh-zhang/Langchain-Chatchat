@@ -8,9 +8,12 @@ import nltk
 import uvicorn
 
 import argparse
+import langchain
 from fastapi import Body
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import RedirectResponse
+
+langchain.verbose = False
 
 from configs import VERSION
 from configs.model_config import NLTK_DATA_PATH

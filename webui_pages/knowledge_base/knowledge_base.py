@@ -7,9 +7,9 @@ import streamlit as st
 from st_aggrid import AgGrid, JsCode
 from st_aggrid.grid_options_builder import GridOptionsBuilder
 
-from webui_pages.server_utils import get_file_path, LOADER_DICT
 from configs import kbs_config
 from webui_pages.utils import *
+from webui_pages.server_utils import get_file_path, LOADER_DICT
 
 cell_renderer = JsCode("""function(params) {if(params.value==true){return '✓'}else{return '×'}}""")
 

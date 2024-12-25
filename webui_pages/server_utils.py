@@ -3,7 +3,8 @@ from typing import Literal, Optional, Callable, Generator, Dict, Any, Awaitable,
 from pathlib import Path
 
 import httpx
-from configs import (LLM_DEVICE, EMBEDDING_DEVICE, MODEL_PATH, MODEL_ROOT_PATH, logger, log_verbose,
+
+from configs import (API_SERVER, EMBEDDING_DEVICE, MODEL_PATH, MODEL_ROOT_PATH, logger, log_verbose,
                      HTTPX_DEFAULT_TIMEOUT, prompt_config, LITELLM_SERVER, KB_ROOT_PATH)
 
 LOADER_DICT = {
@@ -37,6 +38,14 @@ LOADER_DICT = {
     # "TextLoader": ['.txt'],
     # "EverNoteLoader": ['.enex'],
 }
+
+
+def api_address() -> str:
+    host = API_SERVER["host"]
+    if host == "0.0.0.0":
+        host = "127.0.0.1"
+    port = API_SERVER["port"]
+    return f"http://{host}:{port}"
 
 
 def get_kb_path(knowledge_base_name: str):
