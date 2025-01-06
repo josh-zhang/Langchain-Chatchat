@@ -782,6 +782,24 @@ class ApiRequest:
         )
         return self._get_response_value(response, as_json=True)
 
+    def download_knowledge_base_file(
+            self,
+            knowledge_base_name: str,
+            selected_file_name: str,
+    ):
+        '''
+        对应api.py/knowledge_base/download_doc接口
+        '''
+        data = {
+            "knowledge_base_name": knowledge_base_name,
+            "selected_file_name": selected_file_name,
+        }
+        response = self.post(
+            "/knowledge_base/download_doc",
+            json=data,
+        )
+        return self._get_response_value(response, as_json=True)
+
     # def recreate_vector_store(
     #         self,
     #         knowledge_base_name: str,
@@ -1020,18 +1038,18 @@ def check_success_msg(data: Union[str, dict, list], key: str = "msg") -> str:
     return ""
 
 
-def get_api_address_from_client():
-    from configs.server_config import API_SERVER
-
-    host = API_SERVER["host"]
-    if host == "0.0.0.0":
-        host = "127.0.0.1"
-    host = API_SERVER_HOST_MAPPING.get(host, host)
-
-    port = API_SERVER["port"]
-    port = API_SERVER_PORT_MAPPING.get(port, port)
-
-    return f"http://{host}:{port}"
+# def get_api_address_from_client():
+#     from configs.server_config import API_SERVER
+#
+#     host = API_SERVER["host"]
+#     if host == "0.0.0.0":
+#         host = "127.0.0.1"
+#     host = API_SERVER_HOST_MAPPING.get(host, host)
+#
+#     port = API_SERVER["port"]
+#     port = API_SERVER_PORT_MAPPING.get(port, port)
+#
+#     return f"http://{host}:{port}"
 
 
 if __name__ == "__main__":

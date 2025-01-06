@@ -361,12 +361,16 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
                 )
             else:
                 selected_file_name = selected_rows.iloc[0]["file_name"]
-                cols[0].link_button(
+
+                if cols[0].button(
                     "下载选中文件",
-                    f"{get_api_address_from_client()}/knowledge_base/download_doc?knowledge_base_name={this_kb_name}&file_name={selected_file_name}",
-                    use_container_width=True,
                     disabled=False,
-                )
+                    use_container_width=True,
+                ):
+                    ret = api.download_knowledge_base_file(this_kb_name, selected_file_name)
+                    st.toast(ret.get("msg", " "))
+                    time.sleep(1)
+                    st.rerun()
 
             if selected_rows is None or selected_rows.empty:
                 selected_file_names = []
@@ -402,13 +406,16 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
         if logged_username == "kefu":
             cols = st.columns(4)
 
-            cols[0].link_button(
+            if cols[0].button(
                 "下载知识库中所有文件",
-                f"{get_api_address_from_client()}/knowledge_base/download_knowledge_base_files?knowledge_base_name={this_kb_name}",
-                disabled=count_kb_files == 0,
                 type="primary",
+                disabled=count_kb_files == 0,
                 use_container_width=True,
-            )
+            ):
+                ret = api.download_knowledge_base_files(this_kb_name)
+                st.toast(ret.get("msg", " "))
+                time.sleep(1)
+                st.rerun()
 
             if cols[1].button(
                     "为知识库中知识库网页文件生成问答",
@@ -448,13 +455,16 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
         else:
             cols = st.columns(2)
 
-            cols[0].link_button(
+            if cols[0].button(
                 "下载知识库中所有文件",
-                f"{get_api_address_from_client()}/knowledge_base/download_knowledge_base_files?knowledge_base_name={this_kb_name}",
-                disabled=count_kb_files == 0,
                 type="primary",
+                disabled=count_kb_files == 0,
                 use_container_width=True,
-            )
+            ):
+                ret = api.download_knowledge_base_files(this_kb_name)
+                st.toast(ret.get("msg", " "))
+                time.sleep(1)
+                st.rerun()
 
             if cols[1].button(
                     "删除知识库",

@@ -528,6 +528,7 @@ def kb_dialogue_page(api: ApiRequest, logged_username: str):
         ])
 
         text = ""
+        yinyong_text = ""
         message_id = ""
         this_search_type = "重新搜索"
         source_documents = []
@@ -554,10 +555,20 @@ def kb_dialogue_page(api: ApiRequest, logged_username: str):
                 chat_box.update_msg(text, element_index=0)
                 message_id = d.get("message_id", "")
 
-            token_counts = d.get("token_counts", -1)
-            this_search_type = d.get("search_type", "重新搜索")
-            source_documents = d.get("docs", [])
-            source_documents_content = d.get("docs_content", [])
+            if chunk := d.get("yinyong"):
+                yinyong_text += chunk
+
+        if yinyong_text:
+            try:
+                data = json.loads(yinyong_text)
+                token_counts = data.get("token_counts", -1)
+                this_search_type = data.get("search_type", "重新搜索")
+                source_documents = data.get("docs", [])
+                source_documents_content = data.get("docs_content", [])
+            except Exception as e:
+                msg = f"接口返回json错误： ‘{yinyong_text}’。错误信息是：{e}。"
+                logger.error(f'{e.__class__.__name__}: {msg}',
+                             exc_info=e if log_verbose else None)
 
         if token_counts >= 0:
             st.session_state["cur_token_counts"] = token_counts
