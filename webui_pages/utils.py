@@ -776,29 +776,29 @@ class ApiRequest:
         '''
         对应api.py/knowledge_base/download_knowledge_base_files接口
         '''
-        response = self.post(
+        response = self.get(
             "/knowledge_base/download_knowledge_base_files",
-            json=knowledge_base_name,
+            params={"knowledge_base_name": knowledge_base_name}
         )
-        return self._get_response_value(response, as_json=True)
+        return self._get_response_value(response)
 
-    def download_knowledge_base_file(
-            self,
-            knowledge_base_name: str,
-            selected_file_name: str,
-    ):
-        '''
-        对应api.py/knowledge_base/download_doc接口
-        '''
-        data = {
-            "knowledge_base_name": knowledge_base_name,
-            "selected_file_name": selected_file_name,
-        }
-        response = self.post(
-            "/knowledge_base/download_doc",
-            json=data,
-        )
-        return self._get_response_value(response, as_json=True)
+    # def download_knowledge_base_file(
+    #         self,
+    #         knowledge_base_name: str,
+    #         selected_file_name: str,
+    # ):
+    #     '''
+    #     对应api.py/knowledge_base/download_doc接口
+    #     '''
+    #     data = {
+    #         "knowledge_base_name": knowledge_base_name,
+    #         "file_name": selected_file_name,
+    #     }
+    #     response = self.get(
+    #         "/knowledge_base/download_doc",
+    #         params=data,
+    #     )
+    #     return self._get_response_value(response)
 
     # def recreate_vector_store(
     #         self,

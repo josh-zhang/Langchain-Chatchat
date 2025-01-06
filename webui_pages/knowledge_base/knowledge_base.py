@@ -350,27 +350,27 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
 
             selected_rows = doc_grid.get("selected_rows", None)
 
-            cols = st.columns(3)
+            cols = st.columns(2)
 
-            if selected_rows is None or selected_rows.empty:
-                cols[0].link_button(
-                    "下载选中文件",
-                    "",
-                    use_container_width=True,
-                    disabled=True,
-                )
-            else:
-                selected_file_name = selected_rows.iloc[0]["file_name"]
-
-                if cols[0].button(
-                    "下载选中文件",
-                    disabled=False,
-                    use_container_width=True,
-                ):
-                    ret = api.download_knowledge_base_file(this_kb_name, selected_file_name)
-                    st.toast(ret.get("msg", " "))
-                    time.sleep(1)
-                    st.rerun()
+            # if selected_rows is None or selected_rows.empty:
+            #     cols[0].link_button(
+            #         "下载选中文件",
+            #         "",
+            #         use_container_width=True,
+            #         disabled=True,
+            #     )
+            # else:
+            #     selected_file_name = selected_rows.iloc[0]["file_name"]
+            #
+            #     if cols[0].button(
+            #         "下载选中文件",
+            #         disabled=False,
+            #         use_container_width=True,
+            #     ):
+            #         ret = api.download_knowledge_base_file(this_kb_name, selected_file_name)
+            #         st.toast(ret.get("msg", " "))
+            #         time.sleep(1)
+            #         st.rerun()
 
             if selected_rows is None or selected_rows.empty:
                 selected_file_names = []
@@ -380,7 +380,7 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
                 selected_document_loaders = [file_loader_dict[file_name] for file_name in selected_file_names]
 
             # 将文件从向量库中删除，但不删除文件本身。
-            if cols[1].button(
+            if cols[0].button(
                     "检索时忽略选中文件",
                     disabled=not is_editable or selected_rows is None or selected_rows.empty or not
                     selected_rows.iloc[0]["in_db"],
@@ -390,7 +390,7 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
                                    document_loaders=selected_document_loaders)
                 st.rerun()
 
-            if cols[2].button(
+            if cols[1].button(
                     "从知识库中删除选中文件",
                     disabled=not is_editable or selected_rows is None or selected_rows.empty,
                     use_container_width=True,
@@ -403,21 +403,34 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
         # 知识库管理
         st.divider()
 
+        kb_all_files = None
+
         if logged_username == "kefu":
-            cols = st.columns(4)
+            cols = st.columns(5)
 
             if cols[0].button(
-                "下载知识库中所有文件",
-                type="primary",
-                disabled=count_kb_files == 0,
-                use_container_width=True,
+                    "获取知识库中所有文件",
+                    type="primary",
+                    disabled=count_kb_files == 0,
+                    use_container_width=True,
             ):
+                st.toast("正在获取知识库所有文件，请等待...")
                 ret = api.download_knowledge_base_files(this_kb_name)
-                st.toast(ret.get("msg", " "))
-                time.sleep(1)
-                st.rerun()
+                if ret.status_code == 200:
+                    kb_all_files = ret.content
+                else:
+                    kb_all_files = None
 
-            if cols[1].button(
+            if kb_all_files is not None:
+                cols[1].download_button(
+                    label="下载知识库中所有文件",
+                    data=kb_all_files,
+                    file_name=f"{this_kb_name}.zip",
+                    mime="text/plain",
+                    use_container_width=True,
+                )
+
+            if cols[2].button(
                     "为知识库中知识库网页文件生成问答",
                     use_container_width=True,
                     disabled=not is_editable or not has_kf_html,
@@ -429,7 +442,7 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
                 time.sleep(1)
                 st.rerun()
 
-            if cols[2].button(
+            if cols[3].button(
                     "为知识库中问答文件生成相似问",
                     use_container_width=True,
                     disabled=not is_editable or not has_faq_excel,
@@ -441,7 +454,7 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
                 time.sleep(1)
                 st.rerun()
 
-            if cols[3].button(
+            if cols[4].button(
                     "删除知识库",
                     type="primary",
                     disabled=not is_editable,
@@ -453,20 +466,31 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
                 st.rerun()
 
         else:
-            cols = st.columns(2)
+            cols = st.columns(3)
 
             if cols[0].button(
-                "下载知识库中所有文件",
-                type="primary",
-                disabled=count_kb_files == 0,
-                use_container_width=True,
+                    "获取知识库中所有文件",
+                    type="primary",
+                    disabled=count_kb_files == 0,
+                    use_container_width=True,
             ):
+                st.toast("正在获取知识库所有文件，请等待...")
                 ret = api.download_knowledge_base_files(this_kb_name)
-                st.toast(ret.get("msg", " "))
-                time.sleep(1)
-                st.rerun()
+                if ret.status_code == 200:
+                    kb_all_files = ret.content
+                else:
+                    kb_all_files = None
 
-            if cols[1].button(
+            if kb_all_files is not None:
+                cols[1].download_button(
+                    label="下载知识库中所有文件",
+                    data=kb_all_files,
+                    file_name=f"{this_kb_name}.zip",
+                    mime="text/plain",
+                    use_container_width=True,
+                )
+
+            if cols[2].button(
                     "删除知识库",
                     type="primary",
                     disabled=not is_editable,
