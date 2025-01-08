@@ -270,7 +270,7 @@ def upload_docs(
 
 
 def delete_docs(
-        operator: str = Form(..., description="操作用户", examples=["admin"]),
+        operator: str = Body(..., description="操作用户", examples=["admin"]),
         knowledge_base_name: str = Body(..., examples=["samples"]),
         file_names: List[str] = Body(..., examples=[["file_name.md", "test.txt"]]),
         document_loaders: List[str] = Body(...),
