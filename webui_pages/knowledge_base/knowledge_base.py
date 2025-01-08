@@ -414,7 +414,7 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
                     disabled=count_kb_files == 0,
                     use_container_width=True,
             ):
-                st.toast("正在获取知识库所有文件，请等待...")
+                # st.toast("正在获取知识库所有文件，请等待...")
                 ret = api.download_knowledge_base_files(this_kb_name)
                 if ret.status_code == 200:
                     kb_all_files = ret.content
@@ -474,7 +474,7 @@ def knowledge_base_page(api: ApiRequest, logged_username: str):
                     disabled=count_kb_files == 0,
                     use_container_width=True,
             ):
-                st.toast("正在获取知识库所有文件，请等待...")
+                # st.toast("正在获取知识库所有文件，请等待...")
                 ret = api.download_knowledge_base_files(this_kb_name)
                 if ret.status_code == 200:
                     kb_all_files = ret.content
